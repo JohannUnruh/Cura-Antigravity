@@ -30,6 +30,18 @@ firebase deploy --only functions
 
 ---
 
+## Lokaler Service Account Key
+
+Für die lokale Entwicklung wird der Service Account Key als Datei erwartet:
+
+```
+functions/service-account-key.json
+```
+
+Diese Datei wird von `.gitignore` ignoriert und **niemals committet**.
+
+Neuen Key erhalten? → In [Google Cloud Console](https://console.cloud.google.com/iam-admin/serviceaccounts) erstellen und als `service-account-key.json` im `functions/`-Ordner speichern.
+
 ## Detaillierte Anleitung
 
 ### Secret 1: GOOGLE_SERVICE_ACCOUNT_KEY

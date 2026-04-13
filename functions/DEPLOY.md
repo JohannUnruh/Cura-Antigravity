@@ -153,7 +153,15 @@ Wenn du einen neuen Klienten im UI anlegst und "Kalendereintrag für Erstgesprä
 - [x] Input-Validation mit Zod
 - [x] Keine Credentials im Client-Code
 - [x] Keine Credentials in `.env` Dateien
-- [x] Service Account Key nicht im Git-Repository
+- [x] Service Account Key nicht im Git-Repository (`.gitignore`)
+
+### ⚠️ Wichtig: Service Account Key lokal
+
+Der Service Account Key liegt lokal als `functions/service-account-key.json`.
+Diese Datei wird **niemals committet** (`.gitignore`).
+
+Bei Key-Rotation: Neuen Key in Google Cloud Console erstellen, herunterladen,
+als `service-account-key.json` im `functions/`-Ordner speichern.
 
 ### 🔒 Additional Recommendations
 

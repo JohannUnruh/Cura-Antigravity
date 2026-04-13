@@ -7,8 +7,11 @@
 - ❌ `firebase.json`
 - ❌ Code-Dateien
 - ❌ Client-seitigen Umgebungsvariablen
+- ❌ Git-Repository
 
-**Richtig:** Firebase Secret Manager verwenden!
+**Richtig:**
+- **Produktion:** Firebase Secret Manager (`firebase functions:secrets:set`)
+- **Lokal:** `functions/service-account-key.json` (wird von `.gitignore` ignoriert)
 
 ---
 
