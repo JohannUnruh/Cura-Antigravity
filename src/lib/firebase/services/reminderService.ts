@@ -60,6 +60,39 @@ export const reminderService = {
     },
 
     /**
+     * Create a reminder from a consultation (auto-fill title, message, date)
+     */
+    async createFromConsultation(
+        userId: string,
+        consultation: {
+            clientName: string;
+            type: string;
+            dateFrom: Date;
+            notes?: string;
+            id: string;
+        },
+        frequency: ReminderFrequency = 'weekly'
+    ): Promise<Reminder> {
+        const title = `${consultation.clientName} – ${consultation.type}`;
+        const message = consultation.notes
+            ? consultation.notes.substring(0, 200)
+            : `Erinnerung für Beratung: ${consultation.type}`;
+
+        return this.addReminder({
+            userId,
+            authorId: userId,
+            type: 'consultation-goal',
+            title,
+            message,
+            scheduledDate: consultation.dateFrom,
+            frequency,
+            relatedId: consultation.id,
+            relatedType: 'consultation',
+            isActive: true,
+        });
+    },
+
+    /**
      * Get reminder by ID
      */
     async getReminderById(id: string): Promise<Reminder | null> {
