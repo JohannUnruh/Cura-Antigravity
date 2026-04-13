@@ -48,3 +48,23 @@ Jeder Eintrag folgt diesem Schema:
 - **Status:** done
 - **Beschreibung:** ...
 -->
+
+### Git-Repo bereinigen – ✅ 2026-04-13
+- **Status:** done
+- **Beschreibung:** `.firebase/`, `node_modules/`, Service Account Keys und andere Secrets aus Git entfernt. Sauberer initialer Commit mit nur Projektdateien (130 Dateien statt 49.000).
+- **Betroffene Dateien:** `.gitignore`, `.firebase/`, `functions/service-account-key.json`, diverse Scripts
+
+### Erinnerungsverwaltung verbessern – ✅ 2026-04-13
+- **Status:** done
+- **Beschreibung:** Modal-Form durch Inline-Form ersetzt. Neue Funktion "Aus Beratung erstellen" – zeigt terminierte Beratungen mit Checkboxen, automatische Erinnerungserstellung mit Titel, Datum und Notiz aus der Beratung.
+- **Betroffene Dateien:** `src/components/ui/ReminderList.tsx`, `src/lib/firebase/services/reminderService.ts`
+
+### Test-Benachrichtigung Fix – ✅ 2026-04-13
+- **Status:** done
+- **Beschreibung:** Pfad `/favicon.ico` nach `/favicon.png` korrigiert (verursachte 404-Fehler bei Test-Benachrichtigung).
+- **Betroffene Dateien:** `src/contexts/PushNotificationContext.tsx`
+
+### Einstellungen-Tabs verbessern – ✅ 2026-04-13
+- **Status:** done
+- **Beschreibung:** `overflow-x-auto` entfernt, Tabs liegen jetzt fest nebeneinander ohne Scroll-Bereich.
+- **Betroffene Dateien:** `src/app/settings/page.tsx`

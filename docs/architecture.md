@@ -16,6 +16,15 @@ Cura ist eine **Next.js 16** Single-Page-Anwendung mit **Firebase App Hosting** 
 | Excel | xlsx |
 | Datum | date-fns |
 
+## Wichtige UI-Komponenten
+
+| Komponente | Zweck |
+|------------|-------|
+| `ReminderList.tsx` | Erinnerungsverwaltung mit Inline-Form + Beratungsliste |
+| `ConsultationForm.tsx` | Inline-Formular für neue Beratung |
+| `ClientForm.tsx` | Inline-Formular für neuen Klienten |
+| `ReminderModal.tsx` | Nur noch zum Bearbeiten bestehender Erinnerungen |
+
 ## Verzeichnisstruktur
 
 ```
