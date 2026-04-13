@@ -1,0 +1,44 @@
+{
+  "name": "cura-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@firebase/vertexai-preview": "^0.0.4",
+    "@google-cloud/bigquery": "^8.1.1",
+    "@google-cloud/firestore": "^8.3.0",
+    "@opentelemetry/api": "^1.9.0",
+    "@types/react-signature-canvas": "^1.0.7",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "dotenv": "^17.3.1",
+    "firebase": "^12.10.0",
+    "firebase-admin": "^13.7.0",
+    "googleapis": "^171.4.0",
+    "jspdf": "^4.2.0",
+    "jspdf-autotable": "^5.0.7",
+    "lucide-react": "^0.575.0",
+    "next": "16.1.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-signature-canvas": "^1.1.0-alpha.2",
+    "recharts": "^3.7.0",
+    "tailwind-merge": "^3.5.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

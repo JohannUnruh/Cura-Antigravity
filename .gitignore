@@ -1,0 +1,16 @@
+node_modules/
+.firebase/
+.next/
+dist/
+build/
+.env*
+*.service-account-key.json
+service-account-key.json
+check_data_exists.js
+list_users_rest.js
+run_import_v2.js
+run_import_v3.js
+tmp_debug_user.js
+temp.txt
+files_to_keep.txt
+tsconfig.tsbuildinfo

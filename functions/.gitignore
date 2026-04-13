@@ -1,0 +1,11 @@
+node_modules/
+lib/
+*.log
+.env*
+firebase-debug.log
+firebase-debug.*.log
+*.local
+# Service Account Keys - NIEMALS committen!
+*-service-account-key.json
+service-account.json
+secrets/
