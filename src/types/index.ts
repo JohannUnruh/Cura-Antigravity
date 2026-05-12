@@ -159,6 +159,26 @@ export interface Lecture {
     createdAt: Date;
 }
 
+export interface LegacyConsultation {
+    id: string;
+    authorId: string;
+    topic?: string;
+    consultationType?: string;
+    targetGroup?: string;
+    ageGroup?: string;
+    origin?: string;
+    consequence1?: string;
+    consequence2?: string;
+    consequence3?: string;
+    consequence4?: string;
+    conclusion?: string;
+    dateFrom: Date;
+    dateTo?: Date;
+    durationInHours: number;
+    prepTimeInHours?: number;
+    createdAt?: Date;
+}
+
 export interface Retreat {
     id: string;
     authorId: string;

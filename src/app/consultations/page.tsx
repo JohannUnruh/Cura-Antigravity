@@ -7,11 +7,11 @@ import { clientService } from "@/lib/firebase/services/clientService";
 import { Consultation } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/Card";
-import { Clock, Calendar, MessagesSquare, ArrowRight, Trash2 } from "lucide-react";
+import { Clock, Calendar, MessagesSquare, ArrowRight, Trash2, Target, CalendarPlus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
-
+import { downloadICS } from "@/lib/utils/icsExport";
 interface ConsultationWithClient extends Consultation {
     clientName?: string;
 }
@@ -69,6 +69,26 @@ export default function ConsultationsPage() {
         } finally {
             setIsDeleting(false);
         }
+    };
+
+    const handleICSExport = (consultation: ConsultationWithClient) => {
+        if (!user || !consultation.smartCheck?.timeBound) return;
+
+        let targetDate = consultation.smartCheck.timeBound;
+        if (typeof targetDate === 'string') {
+            targetDate = new Date(targetDate);
+        } else if ((targetDate as any).toDate) {
+            targetDate = (targetDate as any).toDate();
+        }
+
+        const title = `Erinnerung: Zieltermin mit ${consultation.clientName || 'Klient'}`;
+        const description = `Berater: ${user.displayName || 'Unbekannt'}\\n\\nZielvereinbarung:\\n${consultation.goalAgreement || 'Keine spezifische Zielvereinbarung dokumentiert.'}`;
+
+        downloadICS({
+            title, 
+            description, 
+            startDate: targetDate as Date
+        });
     };
 
     return (
@@ -142,6 +162,25 @@ export default function ConsultationsPage() {
                                                     {item.unitsInHours}h
                                                 </span>
                                             </div>
+                                            
+                                            {item.smartCheck?.timeBound && (
+                                                <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-indigo-50/50 p-3 rounded-lg border border-indigo-100 w-fit">
+                                                    <div className="flex items-center gap-2 text-indigo-900 text-sm">
+                                                        <Target className="w-4 h-4 text-indigo-500" />
+                                                        <span className="font-semibold">Zieltermin:</span>
+                                                        <span>{((item.smartCheck.timeBound as any).toDate ? (item.smartCheck.timeBound as any).toDate() : new Date(item.smartCheck.timeBound as any)).toLocaleDateString("de-DE")}</span>
+                                                    </div>
+                                                    <Button 
+                                                        variant="secondary" 
+                                                        size="sm"
+                                                        className="gap-2 text-indigo-600 border border-indigo-200 hover:bg-indigo-50 bg-white"
+                                                        onClick={() => handleICSExport(item)}
+                                                    >
+                                                        <CalendarPlus className="w-4 h-4" />
+                                                        .ics Export
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="flex items-center justify-end gap-2 mt-4 md:mt-0">

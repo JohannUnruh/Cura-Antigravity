@@ -3,9 +3,8 @@ import { ConsultationType, LifeStage, SmartCheck, Consultation } from "@/types";
 import { Button } from "../ui/Button";
 import { VoiceInput } from "../ui/VoiceInput";
 import { PhotoUpload } from "../ui/PhotoUpload";
-import { ChevronDown, ChevronUp } from "lucide-react";
+
 import { useSettings } from "@/contexts/SettingsContext";
-import { AppSettings } from "@/types";
 
 interface ConsultationFormProps {
     clientId: string;
@@ -29,7 +28,7 @@ const CONSTS = {
 };
 
 export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, loading }: ConsultationFormProps) {
-    const { settings, loading: settingsLoading } = useSettings();
+    const { settings } = useSettings();
     const [formData, setFormData] = useState<Partial<Consultation>>(() => initialData || {
         clientId,
         type: 'Seelsorge Präsenz',
@@ -69,7 +68,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
         timeBound: null
     });
 
-    const [isSmartOpen, setIsSmartOpen] = useState(!!initialData?.smartCheck);
+
 
     const handleChange = <K extends keyof Consultation>(field: K, value: Consultation[K]) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -94,7 +93,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
         e.preventDefault();
         onSubmit({
             ...formData,
-            smartCheck: isSmartOpen ? smartCheck : undefined
+            smartCheck: smartCheck.timeBound ? smartCheck : undefined
         }, timeOfDay);
     };
 
@@ -261,6 +260,26 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                         placeholder="Was wurde als Ziel verabredet?"
                     />
                 </div>
+                <div>
+                    <label className="block text-base font-semibold text-gray-900 mb-1">Zieltermin</label>
+                    <input
+                        type="date"
+                        value={(() => {
+                            if (!smartCheck.timeBound) return '';
+                            try {
+                                let d = smartCheck.timeBound as unknown;
+                                if (d && typeof d === 'object' && 'toDate' in d) {
+                                    d = (d as { toDate: () => Date }).toDate();
+                                } else {
+                                    d = new Date(d as string | number | Date);
+                                }
+                                return isNaN((d as Date).getTime()) ? '' : (d as Date).toISOString().split('T')[0];
+                            } catch { return ''; }
+                        })()}
+                        onChange={(e) => handleSmartChange('timeBound', e.target.value ? new Date(e.target.value) : null)}
+                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                </div>
 
                 <div>
                     <div className="flex justify-between mb-1">
@@ -289,92 +308,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                 </div>
             </div>
 
-            {/* SMART Check Accordion */}
-            <div className="border border-indigo-100 rounded-xl overflow-hidden bg-gray-50">
-                <button
-                    type="button"
-                    onClick={() => setIsSmartOpen(!isSmartOpen)}
-                    className="w-full px-4 py-3 bg-indigo-50 hover:bg-indigo-50 flex items-center justify-between transition-colors"
-                >
-                    <span className="font-semibold text-indigo-900">SMART-Check</span>
-                    {isSmartOpen ? <ChevronUp className="w-5 h-5 text-indigo-500" /> : <ChevronDown className="w-5 h-5 text-indigo-500" />}
-                </button>
 
-                {isSmartOpen && (
-                    <div className="p-4 space-y-4">
-                        <div className="flex items-center justify-between">
-                            <label className="text-base font-semibold text-gray-900">Spezifisch (S)</label>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={smartCheck.specific}
-                                    onChange={(e) => handleSmartChange('specific', e.target.checked)}
-                                    className="sr-only peer"
-                                />
-                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
-                            </label>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <label className="text-base font-semibold text-gray-900">Messbar (M)</label>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={smartCheck.measurable}
-                                    onChange={(e) => handleSmartChange('measurable', e.target.checked)}
-                                    className="sr-only peer"
-                                />
-                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
-                            </label>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <label className="text-base font-semibold text-gray-900">Akzeptiert / Attraktiv (A)</label>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={smartCheck.achievable}
-                                    onChange={(e) => handleSmartChange('achievable', e.target.checked)}
-                                    className="sr-only peer"
-                                />
-                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
-                            </label>
-                        </div>
-                        <div>
-                            <label className="block text-base font-semibold text-gray-900 mb-1">Realistisch (R): {smartCheck.relevant}</label>
-                            <input
-                                type="range"
-                                min="1" max="5" step="1"
-                                value={smartCheck.relevant}
-                                onChange={(e) => handleSmartChange('relevant', parseInt(e.target.value))}
-                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                            />
-                            <div className="flex justify-between text-xs text-gray-400 mt-1">
-                                <span>Unrealistisch</span>
-                                <span>Sehr realistisch</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-base font-semibold text-gray-900 mb-1">Terminiert (T)</label>
-                            <input
-                                type="date"
-                                value={(() => {
-                                    if (!smartCheck.timeBound) return '';
-                                    try {
-                                        let d = smartCheck.timeBound as unknown;
-                                        if (d && typeof d === 'object' && 'toDate' in d) {
-                                            d = (d as { toDate: () => Date }).toDate();
-                                        } else {
-                                            d = new Date(d as string | number | Date);
-                                        }
-                                        return isNaN((d as Date).getTime()) ? '' : (d as Date).toISOString().split('T')[0];
-                                    } catch { return ''; }
-                                })()}
-                                onChange={(e) => handleSmartChange('timeBound', e.target.value ? new Date(e.target.value) : null)}
-                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
-                            />
-                        </div>
-                    </div>
-                )}
-            </div>
 
             {/* Foto-Upload */}
             <div className="mt-6">

@@ -5,7 +5,7 @@ import { reminderService } from "@/lib/firebase/services/reminderService";
 import { consultationService } from "@/lib/firebase/services/consultationService";
 import { clientService } from "@/lib/firebase/services/clientService";
 import { Reminder, ReminderFrequency, ReminderType } from "@/types";
-import { Bell, Calendar, Repeat, Trash2, Pencil, ChevronDown, ChevronUp, Check, X } from "lucide-react";
+import { Bell, Calendar, Repeat, Trash2, Pencil, Check, X } from "lucide-react";
 import { Button } from "./Button";
 import { ReminderModal } from "./ReminderModal";
 
@@ -58,11 +58,7 @@ export function ReminderList({ userId }: ReminderListProps) {
     const [selectedConsultations, setSelectedConsultations] = useState<Set<string>>(new Set());
     const [creatingReminders, setCreatingReminders] = useState<Set<string>>(new Set());
 
-    useEffect(() => {
-        loadReminders();
-    }, [userId]);
-
-    const loadReminders = async () => {
+    const loadReminders = useCallback(async () => {
         try {
             setLoading(true);
             const data = await reminderService.getActiveRemindersByUserId(userId);
@@ -72,7 +68,11 @@ export function ReminderList({ userId }: ReminderListProps) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [userId]);
+
+    useEffect(() => {
+        loadReminders();
+    }, [loadReminders]);
 
     const handleDelete = async (id: string) => {
         if (!confirm('Möchtest du diese Erinnerung wirklich löschen?')) return;
@@ -165,7 +165,7 @@ export function ReminderList({ userId }: ReminderListProps) {
         } finally {
             setIsSaving(false);
         }
-    }, [form, userId]);
+    }, [form, loadReminders, userId]);
 
     const handleInlineCancel = () => {
         setShowInlineForm(false);

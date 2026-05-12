@@ -47,6 +47,8 @@ const getTimeRangeStr = (timeOfDay?: string, durationInHours?: number) => {
     return `${label} (${formatTime(startHour)} - ${formatTime(startHour + durationInHours)} Uhr)`;
 };
 
+const formatHours = (h?: number) => h ? Math.round(h * 10) / 10 : 0;
+
 export default function TimeTrackingPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -207,6 +209,11 @@ export default function TimeTrackingPage() {
 
     useEffect(() => { loadData(); }, [loadData]);
 
+    const openPoolModal = useCallback(async () => {
+        await loadPoolData();
+        setIsPoolModalOpen(true);
+    }, [loadPoolData]);
+
     // Check URL parameter for pool view
     useEffect(() => {
         const viewParam = searchParams?.get('view');
@@ -215,7 +222,7 @@ export default function TimeTrackingPage() {
             // Clean URL without reloading
             router.replace('/time-tracking', { scroll: false });
         }
-    }, [searchParams]);
+    }, [openPoolModal, router, searchParams]);
 
     // Load target month hours when distribute modal opens
     useEffect(() => {
@@ -239,10 +246,6 @@ export default function TimeTrackingPage() {
     };
 
     // Pool Modal Handlers
-    const openPoolModal = async () => {
-        await loadPoolData();
-        setIsPoolModalOpen(true);
-    };
 
     const handleSelectPoolEntry = (entryId: string) => {
         setSelectedPoolEntryIds(prev =>
@@ -340,8 +343,8 @@ export default function TimeTrackingPage() {
                 date: new Date(editPoolForm.date),
                 description: editPoolForm.description,
                 durationInHours: editPoolForm.durationInHours,
-                timeOfDay: editPoolForm.timeOfDay as any,
-                type: editPoolForm.type as any
+                timeOfDay: editPoolForm.timeOfDay as TimeEntry["timeOfDay"],
+                type: editPoolForm.type as TimeEntryType
             });
             await loadPoolData();
             setIsEditPoolEntryModalOpen(false);
@@ -352,11 +355,6 @@ export default function TimeTrackingPage() {
         } finally {
             setIsPoolSaving(false);
         }
-    };
-
-    const openDeletePoolEntry = (entry: TimeEntry) => {
-        setEntryToDeletePool(entry);
-        setIsPoolModalOpen(false);
     };
 
     const handleDeletePoolEntry = async () => {
@@ -384,7 +382,7 @@ export default function TimeTrackingPage() {
         setSelected(item);
         setForm({
             date: formatDate(new Date(item.date)),
-            description: sanitizeDescription(item.description, item.referenceId) || "",
+            description: item.description || "",
             durationInHours: item.durationInHours,
             timeOfDay: item.timeOfDay || "Ganztägig",
             type: item.type,
@@ -517,7 +515,7 @@ export default function TimeTrackingPage() {
                 new Date(entry.date).toLocaleDateString("de-DE"),
                 getTimeRangeStr(entry.timeOfDay, entry.durationInHours),
                 entry.type,
-                entry.durationInHours + "h",
+                formatHours(entry.durationInHours) + "h",
                 sanitizeDescription(entry.description, entry.referenceId)
             ];
             tableRows.push(entryData);
@@ -535,7 +533,7 @@ export default function TimeTrackingPage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const finalY = (doc as any).lastAutoTable?.finalY || 45;
         doc.setFontSize(14);
-        doc.text(`Gesamtstunden: ${totalHoursRounded.toFixed(1)}h`, 14, finalY + 15);
+        doc.text(`Gesamtstunden: ${formatHours(totalHoursRounded)}h`, 14, finalY + 15);
 
         doc.save(`Zeiterfassung_${monthName.replace(' ', '_')}.pdf`);
     };
@@ -592,7 +590,7 @@ export default function TimeTrackingPage() {
                                             </div>
                                             <div>
                                                 <h3 className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide">Soll-Stunden</h3>
-                                                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{maxHours}h</p>
+                                                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatHours(maxHours)}h</p>
                                             </div>
                                         </div>
                                     </div>
@@ -609,14 +607,14 @@ export default function TimeTrackingPage() {
                                             </div>
                                             <div>
                                                 <h3 className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide">Ist-Stunden</h3>
-                                                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{usedHours}h</p>
+                                                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{formatHours(usedHours)}h</p>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <p className="text-xs text-gray-500 dark:text-slate-400">Erfasste Stunden</p>
                                         <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${remainingHours < 5 ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'}`}>
-                                            {remainingHours}h offen
+                                            {formatHours(remainingHours)}h offen
                                         </span>
                                     </div>
                                 </CardContent>
@@ -696,9 +694,9 @@ export default function TimeTrackingPage() {
                                 {isMinijobberUser && (
                                     <div className="mt-3">
                                         <div className="flex justify-between text-xs mb-1">
-                                            <span className="text-gray-600 dark:text-slate-400">Verwendet: {usedHours}h von {maxHours}h</span>
+                                            <span className="text-gray-600 dark:text-slate-400">Verwendet: {formatHours(usedHours)}h von {formatHours(maxHours)}h</span>
                                             <span className={`font-medium ${remainingHours < 5 ? 'text-red-600' : 'text-gray-600'}`}>
-                                                Verbleibend: {remainingHours}h
+                                                Verbleibend: {formatHours(remainingHours)}h
                                             </span>
                                         </div>
                                         <div className="w-full h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
@@ -728,7 +726,7 @@ export default function TimeTrackingPage() {
                                     <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                                     <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400">Überstundenpool</h3>
                                 </div>
-                                <p className="text-3xl font-bold text-amber-600 dark:text-amber-400 mt-1">{overtimePoolHours.toFixed(1)} <span className="text-lg text-gray-500 dark:text-slate-500 font-normal">h</span></p>
+                                <p className="text-3xl font-bold text-amber-600 dark:text-amber-400 mt-1">{formatHours(overtimePoolHours)} <span className="text-lg text-gray-500 dark:text-slate-500 font-normal">h</span></p>
                                 <Button
                                     variant="primary"
                                     onClick={openPoolModal}
@@ -806,9 +804,9 @@ export default function TimeTrackingPage() {
                                                 </span>
                                             )}
                                             <span className="flex items-center gap-1.5 text-gray-600 dark:text-slate-300">
-                                                <Clock className="w-3.5 h-3.5" /> {item.durationInHours}h
+                                                <Clock className="w-3.5 h-3.5" /> {formatHours(item.durationInHours)}h
                                             </span>
-                                            {item.description && <span className="text-gray-400 dark:text-slate-500 max-w-sm truncate whitespace-nowrap" title={sanitizeDescription(item.description, item.referenceId)}>| {sanitizeDescription(item.description, item.referenceId)}</span>}
+                                            {item.description && <span className="text-gray-400 dark:text-slate-500 max-w-sm truncate whitespace-nowrap" title={item.description}>| {item.description}</span>}
                                         </div>
                                     </div>
                                     <div className="flex gap-2">
@@ -891,7 +889,7 @@ export default function TimeTrackingPage() {
                 <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Eintrag löschen">
                     <div className="space-y-4">
                         <p className="text-gray-600">
-                            Möchtest du die erfasste Zeit <strong>{entryToDelete?.type} ({entryToDelete?.durationInHours}h)</strong> wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+                            Möchtest du die erfasste Zeit <strong>{entryToDelete?.type} ({formatHours(entryToDelete?.durationInHours)}h)</strong> wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
                         </p>
                         <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                             <Button type="button" variant="ghost" onClick={() => setIsDeleteModalOpen(false)} disabled={isSaving}>Abbrechen</Button>
@@ -934,21 +932,21 @@ export default function TimeTrackingPage() {
                             <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
                                 <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Verfügbarer Pool</p>
                                 <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                                    {poolEntries.reduce((sum, e) => sum + e.durationInHours, 0).toFixed(1)}h
+                                    {formatHours(poolEntries.reduce((sum, e) => sum + e.durationInHours, 0))}h
                                 </p>
                                 <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">{poolEntries.length} Einträge</p>
                             </div>
                             <div className="p-4 bg-gray-50 dark:bg-slate-900/50 rounded-lg">
                                 <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Ausgewählt</p>
                                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                                    {poolEntries.filter(e => selectedPoolEntryIds.includes(e.id)).reduce((sum, e) => sum + e.durationInHours, 0).toFixed(1)}h
+                                    {formatHours(poolEntries.filter(e => selectedPoolEntryIds.includes(e.id)).reduce((sum, e) => sum + e.durationInHours, 0))}h
                                 </p>
                                 <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">{selectedPoolEntryIds.length} von {poolEntries.length}</p>
                             </div>
                             <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
                                 <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Übertragen</p>
                                 <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                                    {poolTransfers.reduce((sum, t) => sum + t.hours, 0).toFixed(1)}h
+                                    {formatHours(poolTransfers.reduce((sum, t) => sum + t.hours, 0))}h
                                 </p>
                                 <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">{poolTransfers.length} Transfers</p>
                             </div>
@@ -962,7 +960,7 @@ export default function TimeTrackingPage() {
                                 disabled={selectedPoolEntryIds.length === 0}
                                 className="gap-2 bg-amber-600 hover:bg-amber-700 text-white"
                             >
-                                <ArrowRight className="w-4 h-4" /> Ausgewählte verteilen ({poolEntries.filter(e => selectedPoolEntryIds.includes(e.id)).reduce((sum, e) => sum + e.durationInHours, 0).toFixed(1)}h)
+                                <ArrowRight className="w-4 h-4" /> Ausgewählte verteilen ({formatHours(poolEntries.filter(e => selectedPoolEntryIds.includes(e.id)).reduce((sum, e) => sum + e.durationInHours, 0))}h)
                             </Button>
                         </div>
 
@@ -996,7 +994,7 @@ export default function TimeTrackingPage() {
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2">
                                                 <span className="font-semibold text-gray-900 dark:text-white">{entry.type}</span>
-                                                <span className="text-sm text-gray-500 dark:text-slate-400">{entry.durationInHours}h</span>
+                                                <span className="text-sm text-gray-500 dark:text-slate-400">{formatHours(entry.durationInHours)}h</span>
                                             </div>
                                             <div className="text-xs text-gray-500 dark:text-slate-400">
                                                 {new Date(entry.date).toLocaleDateString("de-DE")}
@@ -1034,7 +1032,7 @@ export default function TimeTrackingPage() {
                 <Modal isOpen={isDistributeModalOpen} onClose={() => setIsDistributeModalOpen(false)} title="Überstunden verteilen">
                     <div className="space-y-4">
                         <p className="text-gray-600 dark:text-slate-300">
-                            Sie möchten <strong>{poolEntries.filter(e => selectedPoolEntryIds.includes(e.id)).reduce((sum, e) => sum + e.durationInHours, 0).toFixed(1)}h</strong> auf einen Zielmonat verteilen.
+                            Sie möchten <strong>{formatHours(poolEntries.filter(e => selectedPoolEntryIds.includes(e.id)).reduce((sum, e) => sum + e.durationInHours, 0))}h</strong> auf einen Zielmonat verteilen.
                         </p>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -1157,21 +1155,21 @@ export default function TimeTrackingPage() {
                         <div className="p-4 bg-gray-50 dark:bg-slate-900/50 rounded-lg">
                             <div className="flex justify-between mb-2">
                                 <span className="text-sm text-gray-600 dark:text-slate-400">Maximale Stunden:</span>
-                                <span className="text-sm font-medium">{targetMonthMaxHours}h</span>
+                                <span className="text-sm font-medium">{formatHours(targetMonthMaxHours)}h</span>
                             </div>
                             <div className="flex justify-between mb-2">
                                 <span className="text-sm text-gray-600 dark:text-slate-400">Bereits verwendet:</span>
-                                <span className="text-sm font-medium">{targetMonthUsedHours}h</span>
+                                <span className="text-sm font-medium">{formatHours(targetMonthUsedHours)}h</span>
                             </div>
                             <div className="flex justify-between pt-2 border-t border-gray-200 dark:border-white/10">
                                 <span className="text-sm text-gray-600 dark:text-slate-400">Verbleibend:</span>
                                 <span className={`text-sm font-bold ${remainingTargetHours < poolEntries.filter(e => selectedPoolEntryIds.includes(e.id)).reduce((sum, e) => sum + e.durationInHours, 0) ? 'text-red-600' : 'text-green-600'}`}>
-                                    {remainingTargetHours}h
+                                    {formatHours(remainingTargetHours)}h
                                 </span>
                             </div>
                             <div className="flex justify-between mt-2">
                                 <span className="text-sm text-gray-600 dark:text-slate-400">Zu verteilen:</span>
-                                <span className="text-sm font-bold text-amber-600">{poolEntries.filter(e => selectedPoolEntryIds.includes(e.id)).reduce((sum, e) => sum + e.durationInHours, 0)}h</span>
+                                <span className="text-sm font-bold text-amber-600">{formatHours(poolEntries.filter(e => selectedPoolEntryIds.includes(e.id)).reduce((sum, e) => sum + e.durationInHours, 0))}h</span>
                             </div>
                         </div>
 

@@ -1,6 +1,6 @@
 import { Retreat } from "@/types";
 import { db } from "@/lib/firebase/config";
-import { collection, doc, getDocs, setDoc, deleteDoc, query, where, orderBy, Timestamp } from "firebase/firestore";
+import { collection, doc, getDocs, setDoc, deleteDoc, query, where, Timestamp } from "firebase/firestore";
 
 const RETREATS_COLLECTION = "retreats";
 
@@ -44,7 +44,7 @@ export const retreatService = {
 
     async updateRetreat(id: string, data: Partial<Retreat>) {
         const docRef = doc(db, RETREATS_COLLECTION, id);
-        const updateData: any = { ...data };
+        const updateData: Record<string, unknown> = { ...data };
 
         if (data.dateFrom) updateData.dateFrom = Timestamp.fromDate(new Date(data.dateFrom));
         if (data.dateTo) updateData.dateTo = Timestamp.fromDate(new Date(data.dateTo));

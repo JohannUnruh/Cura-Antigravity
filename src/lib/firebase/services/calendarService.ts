@@ -39,6 +39,14 @@ interface CalendarEventResponse {
     htmlLink?: string;
 }
 
+interface CalendarConfigResponse {
+    success: boolean;
+    configured: boolean;
+    calendarId?: string;
+    calendarSummary?: string;
+    error?: string;
+}
+
 export const calendarService = {
     /**
      * Erstellt einen Kalendereintrag im "Zefabiko-Belegnungsplan"
@@ -93,16 +101,10 @@ export const calendarService = {
      * 
      * @returns Konfigurations-Status
      */
-    async checkCalendarConfig(): Promise<{
-        success: boolean;
-        configured: boolean;
-        calendarId?: string;
-        calendarSummary?: string;
-        error?: string;
-    }> {
+    async checkCalendarConfig(): Promise<CalendarConfigResponse> {
         try {
             const functions = getFunctions(app, "europe-west3");
-            const checkConfigFn = httpsCallable<never, any>(
+            const checkConfigFn = httpsCallable<never, CalendarConfigResponse>(
                 functions,
                 "checkCalendarConfig"
             );

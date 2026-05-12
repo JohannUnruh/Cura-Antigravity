@@ -5,7 +5,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { travelService } from "@/lib/firebase/services/travelService";
 import { useSettings } from "@/contexts/SettingsContext";
-import { TravelExpense, UserProfile, AppSettings } from "@/types";
+import { TravelExpense, UserProfile } from "@/types";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";

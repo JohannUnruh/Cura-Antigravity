@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { PhotoUpload } from "@/components/ui/PhotoUpload";
-import { Tent, Plus, Calendar, Clock, MapPin, Pencil, Trash2, Church, Users, FileText } from "lucide-react";
+import { Tent, Plus, Calendar, Clock, MapPin, Pencil, Trash2, Church, Users } from "lucide-react";
 
 export default function RetreatsPage() {
     const { user } = useAuth();

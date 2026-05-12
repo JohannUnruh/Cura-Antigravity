@@ -1,6 +1,6 @@
-import { TimeEntry, OvertimeTransfer, TimeEntryType, ContractType } from "@/types";
+import { TimeEntry, OvertimeTransfer, TimeEntryType } from "@/types";
 import { db } from "@/lib/firebase/config";
-import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where, orderBy } from "firebase/firestore";
+import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where } from "firebase/firestore";
 import { settingsService } from "./settingsService";
 
 const COLLECTION_NAME = "time_entries";

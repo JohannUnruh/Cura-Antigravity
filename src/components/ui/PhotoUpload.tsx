@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Upload, X, Image as ImageIcon, Trash2 } from "lucide-react";
+import Image from "next/image";
+import { Upload, Image as ImageIcon, Trash2 } from "lucide-react";
 import { storage } from "@/lib/firebase/config";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 
@@ -14,7 +15,6 @@ interface PhotoUploadProps {
 
 export function PhotoUpload({ existingPhotos = [], onPhotosChange, folder, itemId }: PhotoUploadProps) {
     const [uploading, setUploading] = useState(false);
-    const [previewUrls, setPreviewUrls] = useState<string[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,10 +108,12 @@ export function PhotoUpload({ existingPhotos = [], onPhotosChange, folder, itemI
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {existingPhotos.map((url, index) => (
                         <div key={index} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-white/10">
-                            <img
+                            <Image
                                 src={url}
                                 alt={`Foto ${index + 1}`}
-                                className="w-full h-full object-cover cursor-pointer"
+                                fill
+                                sizes="(max-width: 768px) 50vw, 33vw"
+                                className="object-cover cursor-pointer"
                                 onClick={() => handleViewPhoto(url)}
                             />
                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">

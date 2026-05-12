@@ -35,7 +35,7 @@ const regionalFunctions = runtimeConfig.region("europe-west3");
 export const sendScheduledReminders = regionalFunctions.pubsub
     .schedule('every 60 minutes')
     .timeZone('Europe/Berlin')
-    .onRun(async (context) => {
+    .onRun(async () => {
         functions.logger.info("Starte sendScheduledReminders...");
 
         const db = admin.firestore();

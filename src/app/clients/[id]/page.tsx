@@ -6,6 +6,7 @@ import { clientService } from "@/lib/firebase/services/clientService";
 import { consultationService } from "@/lib/firebase/services/consultationService";
 import { timeTrackingService } from "@/lib/firebase/services/timeTrackingService";
 import { calendarService } from "@/lib/firebase/services/calendarService";
+import { downloadICS } from "@/lib/utils/icsExport";
 import { Client, Consultation, SkbConsultation } from "@/types";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,7 +16,7 @@ import { Modal } from "@/components/ui/Modal";
 import { ConsultationForm } from "@/components/consultations/ConsultationForm";
 import { SkbConsultationForm } from "@/components/consultations/SkbConsultationForm";
 import { CalendarEventModal } from "@/components/ui/CalendarEventModal";
-import { ArrowLeft, Clock, Calendar, HeartHandshake, Baby, MessagesSquare, Trash2, Pencil, FileText } from "lucide-react";
+import { ArrowLeft, Clock, Calendar, HeartHandshake, Baby, MessagesSquare, Trash2, Pencil, FileText, CalendarPlus, Target } from "lucide-react";
 
 
 
@@ -113,7 +114,7 @@ export default function ClientDetailPage() {
         }
     };
 
-    const handleEditConsultation = async (data: Partial<Consultation>, timeOfDay: 'morning' | 'afternoon' | 'evening' | 'allday') => {
+    const handleEditConsultation = async (data: Partial<Consultation>) => {
         if (!selectedConsultation?.id) return;
         setIsSaving(true);
         try {
@@ -258,6 +259,33 @@ export default function ClientDetailPage() {
         } finally {
             setIsCalendarSaving(false);
         }
+    };
+
+    const handleICSExport = (consultation: Consultation) => {
+        if (!client || !consultation.smartCheck?.timeBound) return;
+        
+        let targetDate = consultation.smartCheck.timeBound;
+        // Firestore Timestamp oder String in Date umwandeln falls nötig
+        if (!(targetDate instanceof Date)) {
+            // @ts-ignore
+            if (targetDate.toDate) {
+                // @ts-ignore
+                targetDate = targetDate.toDate();
+            } else {
+                targetDate = new Date(targetDate);
+            }
+        }
+        
+        const advisorName = user?.displayName || "Berater";
+        const title = `Erinnerung: Zieltermin mit ${client.name}`;
+        const description = `Berater: ${advisorName}\n\nZielvereinbarung:\n${consultation.goalAgreement || 'Keine Zielvereinbarung eingetragen.'}`;
+        
+        downloadICS({
+            title,
+            description,
+            startDate: targetDate,
+            allDay: true,
+        });
     };
 
     useEffect(() => {
@@ -427,7 +455,7 @@ export default function ClientDetailPage() {
                     <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded-lg"><Calendar className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /></div>
                     <div className="text-left">
                         <span className="block font-semibold text-gray-800 dark:text-slate-200">Kalendereintrag erstellen</span>
-                        <span className="block text-xs text-gray-500 dark:text-slate-400 font-normal">Termin im "Zefabiko-Belegnungsplan" eintragen</span>
+                        <span className="block text-xs text-gray-500 dark:text-slate-400 font-normal">Termin im &quot;Zefabiko-Belegnungsplan&quot; eintragen</span>
                     </div>
                 </Button>
 
@@ -490,6 +518,24 @@ export default function ClientDetailPage() {
                                                     <p className="text-gray-600 dark:text-slate-400 text-sm leading-relaxed border-t border-gray-100 dark:border-white/5 pt-3">
                                                         {item.notes || "Keine Notizen hinterlegt."}
                                                     </p>
+                                                    {item.smartCheck?.timeBound && (
+                                                        <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-indigo-50/50 p-3 rounded-lg border border-indigo-100">
+                                                            <div className="flex items-center gap-2 text-indigo-900 text-sm">
+                                                                <Target className="w-4 h-4 text-indigo-500" />
+                                                                <span className="font-semibold">Zieltermin:</span>
+                                                                <span>{((item.smartCheck.timeBound as any).toDate ? (item.smartCheck.timeBound as any).toDate() : new Date(item.smartCheck.timeBound as any)).toLocaleDateString("de-DE")}</span>
+                                                            </div>
+                                                            <Button 
+                                                                variant="secondary" 
+                                                                size="sm"
+                                                                className="gap-2 text-indigo-600 border border-indigo-200 hover:bg-indigo-50 bg-white ml-auto"
+                                                                onClick={() => handleICSExport(item)}
+                                                            >
+                                                                <CalendarPlus className="w-4 h-4" />
+                                                                .ics Export
+                                                            </Button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <div className="flex gap-2 justify-end sm:flex-col sm:justify-start">
                                                     <div className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer" onClick={() => { setSelectedConsultation(item); setIsConsultationModalOpen(true); }}>
@@ -571,7 +617,7 @@ export default function ClientDetailPage() {
                         clientId={clientId}
                         initialData={prefilledConsultation || selectedConsultation || undefined}
                         onSubmit={(data, timeOfDay) => selectedConsultation
-                            ? handleEditConsultation(data, timeOfDay)
+                            ? handleEditConsultation(data)
                             : handleAddConsultation(data, timeOfDay)
                         }
                         onCancel={() => {

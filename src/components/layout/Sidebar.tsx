@@ -106,14 +106,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             )}
 
             {/* Desktop Sidebar */}
-            <aside className="glass-sidebar w-64 h-full flex flex-col p-6 hidden md:flex">
+            <aside className="bg-white dark:bg-slate-950 border-r border-gray-200/50 dark:border-slate-800/50 w-64 h-full flex flex-col p-6 hidden md:flex">
                 {navContent}
             </aside>
 
             {/* Mobile Sidebar Overlay */}
             <aside className={cn(
-                "glass-sidebar w-64 h-full flex flex-col p-6 z-50 transition-transform duration-300 fixed inset-y-0 left-0 md:hidden",
-                isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
+                "bg-white dark:bg-slate-950 w-64 h-full flex flex-col p-6 z-50 transition-transform duration-300 fixed inset-y-0 left-0 md:hidden",
+                isOpen ? "translate-x-0 shadow-2xl border-r border-gray-200 dark:border-slate-800" : "-translate-x-full"
             )}>
                 {navContent}
             </aside>

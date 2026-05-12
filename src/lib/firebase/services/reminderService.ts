@@ -1,6 +1,6 @@
 import { Reminder, FcmToken, ReminderFrequency } from "@/types";
 import { db } from "@/lib/firebase/config";
-import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where, orderBy, Timestamp, addDoc, updateDoc } from "firebase/firestore";
+import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where, orderBy, Timestamp, updateDoc } from "firebase/firestore";
 
 const REMINDERS_COLLECTION = "reminders";
 const FCM_TOKENS_COLLECTION = "fcmTokens";
@@ -25,16 +25,15 @@ function cleanForFirestore(obj: any): any {
 }
 
 // Convert Firestore Timestamp to Date
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function fromFirestore(data: any): any {
+function fromFirestore<T extends Record<string, unknown>>(data: T | undefined): T | null {
     if (!data) return null;
-    const result: any = { ...data };
+    const result: Record<string, unknown> = { ...data };
     for (const key in result) {
         if (result[key] && typeof result[key] === 'object' && 'toDate' in result[key]) {
-            result[key] = result[key].toDate();
+            result[key] = (result[key] as { toDate: () => Date }).toDate();
         }
     }
-    return result;
+    return result as T;
 }
 
 export const reminderService = {

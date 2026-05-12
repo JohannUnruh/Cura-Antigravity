@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { TagInput } from "@/components/ui/TagInput";
 import { UserProfile, Role, AppSettings, ContractType } from "@/types";
-import { Settings, User, MapPin, CreditCard, ShieldCheck, Users, Key, AppWindow, Plus, Pencil, Trash2, FileSignature, Moon, Sun, Cloud } from "lucide-react";
+import { Settings, User, MapPin, CreditCard, ShieldCheck, Users, Key, AppWindow, Plus, Pencil, Trash2, FileSignature, Moon, Sun, Cloud, Eye, EyeOff } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePushNotification } from "@/contexts/PushNotificationContext";
 import { updatePassword } from "firebase/auth";
@@ -50,6 +50,7 @@ export default function SettingsPage() {
         bankDetails: { iban: "", bic: "", accountHolder: "" }
     });
     const [passwordForm, setPasswordForm] = useState({ newPassword: "", confirmPassword: "" });
+    const [showPassword, setShowPassword] = useState(false);
 
     // -- Users Tab State --
     const [users, setUsers] = useState<UserProfile[]>([]);
@@ -132,25 +133,33 @@ export default function SettingsPage() {
     const handleProfileSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user) return;
+
+        // Passwort Validierung VOR dem Speichern prüfen
+        if (passwordForm.newPassword || passwordForm.confirmPassword) {
+            if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+                showMessage('error', 'Passwörter stimmen nicht überein.');
+                return;
+            }
+        }
+
         setIsSaving(true);
         try {
+            // Alle bestehenden Daten aus userProfile behalten (z.B. Vertragsdaten, Benachrichtigungseinstellungen)
             const profileToSave: UserProfile = {
+                ...(userProfile || {}),
                 id: user.uid,
                 firstName: form.firstName,
                 lastName: form.lastName,
                 role: form.role,
+                contractType: form.contractType,
                 address: form.address,
                 bankDetails: form.bankDetails,
                 createdAt: userProfile?.createdAt || new Date(),
-            };
+            } as UserProfile;
+            
             await userService.saveUserProfile(profileToSave);
 
             if (passwordForm.newPassword) {
-                if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-                    showMessage('error', 'Passwörter stimmen nicht überein.');
-                    setIsSaving(false);
-                    return;
-                }
                 await updatePassword(user, passwordForm.newPassword);
                 setPasswordForm({ newPassword: "", confirmPassword: "" });
             }
@@ -365,7 +374,7 @@ export default function SettingsPage() {
                         <p className="text-gray-500 dark:text-slate-400 mt-2">Verwalte dein Profil und App-Konfigurationen.</p>
                     </div>
                     {userProfile?.role === 'Admin' && (
-                        <div className="flex bg-gray-50 dark:bg-slate-900/40 p-1 rounded-xl shadow-sm border border-gray-100 dark:border-white/10 w-full md:w-auto overflow-x-auto">
+                        <div className="flex flex-wrap bg-gray-50 dark:bg-slate-900/40 p-1 rounded-xl shadow-sm border border-gray-100 dark:border-white/10 w-full md:w-auto gap-2">
                             <button onClick={() => setActiveTab('profil')} className={`flex items-center gap-2 px-4 py-2 ${activeTab === 'profil' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 dark:text-slate-400 dark:hover:bg-white/5 hover:bg-gray-100'} rounded-lg transition-all text-sm font-medium whitespace-nowrap`}>
                                 <User className="w-4 h-4" /> Profil
                             </button>
@@ -493,22 +502,42 @@ export default function SettingsPage() {
 
                         <Card className="border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm shadow-sm relative overflow-hidden">
                             <CardContent className="p-6">
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                                    <Key className="w-5 h-5 text-indigo-500" />
-                                    Passwort ändern
-                                </h2>
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                        <Key className="w-5 h-5 text-indigo-500" />
+                                        Passwort ändern
+                                    </h2>
+                                    <button 
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="text-sm flex items-center gap-1.5 text-gray-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-colors"
+                                    >
+                                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        {showPassword ? "Verbergen" : "Einblenden"}
+                                    </button>
+                                </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Neues Passwort</label>
-                                        <input type="password" value={passwordForm.newPassword} onChange={e => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))}
+                                        <input 
+                                            type={showPassword ? "text" : "password"} 
+                                            autoComplete="new-password"
+                                            value={passwordForm.newPassword} 
+                                            onChange={e => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))}
                                             placeholder="Leer lassen für keine Änderung"
-                                            className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white" />
+                                            className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white" 
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Passwort bestätigen</label>
-                                        <input type="password" value={passwordForm.confirmPassword} onChange={e => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                                        <input 
+                                            type={showPassword ? "text" : "password"} 
+                                            autoComplete="new-password"
+                                            value={passwordForm.confirmPassword} 
+                                            onChange={e => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))}
                                             placeholder="Neues Passwort bestätigen"
-                                            className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white" />
+                                            className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white" 
+                                        />
                                     </div>
                                 </div>
                             </CardContent>
@@ -901,7 +930,7 @@ export default function SettingsPage() {
                                             </div>
                                             <p className="text-sm text-gray-600 dark:text-slate-300 flex-1 leading-relaxed">
                                                 Die angezeigten Kosten umfassen alle Cloud-Dienste (Hosting, Datenbank, KI) für dein Projekt <b className="text-gray-900 dark:text-white">cura-ant</b> im aktuellen Kalendermonat. <br />
-                                                <span className="text-xs mt-2 block text-gray-500 dark:text-slate-400">Hinweis: Die Daten werden automatisch mehrmals täglich von Google in dein BigQuery "gcp_billing" Dataset exportiert. Dadurch kann es zu einer leichten Verzögerung von bis zu 24h bei neuen Gebühren kommen.</span>
+                                                <span className="text-xs mt-2 block text-gray-500 dark:text-slate-400">Hinweis: Die Daten werden automatisch mehrmals täglich von Google in dein BigQuery-&quot;gcp_billing&quot;-Dataset exportiert. Dadurch kann es zu einer leichten Verzögerung von bis zu 24h bei neuen Gebühren kommen.</span>
                                             </p>
                                         </div>
                                     )}
@@ -1160,7 +1189,7 @@ export default function SettingsPage() {
                               {/* Info: VAPID Key fehlt */}
                               {push.permission === 'granted' && !push.isInitialized && !push.error && (
                                   <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-sm">
-                                      <strong>Hinweis:</strong> Klicke auf „Gerät registrieren" um Push zu aktivieren.
+                                      <strong>Hinweis:</strong> Klicke auf &bdquo;Gerät registrieren&ldquo;, um Push zu aktivieren.
                                   </div>
                               )}
 

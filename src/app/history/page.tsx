@@ -18,14 +18,16 @@ type HistoryItem = {
     date: Date;
     duration: number;
     description: string;
-    meta?: any;
+    meta?: Record<string, string | undefined>;
 };
+
+type HistoryFilter = 'all' | 'consultation' | 'retreat' | 'lecture' | 'short';
 
 export default function UnifiedHistoryPage() {
     const { user } = useAuth();
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState<'all' | 'consultation' | 'retreat' | 'lecture' | 'short'>('all');
+    const [filter, setFilter] = useState<HistoryFilter>('all');
 
     const loadData = useCallback(async () => {
         if (!user) return;
@@ -138,7 +140,7 @@ export default function UnifiedHistoryPage() {
                     ].map(f => (
                         <button
                             key={f.id}
-                            onClick={() => setFilter(f.id as any)}
+                            onClick={() => setFilter(f.id as HistoryFilter)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${filter === f.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white/60 dark:bg-white/10 text-gray-600 dark:text-slate-300 hover:bg-white dark:hover:bg-white/20 border border-white/60 dark:border-white/10'}`}
                         >
                             <f.icon className="w-4 h-4" />

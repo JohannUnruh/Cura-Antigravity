@@ -7,10 +7,14 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Override default ignores of eslint-config-next.
   globalIgnores([
+    "*.js",
     // Default ignores of eslint-config-next:
+    ".firebase/**",
+    "functions/lib/**",
     ".next/**",
     "out/**",
     "build/**",
+    "public/firebase-messaging-sw.js",
     "next-env.d.ts",
   ]),
 ]);

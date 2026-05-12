@@ -16,19 +16,13 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const { user, userProfile } = useAuth();
-    const [theme, setThemeState] = useState<Theme>('light');
-
-    // Initial theme from user profile
-    useEffect(() => {
-        if (userProfile?.theme) {
-            setThemeState(userProfile.theme);
-        } else {
-            // Check system preference
-            if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                setThemeState('dark');
-            }
+    const [fallbackTheme, setFallbackTheme] = useState<Theme>(() => {
+        if (typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            return "dark";
         }
-    }, [userProfile]);
+        return "light";
+    });
+    const theme = userProfile?.theme ?? fallbackTheme;
 
     // Apply theme to document
     useEffect(() => {
@@ -41,7 +35,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }, [theme]);
 
     const setTheme = async (newTheme: Theme) => {
-        setThemeState(newTheme);
+        setFallbackTheme(newTheme);
         if (user && userProfile) {
             try {
                 await userService.saveUserProfile({

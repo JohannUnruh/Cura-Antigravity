@@ -10,7 +10,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
-import { ClientForm } from "@/components/clients/ClientForm";
+import { ClientForm, type ClientFormSubmission } from "@/components/clients/ClientForm";
 import { CalendarEventModal } from "@/components/ui/CalendarEventModal";
 import {
     Search,
@@ -38,7 +38,6 @@ export default function ClientsPage() {
 
     // Calendar Modal states
     const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
-    const [calendarClientId, setCalendarClientId] = useState<string | null>(null);
     const [calendarClientName, setCalendarClientName] = useState<string>("");
     const [isCalendarSaving, setIsCalendarSaving] = useState(false);
 
@@ -69,12 +68,11 @@ export default function ClientsPage() {
         );
     }, [searchQuery, clients]);
 
-    const handleAddClient = async (data: Omit<Client, "id" | "createdAt">) => {
+    const handleAddClient = async (data: ClientFormSubmission) => {
         if (!user) return;
         setIsSaving(true);
         try {
-            // Extrahiere Calendar-Daten aus dem Formular
-            const { createCalendarEvent, calendarData, ...clientData } = data as any;
+            const { createCalendarEvent, calendarData, ...clientData } = data;
             
             // Klient anlegen
             await clientService.addClient({
@@ -186,7 +184,6 @@ export default function ClientsPage() {
             });
             
             setIsCalendarModalOpen(false);
-            setCalendarClientId(null);
             setCalendarClientName("");
         } catch (error) {
             console.error("Fehler beim Erstellen des Kalendereintrags:", error);
@@ -310,7 +307,6 @@ export default function ClientsPage() {
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                setCalendarClientId(client.id);
                                                                 setCalendarClientName(client.name);
                                                                 setIsCalendarModalOpen(true);
                                                             }}
@@ -402,7 +398,6 @@ export default function ClientsPage() {
                     isOpen={isCalendarModalOpen}
                     onClose={() => {
                         setIsCalendarModalOpen(false);
-                        setCalendarClientId(null);
                         setCalendarClientName("");
                     }}
                     onSubmit={handleCreateCalendarEvent}

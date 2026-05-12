@@ -1,6 +1,6 @@
-import { Consultation, SkbConsultation } from "@/types";
+import { Consultation, LegacyConsultation, SkbConsultation } from "@/types";
 import { db } from "@/lib/firebase/config";
-import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where, orderBy, Timestamp } from "firebase/firestore";
+import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where } from "firebase/firestore";
 
 const CONSULTATIONS_COLLECTION = "consultations";
 const SKB_COLLECTION = "skb_consultations";
@@ -248,7 +248,7 @@ export const consultationService = {
     },
 
     // --- Legacy Excel Consultations ---
-    async getLegacyConsultations(): Promise<any[]> {
+    async getLegacyConsultations(): Promise<LegacyConsultation[]> {
         const q = query(collection(db, "legacy_consultations"));
         const querySnapshot = await getDocs(q);
 
@@ -257,6 +257,8 @@ export const consultationService = {
             return {
                 ...data,
                 id: d.id,
+                authorId: typeof data.authorId === "string" ? data.authorId : "",
+                durationInHours: typeof data.durationInHours === "number" ? data.durationInHours : 0,
                 dateFrom: data.dateFrom?.toDate ? data.dateFrom.toDate() : new Date(data.dateFrom),
                 dateTo: data.dateTo?.toDate ? data.dateTo.toDate() : new Date(data.dateTo),
                 createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
@@ -270,7 +272,7 @@ export const consultationService = {
         });
     },
 
-    async getLegacyConsultationsByAuthor(authorId: string): Promise<any[]> {
+    async getLegacyConsultationsByAuthor(authorId: string): Promise<LegacyConsultation[]> {
         const q = query(collection(db, "legacy_consultations"), where("authorId", "==", authorId));
         const querySnapshot = await getDocs(q);
 
@@ -279,6 +281,8 @@ export const consultationService = {
             return {
                 ...data,
                 id: d.id,
+                authorId: typeof data.authorId === "string" ? data.authorId : "",
+                durationInHours: typeof data.durationInHours === "number" ? data.durationInHours : 0,
                 dateFrom: data.dateFrom?.toDate ? data.dateFrom.toDate() : new Date(data.dateFrom),
                 dateTo: data.dateTo?.toDate ? data.dateTo.toDate() : new Date(data.dateTo),
                 createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),

@@ -11,21 +11,10 @@ import { lectureService } from "@/lib/firebase/services/lectureService";
 import { retreatService } from "@/lib/firebase/services/retreatService";
 import { clientService } from "@/lib/firebase/services/clientService";
 import { useSettings } from "@/contexts/SettingsContext";
-import { AppSettings, Client, Consultation, Lecture, Retreat } from "@/types";
+import { Client, Consultation, Lecture, LegacyConsultation, Retreat } from "@/types";
 import { useTheme } from "@/contexts/ThemeContext";
 
 const COLORS = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#f43f5e", "#8b5cf6", "#ec4899"];
-
-interface LegacyConsultation {
-  id: string;
-  authorId: string;
-  topic: string;
-  dateFrom: Date;
-  durationInHours: number;
-  prepTimeInHours?: number;
-  consultationType?: string;
-  targetGroup?: string;
-}
 
 export default function Dashboard() {
   const { user, userProfile } = useAuth();
@@ -190,7 +179,7 @@ export default function Dashboard() {
       lectureCount: filteredLectures.length,
       retreatCount: filteredRetreats.length
     };
-  }, [data, yearFilter]);
+  }, [data, yearFilter, settings?.problemOrigins]);
 
   if (loading) {
     return (
@@ -396,7 +385,7 @@ export default function Dashboard() {
                             paddingAngle={6}
                             dataKey="value"
                             stroke="none"
-                            label={({ name, value }) => `${value}`}
+                            label={({ value }) => `${value}`}
                           >
                             {stats.groupData.map((_, index) => (
                               <ReCell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

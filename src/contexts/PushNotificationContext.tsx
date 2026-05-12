@@ -245,8 +245,8 @@ export const PushNotificationProvider = ({ children }: { children: React.ReactNo
             if (Notification.permission === 'granted') {
                 new Notification("🔔 Cura Erinnerung", {
                     body: "Test-Benachrichtigung erfolgreich!",
-                    icon: "/favicon.ico",
-                    badge: "/favicon.ico",
+                    icon: "/favicon.png",
+                    badge: "/favicon.png",
                 });
                 
                 console.log("[Push] Test-Benachrichtigung angezeigt");
@@ -296,8 +296,8 @@ export const PushNotificationProvider = ({ children }: { children: React.ReactNo
                     if (title && body && Notification.permission === 'granted') {
                         new Notification(title, {
                             body,
-                            icon: "/favicon.ico",
-                            badge: "/favicon.ico",
+                            icon: "/favicon.png",
+                            badge: "/favicon.png",
                             data: payload.data,
                         });
                     }

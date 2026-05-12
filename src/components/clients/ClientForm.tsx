@@ -6,6 +6,19 @@ import { Button } from "../ui/Button";
 import { useSettings } from "@/contexts/SettingsContext";
 import { Calendar, Clock } from "lucide-react";
 
+type ClientCalendarData = {
+    date: string;
+    endDate: string;
+    startTime: string;
+    endTime: string;
+    location: string;
+};
+
+export type ClientFormSubmission = Omit<Client, "id" | "createdAt"> & {
+    createCalendarEvent?: boolean;
+    calendarData?: ClientCalendarData;
+};
+
 const PERSON_GROUPS: PersonGroup[] = [
     'Ehepaar', 'Erwachsene', 'Familie', 'Jugendliche',
     'Teeny', 'Kind', 'Paar', 'Senior', 'Verwitwet'
@@ -13,7 +26,7 @@ const PERSON_GROUPS: PersonGroup[] = [
 
 interface ClientFormProps {
     initialData?: Partial<Client>;
-    onSubmit: (data: Omit<Client, "id" | "createdAt">) => Promise<void>;
+    onSubmit: (data: ClientFormSubmission) => Promise<void>;
     onCancel: () => void;
     loading: boolean;
 }
@@ -44,7 +57,7 @@ export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientF
             ...formData,
             createCalendarEvent,
             calendarData
-        } as Omit<Client, "id" | "createdAt">);
+        });
     };
 
     return (

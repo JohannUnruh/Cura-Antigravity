@@ -5,7 +5,7 @@ import { Modal } from "./Modal";
 import { Button } from "./Button";
 import { reminderService } from "@/lib/firebase/services/reminderService";
 import { Reminder, ReminderFrequency, ReminderType } from "@/types";
-import { Bell, Calendar, Repeat, Trash2 } from "lucide-react";
+import { Bell, Calendar, Repeat } from "lucide-react";
 
 interface ReminderModalProps {
     isOpen: boolean;
