@@ -68,3 +68,13 @@ Jeder Eintrag folgt diesem Schema:
 - **Status:** done
 - **Beschreibung:** `overflow-x-auto` entfernt, Tabs liegen jetzt fest nebeneinander ohne Scroll-Bereich.
 - **Betroffene Dateien:** `src/app/settings/page.tsx`
+
+### UI & ICS-Export Optimierungen – ✅ 2026-05-13
+- **Status:** done
+- **Beschreibung:** 
+  1. Zieltermine werden jetzt korrekt in den Beratungs- und Klientenübersichten angezeigt (Fehler "invalid Date" behoben).
+  2. ICS-Exporte haben jetzt wöchentliche Erinnerungen (RRULE) bis zum Zieltermin.
+  3. ICS-Exporte weisen nun korrekt den Beraternamen (Vor- und Nachname) zu.
+  4. Sidebar und Einstellungen aufgeräumt (Historie und Benachrichtigungs-Tabs ausgeblendet).
+  5. Deployment-Fehler durch TypeScript-Linter (any-Typen) behoben, sodass Firebase App Hosting wieder erfolgreich baut.
+- **Betroffene Dateien:** `src/lib/utils/icsExport.ts`, `src/app/clients/[id]/page.tsx`, `src/app/consultations/page.tsx`, `src/components/layout/Sidebar.tsx`
