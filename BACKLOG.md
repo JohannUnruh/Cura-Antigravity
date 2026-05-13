@@ -76,5 +76,6 @@ Jeder Eintrag folgt diesem Schema:
   2. ICS-Exporte haben jetzt wöchentliche Erinnerungen (RRULE) bis zum Zieltermin.
   3. ICS-Exporte weisen nun korrekt den Beraternamen (Vor- und Nachname) zu.
   4. Sidebar und Einstellungen aufgeräumt (Historie und Benachrichtigungs-Tabs ausgeblendet).
-  5. Deployment-Fehler durch TypeScript-Linter (any-Typen) behoben, sodass Firebase App Hosting wieder erfolgreich baut.
-- **Betroffene Dateien:** `src/lib/utils/icsExport.ts`, `src/app/clients/[id]/page.tsx`, `src/app/consultations/page.tsx`, `src/components/layout/Sidebar.tsx`
+  5. Deployment-Fehler durch TypeScript-Linter (any-Typen) behoben.
+  6. **Kritischer Fix:** `tsconfig.json` excludiert jetzt `functions/` – behebt den persistenten Build-Fehler (exit status 51) auf Firebase App Hosting.
+- **Betroffene Dateien:** `src/lib/utils/icsExport.ts`, `src/app/clients/[id]/page.tsx`, `src/app/consultations/page.tsx`, `src/components/layout/Sidebar.tsx`, `tsconfig.json`

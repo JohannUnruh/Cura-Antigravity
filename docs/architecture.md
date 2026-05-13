@@ -15,6 +15,7 @@ Cura ist eine **Next.js 16** Single-Page-Anwendung mit **Firebase App Hosting** 
 | PDF | jsPDF + jspdf-autotable |
 | Excel | xlsx |
 | Datum | date-fns |
+| Kalender-Export | Eigene ICS-Generierung (`src/lib/utils/icsExport.ts`) |
 
 ## Wichtige UI-Komponenten
 
@@ -39,19 +40,21 @@ C:\web-apps\Cura-Antigravity\
 │   │   └── ui/                 # UI-Komponenten (Modals, Listen, etc.)
 │   ├── contexts/               # React Context (Auth, Push Notifications, etc.)
 │   ├── lib/
-│   │   └── firebase/           # Firebase Config & Services
-│   │       └── services/       # Business-Logic Services
+│   │   ├── firebase/           # Firebase Config & Services
+│   │   │   └── services/       # Business-Logic Services
+│   │   └── utils/              # Utilities (ICS-Export, etc.)
 │   └── types/
 │       └── index.ts            # Zentrale TypeScript Interfaces
 ├── public/
 │   └── firebase-messaging-sw.js  # Push Notification Service Worker
-├── functions/                  # Firebase Cloud Functions (separates npm-Paket)
+├── functions/                  # Firebase Cloud Functions (separates npm-Paket, eigene tsconfig!)
 │   ├── src/                    # Functions Source (TypeScript)
 │   └── lib/                    # Kompilierte Functions
 ├── docs/                       # Projektdokumentation
 ├── .agents/skills/             # Firebase Agent Skills (Referenzwissen)
 ├── firebase.json               # Firebase Konfiguration
 ├── apphosting.yaml             # App Hosting Konfiguration
+├── tsconfig.json               # TypeScript Konfiguration (MUSS functions/ excluden!)
 ├── firestore.rules             # Firestore Security Rules
 ├── storage.rules               # Cloud Storage Security Rules
 └── .env.local                  # Umgebungsvariablen (nicht committen)

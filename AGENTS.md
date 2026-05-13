@@ -11,11 +11,17 @@ npm run start     # Server starten
 npm run lint      # ESLint
 ```
 
-## Deployment (Firebase App Hosting)
+## Deployment (Firebase App Hosting – CI/CD)
+
+Automatisches Deployment bei `git push` auf `main`:
 
 ```bash
-npx firebase deploy --only apphosting --project cura-ant
+npm run lint          # PFLICHT vor Push
+npm run build         # PFLICHT vor Push
+git add . && git commit -m "..." && git push
 ```
+
+> ⚠️ `tsconfig.json` muss `"functions"` in `"exclude"` haben, sonst schlägt der CI-Build fehl.
 
 Siehe @docs/deployment.md
 
