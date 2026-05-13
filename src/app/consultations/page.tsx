@@ -19,7 +19,8 @@ interface ConsultationWithClient extends Consultation {
 export default function ConsultationsPage() {
     const { user, userProfile } = useAuth();
     const [consultations, setConsultations] = useState<ConsultationWithClient[]>([]);
-    const [legacyConsultations, setLegacyConsultations] = useState<unknown[]>([]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [legacyConsultations, setLegacyConsultations] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState<'current' | 'legacy'>('current');
     const [loading, setLoading] = useState(true);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<string | null>(null);
@@ -77,8 +78,8 @@ export default function ConsultationsPage() {
         let targetDate = consultation.smartCheck.timeBound;
         if (typeof targetDate === 'string') {
             targetDate = new Date(targetDate);
-        } else if (typeof (targetDate as { toDate?: () => Date }).toDate === 'function') {
-            targetDate = (targetDate as { toDate: () => Date }).toDate();
+        } else if (typeof (targetDate as unknown as { toDate?: () => Date }).toDate === 'function') {
+            targetDate = (targetDate as unknown as { toDate: () => Date }).toDate();
         }
 
         const advisorName = userProfile ? `${userProfile.firstName} ${userProfile.lastName}`.trim() : (user.displayName || "Berater");
@@ -174,7 +175,7 @@ export default function ConsultationsPage() {
                                                     <div className="flex items-center gap-2 text-indigo-900 text-sm">
                                                         <Target className="w-4 h-4 text-indigo-500" />
                                                         <span className="font-semibold">Zieltermin:</span>
-                                                        <span>{((item.smartCheck.timeBound as { toDate?: () => Date }).toDate ? (item.smartCheck.timeBound as { toDate: () => Date }).toDate() : new Date(item.smartCheck.timeBound as string | number)).toLocaleDateString("de-DE")}</span>
+                                                        <span>{((item.smartCheck.timeBound as unknown as { toDate?: () => Date }).toDate ? (item.smartCheck.timeBound as unknown as { toDate: () => Date }).toDate() : new Date(item.smartCheck.timeBound as unknown as string | number)).toLocaleDateString("de-DE")}</span>
                                                     </div>
                                                     <Button 
                                                         variant="secondary" 
