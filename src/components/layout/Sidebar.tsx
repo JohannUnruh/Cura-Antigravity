@@ -9,7 +9,6 @@ import { signOut } from "firebase/auth";
 
 const navItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
-    { name: "Historie", href: "/history", icon: HistoryIcon },
     { name: "Klienten", href: "/clients", icon: Users },
     { name: "Beratungen", href: "/consultations", icon: MessagesSquare },
     { name: "Kurzgespräche", href: "/short-consultations", icon: Coffee },

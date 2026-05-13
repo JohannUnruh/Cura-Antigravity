@@ -14,7 +14,7 @@ npm run lint      # ESLint
 ## Deployment (Firebase App Hosting)
 
 ```bash
-firebase apphosting:deploy --project cura-ant
+npx firebase deploy --only apphosting --project cura-ant
 ```
 
 Siehe @docs/deployment.md

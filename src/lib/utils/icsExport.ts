@@ -7,12 +7,14 @@ export function downloadICS({
     startDate,
     endDate,
     allDay = true,
+    repeatWeeklyUntilDate,
 }: {
     title: string;
     description: string;
     startDate: Date;
     endDate?: Date;
     allDay?: boolean;
+    repeatWeeklyUntilDate?: Date;
 }) {
     // Format date for ICS
     const formatDate = (date: Date, isAllDay: boolean) => {
@@ -30,6 +32,13 @@ export function downloadICS({
     const end = endDate || (allDay ? new Date(startDate.getTime() + 86400000) : startDate);
     const endStr = formatDate(end, allDay);
 
+    let rruleStr = '';
+    if (repeatWeeklyUntilDate) {
+        // UNTIL must be in UTC for non-all-day, but for DATE format, it can just be YYYYMMDD
+        const untilStr = formatDate(repeatWeeklyUntilDate, true);
+        rruleStr = `\nRRULE:FREQ=WEEKLY;UNTIL=${untilStr}`;
+    }
+
     const formatString = (str: string) => {
         // Escape newlines, commas and semicolons for ICS
         return str.replace(/\r?\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
@@ -42,7 +51,7 @@ BEGIN:VEVENT
 UID:${Math.random().toString(36).substring(2, 9)}@cura
 DTSTAMP:${formatDate(new Date(), false)}
 DTSTART${allDay ? ';VALUE=DATE:' : ':'}${startStr}
-DTEND${allDay ? ';VALUE=DATE:' : ':'}${endStr}
+DTEND${allDay ? ';VALUE=DATE:' : ':'}${endStr}${rruleStr}
 SUMMARY:${formatString(title)}
 DESCRIPTION:${formatString(description)}
 END:VEVENT

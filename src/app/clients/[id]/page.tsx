@@ -25,7 +25,7 @@ export default function ClientDetailPage() {
     const router = useRouter();
     const clientId = params?.id as string;
     const searchParams = useSearchParams();
-    const { user } = useAuth();
+    const { user, userProfile } = useAuth();
 
     const [client, setClient] = useState<Client | null>(null);
     const [consultations, setConsultations] = useState<Consultation[]>([]);
@@ -276,15 +276,19 @@ export default function ClientDetailPage() {
             }
         }
         
-        const advisorName = user?.displayName || "Berater";
+        const advisorName = userProfile ? `${userProfile.firstName} ${userProfile.lastName}`.trim() : (user?.displayName || "Berater");
         const title = `Erinnerung: Zieltermin mit ${client.name}`;
-        const description = `Berater: ${advisorName}\n\nZielvereinbarung:\n${consultation.goalAgreement || 'Keine Zielvereinbarung eingetragen.'}`;
+        const description = `Berater: ${advisorName}\\n\\nZielvereinbarung:\\n${consultation.goalAgreement || 'Keine Zielvereinbarung eingetragen.'}`;
+        
+        // Start weekly reminder from today
+        const today = new Date();
         
         downloadICS({
             title,
             description,
-            startDate: targetDate,
+            startDate: today,
             allDay: true,
+            repeatWeeklyUntilDate: targetDate,
         });
     };
 

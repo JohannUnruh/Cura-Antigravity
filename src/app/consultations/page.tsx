@@ -17,7 +17,7 @@ interface ConsultationWithClient extends Consultation {
 }
 
 export default function ConsultationsPage() {
-    const { user } = useAuth();
+    const { user, userProfile } = useAuth();
     const [consultations, setConsultations] = useState<ConsultationWithClient[]>([]);
     const [legacyConsultations, setLegacyConsultations] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState<'current' | 'legacy'>('current');
@@ -81,13 +81,19 @@ export default function ConsultationsPage() {
             targetDate = (targetDate as any).toDate();
         }
 
+        const advisorName = userProfile ? `${userProfile.firstName} ${userProfile.lastName}`.trim() : (user.displayName || "Berater");
         const title = `Erinnerung: Zieltermin mit ${consultation.clientName || 'Klient'}`;
-        const description = `Berater: ${user.displayName || 'Unbekannt'}\\n\\nZielvereinbarung:\\n${consultation.goalAgreement || 'Keine spezifische Zielvereinbarung dokumentiert.'}`;
+        const description = `Berater: ${advisorName}\\n\\nZielvereinbarung:\\n${consultation.goalAgreement || 'Keine spezifische Zielvereinbarung dokumentiert.'}`;
+
+        // Start weekly reminder from today
+        const today = new Date();
 
         downloadICS({
             title, 
             description, 
-            startDate: targetDate as Date
+            startDate: today,
+            allDay: true,
+            repeatWeeklyUntilDate: targetDate as Date
         });
     };
 

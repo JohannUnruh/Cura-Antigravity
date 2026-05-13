@@ -13,7 +13,6 @@ import { TagInput } from "@/components/ui/TagInput";
 import { UserProfile, Role, AppSettings, ContractType } from "@/types";
 import { Settings, User, MapPin, CreditCard, ShieldCheck, Users, Key, AppWindow, Plus, Pencil, Trash2, FileSignature, Moon, Sun, Cloud, Eye, EyeOff } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
-import { usePushNotification } from "@/contexts/PushNotificationContext";
 import { updatePassword } from "firebase/auth";
 import { initializeApp, getApps } from "firebase/app";
 import { SignaturePad } from "@/components/ui/SignaturePad";
@@ -22,22 +21,13 @@ import { getAuth, createUserWithEmailAndPassword, signOut, updateProfile } from 
 import { firebaseConfig, db } from "@/lib/firebase/config";
 import { doc, setDoc } from "firebase/firestore";
 import { getMonthlyBillingInfo, type CloudBillingSummary } from "@/app/actions/billing";
-import { ReminderList } from "@/components/ui/ReminderList";
-import { Bell, CheckCircle2, AlertCircle, Clock } from "lucide-react";
 
 export default function SettingsPage() {
     const { user, userProfile } = useAuth();
     const { theme, setTheme } = useTheme();
     const { refreshSettings } = useSettings();
-    const push = usePushNotification();
-    const [activeTab, setActiveTab] = useState<'profil' | 'benutzer' | 'app' | 'benachrichtigungen'>('profil');
+    const [activeTab, setActiveTab] = useState<'profil' | 'benutzer' | 'app'>('profil');
     const [isSaving, setIsSaving] = useState(false);
-
-    // -- Benachrichtigungszeit --
-    const [notifHour, setNotifHour] = useState(userProfile?.notificationHour ?? 9);
-    const [notifMinute, setNotifMinute] = useState(userProfile?.notificationMinute ?? 0);
-    const [notifDayOfWeek, setNotifDayOfWeek] = useState(userProfile?.notificationDayOfWeek ?? 1); // Montag
-    const [isNotifSaving, setIsNotifSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     // -- Profile Tab State --
@@ -98,11 +88,7 @@ export default function SettingsPage() {
                 address: userProfile.address || { street: "", zipCode: "", city: "" },
                 bankDetails: userProfile.bankDetails || { iban: "", bic: "", accountHolder: "" }
             });
-            setNotifHour(userProfile.notificationHour ?? 9);
-            setNotifMinute(userProfile.notificationMinute ?? 0);
-            setNotifDayOfWeek(userProfile.notificationDayOfWeek ?? 1);
         }
-
         if (userProfile?.role === 'Admin') {
             userService.getAllUsers().then(setUsers);
             settingsService.getSettings().then(res => {
@@ -313,30 +299,6 @@ export default function SettingsPage() {
         }
     };
 
-    const handleNotificationTimeSave = async () => {
-        if (!user || !userProfile) return;
-        setIsNotifSaving(true);
-        try {
-            const profileToSave: UserProfile = {
-                ...userProfile,
-                notificationHour: notifHour,
-                notificationMinute: notifMinute,
-                notificationDayOfWeek: notifDayOfWeek,
-            };
-            await userService.saveUserProfile(profileToSave);
-            showMessage('success', `Benachrichtigungen jetzt jeden ${wochentagName(notifDayOfWeek)} um ${String(notifHour).padStart(2, '0')}:${String(notifMinute).padStart(2, '0')} Uhr.`);
-        } catch (error) {
-            console.error(error);
-            showMessage('error', 'Fehler beim Speichern der Benachrichtigungszeit.');
-        } finally {
-            setIsNotifSaving(false);
-        }
-    };
-
-    const wochentagName = (day: number) => {
-        const namen = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
-        return namen[day] || 'Montag';
-    };
 
     const handleAppSettingsSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -383,9 +345,6 @@ export default function SettingsPage() {
                             </button>
                             <button onClick={() => setActiveTab('app')} className={`flex items-center gap-2 px-4 py-2 ${activeTab === 'app' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 dark:text-slate-400 dark:hover:bg-white/5 hover:bg-gray-100'} rounded-lg transition-all text-sm font-medium whitespace-nowrap`}>
                                 <AppWindow className="w-4 h-4" /> Dropdowns & App
-                            </button>
-                            <button onClick={() => setActiveTab('benachrichtigungen')} className={`flex items-center gap-2 px-4 py-2 ${activeTab === 'benachrichtigungen' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 dark:text-slate-400 dark:hover:bg-white/5 hover:bg-gray-100'} rounded-lg transition-all text-sm font-medium whitespace-nowrap`}>
-                                <Bell className="w-4 h-4" /> Benachrichtigungen
                             </button>
                         </div>
                     )}
@@ -1067,260 +1026,6 @@ export default function SettingsPage() {
                         </div>
                     </form>
             </div>
-          )}
-
-          {/* --- BENACHRICHTIGUNGEN TAB (nur für Admin) --- */}
-          {userProfile?.role === 'Admin' && activeTab === 'benachrichtigungen' && (
-              <div className="space-y-6">
-                  <Card className="border-indigo-100 dark:border-indigo-500/20 bg-indigo-50/50 dark:bg-indigo-900/10 shadow-sm">
-                      <CardContent className="p-5 flex items-start gap-4">
-                          <Bell className="w-6 h-6 text-indigo-600 dark:text-indigo-400 mt-1" />
-                          <div>
-                              <h3 className="font-bold text-indigo-900 dark:text-indigo-200">Push-Benachrichtigungen</h3>
-                              <p className="text-sm text-indigo-700 dark:text-indigo-300 mt-1">
-                                  Erhalte wöchentliche Erinnerungen für Gebetsanliegen und andere wichtige Termine.
-                              </p>
-                          </div>
-                      </CardContent>
-                  </Card>
-
-                  {/* Push-Status */}
-                  <Card className="border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm shadow-sm">
-                      <CardContent className="p-6">
-                          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-                              Benachrichtigungs-Einstellungen
-                          </h2>
-
-                          <div className="space-y-4">
-                              {/* Status */}
-                              <div className="flex items-center justify-between p-4 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-gray-200 dark:border-white/10">
-                                  <div className="flex items-center gap-3">
-                                      {push.isSupported ? (
-                                          <CheckCircle2 className="w-5 h-5 text-green-600" />
-                                      ) : (
-                                          <AlertCircle className="w-5 h-5 text-amber-600" />
-                                      )}
-                                      <div>
-                                          <div className="font-medium text-gray-900 dark:text-white">
-                                              {push.isSupported ? 'Push wird unterstützt' : 'Push nicht unterstützt'}
-                                          </div>
-                                          <div className="text-sm text-gray-500 dark:text-slate-400">
-                                              {push.isSupported 
-                                                  ? 'Dein Browser unterstützt Push-Benachrichtigungen' 
-                                                  : 'Dein Browser unterstützt keine Push-Benachrichtigungen'}
-                                          </div>
-                                      </div>
-                                  </div>
-                              </div>
-
-                              {/* Permission Status */}
-                              <div className="flex items-center justify-between p-4 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-gray-200 dark:border-white/10">
-                                  <div className="flex items-center gap-3">
-                                      {push.permission === 'granted' ? (
-                                          <CheckCircle2 className="w-5 h-5 text-green-600" />
-                                      ) : push.permission === 'denied' ? (
-                                          <AlertCircle className="w-5 h-5 text-red-600" />
-                                      ) : (
-                                          <AlertCircle className="w-5 h-5 text-amber-600" />
-                                      )}
-                                      <div>
-                                          <div className="font-medium text-gray-900 dark:text-white">
-                                              Berechtigung: {push.permission === 'granted' ? 'Erteilt' : push.permission === 'denied' ? 'Verweigert' : 'Ausstehend'}
-                                          </div>
-                                          <div className="text-sm text-gray-500 dark:text-slate-400">
-                                              {push.permission === 'granted' 
-                                                  ? 'Benachrichtigungen sind aktiviert' 
-                                                  : push.permission === 'denied'
-                                                  ? 'Benachrichtigungen sind blockiert (in Browser-Einstellungen änderbar)'
-                                                  : 'Keine Berechtigung erteilt'}
-                                          </div>
-                                      </div>
-                                  </div>
-                              </div>
-
-                              {/* Actions */}
-                              <div className="flex gap-3 pt-2">
-                                  {push.permission !== 'granted' && push.isSupported && (
-                                      <Button
-                                          type="button"
-                                          variant="primary"
-                                          onClick={push.requestPermission}
-                                      >
-                                          🔔 Berechtigung erteilen
-                                      </Button>
-                                  )}
-
-                                  {push.permission === 'granted' && !push.isInitialized && push.isSupported && (
-                                      <Button
-                                          type="button"
-                                          variant="primary"
-                                          onClick={() => {
-                                              console.log("[UI] Gerät registrieren geklickt");
-                                              push.registerToken();
-                                          }}
-                                          disabled={push.isRegistering}
-                                      >
-                                          {push.isRegistering ? '⏳ Registriere...' : '📱 Gerät registrieren'}
-                                      </Button>
-                                  )}
-
-                                  {push.isInitialized && (
-                                      <Button
-                                          type="button"
-                                          variant="secondary"
-                                          onClick={push.sendTestNotification}
-                                          disabled={push.isSending}
-                                      >
-                                          {push.isSending ? 'Sende...' : '📬 Test-Benachrichtigung'}
-                                      </Button>
-                                  )}
-
-                                  {push.isInitialized && (
-                                      <Button
-                                          type="button"
-                                          variant="ghost"
-                                          onClick={push.refreshRegistration}
-                                      >
-                                          🔄 Aktualisieren
-                                      </Button>
-                                  )}
-                              </div>
-
-                              {/* Info: VAPID Key fehlt */}
-                              {push.permission === 'granted' && !push.isInitialized && !push.error && (
-                                  <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-sm">
-                                      <strong>Hinweis:</strong> Klicke auf &bdquo;Gerät registrieren&ldquo;, um Push zu aktivieren.
-                                  </div>
-                              )}
-
-                              {/* Error Message */}
-                              {push.error && (
-                                  <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
-                                      {push.error}
-                                  </div>
-                              )}
-
-                              {/* Info */}
-                              {!push.isSupported && (
-                                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
-                                      <strong>Hinweis:</strong> Push-Benachrichtigungen werden von deinem Browser nicht unterstützt. 
-                                      Bitte verwende Chrome, Edge oder Firefox auf Desktop oder Android. 
-                                      Auf iOS funktioniert Push nur in einer installierten PWA (ab iOS 16.4).
-                                  </div>
-                              )}
-                          </div>
-                      </CardContent>
-                  </Card>
-
-                  {/* Erinnerungsliste */}
-                  {user && push.isInitialized && (
-                      <Card className="border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm shadow-sm">
-                          <CardContent className="p-6">
-                              <ReminderList userId={user.uid} />
-                          </CardContent>
-                      </Card>
-                  )}
-
-                  {/* Benachrichtigungszeit */}
-                  {push.isInitialized && (
-                      <Card className="border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm shadow-sm">
-                          <CardContent className="p-6">
-                              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                                  <Clock className="w-5 h-5 text-indigo-500" />
-                                  Benachrichtigungszeit
-                              </h2>
-                              <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
-                                  Lege fest, wann du deine wöchentlichen Erinnerungen erhalten möchtest.
-                              </p>
-
-                              <div className="flex flex-wrap items-center gap-4">
-                                  {/* Wochentag */}
-                                  <div>
-                                      <label htmlFor="notif-day" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Wochentag</label>
-                                      <select
-                                          id="notif-day"
-                                          value={notifDayOfWeek}
-                                          onChange={e => setNotifDayOfWeek(parseInt(e.target.value))}
-                                          className="px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white"
-                                      >
-                                          <option value={1}>Montag</option>
-                                          <option value={2}>Dienstag</option>
-                                          <option value={3}>Mittwoch</option>
-                                          <option value={4}>Donnerstag</option>
-                                          <option value={5}>Freitag</option>
-                                          <option value={6}>Samstag</option>
-                                          <option value={0}>Sonntag</option>
-                                      </select>
-                                  </div>
-
-                                  {/* Uhrzeit */}
-                                  <div className="flex items-end gap-2">
-                                      <div>
-                                          <label htmlFor="notif-hour" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Stunde</label>
-                                          <select
-                                              id="notif-hour"
-                                              value={notifHour}
-                                              onChange={e => setNotifHour(parseInt(e.target.value))}
-                                              className="px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white w-20"
-                                          >
-                                              {Array.from({ length: 24 }, (_, i) => (
-                                                  <option key={i} value={i}>{String(i).padStart(2, '0')}</option>
-                                              ))}
-                                          </select>
-                                      </div>
-                                      <span className="text-2xl font-bold text-gray-700 dark:text-slate-300 pb-1">:</span>
-                                      <div>
-                                          <label htmlFor="notif-minute" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Minute</label>
-                                          <select
-                                              id="notif-minute"
-                                              value={notifMinute}
-                                              onChange={e => setNotifMinute(parseInt(e.target.value))}
-                                              className="px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white w-20"
-                                          >
-                                              {Array.from({ length: 60 }, (_, i) => (
-                                                  <option key={i} value={i}>{String(i).padStart(2, '0')}</option>
-                                              ))}
-                                          </select>
-                                      </div>
-                                  </div>
-
-                                  {/* Speichern Button */}
-                                  <Button
-                                      type="button"
-                                      variant="primary"
-                                      onClick={handleNotificationTimeSave}
-                                      disabled={isNotifSaving}
-                                      className="self-end"
-                                  >
-                                      {isNotifSaving ? '⏳ Speichert...' : '💾 Zeit speichern'}
-                                  </Button>
-                              </div>
-
-                              {/* Aktuelle Einstellung anzeigen */}
-                              <p className="text-sm text-gray-500 dark:text-slate-400 mt-4">
-                                  Aktuell: Jeden <strong className="text-gray-900 dark:text-white">{wochentagName(notifDayOfWeek)}</strong> um{' '}
-                                  <strong className="text-gray-900 dark:text-white">{String(notifHour).padStart(2, '0')}:{String(notifMinute).padStart(2, '0')} Uhr</strong>
-                              </p>
-                          </CardContent>
-                      </Card>
-                  )}
-
-                  {!push.isInitialized && push.isSupported && push.permission === 'granted' && (
-                      <Card className="border-amber-100 dark:border-amber-500/20 bg-amber-50/50 dark:bg-amber-900/10 shadow-sm">
-                          <CardContent className="p-5 flex items-center gap-4">
-                              <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-                              <div>
-                                  <h3 className="font-bold text-amber-900 dark:text-amber-200">
-                                      Registrierung ausstehend
-                                  </h3>
-                                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                                      Bitte erteile die Berechtigung und registriere dein Gerät, um Erinnerungen zu erhalten.
-                                  </p>
-                              </div>
-                          </CardContent>
-                      </Card>
-                  )}
-              </div>
           )}
         </div>
       </ProtectedRoute>

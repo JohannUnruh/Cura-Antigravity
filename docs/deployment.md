@@ -13,11 +13,11 @@ Die App wird über **Firebase App Hosting** deployed (nicht Firebase Hosting Cla
 ### Deployment
 
 ```bash
-# 1. Bauen
+# 1. Bauen (optional, passiert auch beim Deployment)
 npm run build
 
 # 2. Deployen
-firebase apphosting:deploy --project cura-ant
+npx firebase deploy --only apphosting --project cura-ant
 ```
 
 Die Konfiguration liegt in `apphosting.yaml`.
