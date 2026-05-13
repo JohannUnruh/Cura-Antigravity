@@ -267,12 +267,10 @@ export default function ClientDetailPage() {
         let targetDate = consultation.smartCheck.timeBound;
         // Firestore Timestamp oder String in Date umwandeln falls nötig
         if (!(targetDate instanceof Date)) {
-            // @ts-ignore
-            if (targetDate.toDate) {
-                // @ts-ignore
-                targetDate = targetDate.toDate();
+            if (typeof (targetDate as { toDate?: () => Date }).toDate === 'function') {
+                targetDate = (targetDate as { toDate: () => Date }).toDate();
             } else {
-                targetDate = new Date(targetDate);
+                targetDate = new Date(targetDate as string | number);
             }
         }
         
@@ -527,7 +525,7 @@ export default function ClientDetailPage() {
                                                             <div className="flex items-center gap-2 text-indigo-900 text-sm">
                                                                 <Target className="w-4 h-4 text-indigo-500" />
                                                                 <span className="font-semibold">Zieltermin:</span>
-                                                                <span>{((item.smartCheck.timeBound as any).toDate ? (item.smartCheck.timeBound as any).toDate() : new Date(item.smartCheck.timeBound as any)).toLocaleDateString("de-DE")}</span>
+                                                                <span>{((item.smartCheck.timeBound as { toDate?: () => Date }).toDate ? (item.smartCheck.timeBound as { toDate: () => Date }).toDate() : new Date(item.smartCheck.timeBound as string | number)).toLocaleDateString("de-DE")}</span>
                                                             </div>
                                                             <Button 
                                                                 variant="secondary" 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Presentation, Tent, Car, Settings, HandHeart, MessagesSquare, Clock, LogOut, Coffee, HistoryIcon, X } from "lucide-react";
+import { LayoutDashboard, Users, Presentation, Tent, Car, Settings, HandHeart, MessagesSquare, Clock, LogOut, Coffee, X } from "lucide-react";
 import { cn } from "../ui/Card";
 import { auth } from "@/lib/firebase/config";
 import { signOut } from "firebase/auth";
