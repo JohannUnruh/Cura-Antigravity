@@ -16,6 +16,23 @@ interface ConsultationWithClient extends Consultation {
     clientName?: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const formatDateRange = (from: any, to: any) => {
+    if (!from) return "";
+    const fromDate = from.toDate ? from.toDate() : new Date(from);
+    const toDate = to ? (to.toDate ? to.toDate() : new Date(to)) : fromDate;
+    
+    if (isNaN(fromDate.getTime())) return "";
+    
+    const fromStr = fromDate.toLocaleDateString("de-DE");
+    const toStr = toDate.toLocaleDateString("de-DE");
+    
+    if (fromStr === toStr || isNaN(toDate.getTime())) {
+        return fromStr;
+    }
+    return `${fromStr} – ${toStr}`;
+};
+
 export default function ConsultationsPage() {
     const { user, userProfile } = useAuth();
     const [consultations, setConsultations] = useState<ConsultationWithClient[]>([]);
@@ -162,11 +179,14 @@ export default function ConsultationsPage() {
                                             <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-slate-400">
                                                 <span className="flex items-center gap-1.5 font-medium">
                                                     <Calendar className="w-4 h-4 text-gray-400 dark:text-slate-500" />
-                                                    {new Date(item.dateFrom).toLocaleDateString("de-DE")}
+                                                    {formatDateRange(item.dateFrom, item.dateTo)}
                                                 </span>
                                                 <span className="flex items-center gap-1.5">
                                                     <Clock className="w-4 h-4 text-gray-400 dark:text-slate-500" />
                                                     {item.unitsInHours}h
+                                                    {item.prepTimeInHours > 0 && (
+                                                        <span className="text-xs bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 px-2 py-0.5 rounded-full">+{item.prepTimeInHours}h Vorb.</span>
+                                                    )}
                                                 </span>
                                             </div>
                                             
@@ -239,7 +259,7 @@ export default function ConsultationsPage() {
                                             <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-slate-400">
                                                 <span className="flex items-center gap-1.5 font-medium">
                                                     <Calendar className="w-4 h-4 text-gray-400 dark:text-slate-500" />
-                                                    {new Date(item.dateFrom).toLocaleDateString("de-DE")}
+                                                    {formatDateRange(item.dateFrom, item.dateTo)}
                                                 </span>
                                                 <span className="flex items-center gap-1.5">
                                                     <Clock className="w-4 h-4 text-gray-400 dark:text-slate-500" />

@@ -30,7 +30,19 @@ Jeder Eintrag folgt diesem Schema:
 
 <!-- Trage hier neue Aufgaben ein. Der Night Agent arbeitet sie der Priorität nach ab. -->
 
-### Beispiel: P2 – Lesezeichen-Funktion für Klienten
+### [P1] Verwaiste Zeiterfassungseinträge beim Löschen entfernen
+- **Status:** pending
+- **Beschreibung:** Wenn eine Beratung, eine SKB-Beratung, ein Vortrag oder eine Freizeit gelöscht wird, sollten die zugehörigen Zeiterfassungseinträge (die über die `referenceId` verknüpft sind) ebenfalls automatisch gelöscht werden, um Datenmüll zu vermeiden.
+- **Akzeptanzkriterien:** Beim Klick auf "Löschen" für eines der Module werden die verknüpften Zeiterfassungseinträge in der `time_tracking` Firestore Collection gesucht und mitgelöscht.
+- **Betroffene Dateien:** `src/lib/firebase/services/consultationService.ts`, `src/lib/firebase/services/timeTrackingService.ts`, `src/app/clients/[id]/page.tsx`
+
+### [P2] Datums-Validierung in Erstellungsformularen verbessern
+- **Status:** pending
+- **Beschreibung:** In allen Formularen (`ConsultationForm`, `SkbConsultationForm`, Vorträge und Freizeiten) soll eine clientseitige Validierung sicherstellen, dass das Enddatum (`dateTo`) nicht vor dem Startdatum (`dateFrom`) liegen kann.
+- **Akzeptanzkriterien:** Wenn ein Nutzer das Startdatum nach dem aktuellen Enddatum wählt, wird das Enddatum automatisch auf dasselbe Datum angehoben. Ein Absenden mit `dateTo < dateFrom` wird verhindert.
+- **Betroffene Dateien:** `src/components/consultations/ConsultationForm.tsx`, `src/components/consultations/SkbConsultationForm.tsx`, `src/app/lectures/page.tsx`, `src/app/retreats/page.tsx`
+
+### [P2] Lesezeichen-Funktion für Klienten
 - **Status:** pending
 - **Beschreibung:** Nutzer sollen Klienten als Favorit markieren können
 - **Akzeptanzkriterien:** Stern-Icon im Klienten-Profil, Favoriten-Liste in der Sidebar, Persistenz in Firestore
@@ -42,6 +54,19 @@ Jeder Eintrag folgt diesem Schema:
 ## Abgeschlossene Aufgaben
 
 <!-- Der Night Agent verschiebt erledigte Aufgaben hierher mit Datum -->
+
+### Benachrichtigungs-Reaktivierung & Fahrtkosten-Erweiterung – ✅ 2026-05-28
+- **Status:** done
+- **Beschreibung:** 
+  1. Tab "Benachrichtigungen" in den Einstellungen wieder eingeblendet und so optimiert, dass sich alle Benutzer (inklusive Kassenwarte) für Push-Benachrichtigungen registrieren können. Wöchentliche Termin-Einstellungen und die Reminder-List wurden weggelassen, da sie durch den ICS-Export abgelöst wurden.
+  2. Name des Antragstellers im Fahrtkosten-Modul für Kassenwarte/Admins als Badge in der Metadaten-Zeile eingeblendet, um Anträge sofort zuzuordnen.
+  3. Option für Hin- und Rückfahrt (Checkbox) im Fahrtkosten-Modal integriert, welche die API-berechnete Entfernung verdoppelt und die Kilometerstände reaktiv im UI anpasst.
+- **Betroffene Dateien:** `src/app/settings/page.tsx`, `src/app/travel/page.tsx`, `src/types/index.ts`
+
+### Flexible Zeiterfassung & Datumsbereichs-Fixes – ✅ 2026-05-27
+- **Status:** done
+- **Beschreibung:** Steuerung für die automatische Zeiterfassung in allen relevanten Erstellungsformularen (Standard-Beratungsgespräche, SKB-Beratungen, Vorträge und Freizeiten) implementiert. Benutzerdefinierte Stundenverteilung per Wochentagsliste für mehrtägige Zeiträume integriert. Vorbereitungszeit bei Standardberatungen fließt in Zeiterfassung ein und wird als Badge visualisiert. Fehlerbehebung bei Template-Prefills bezüglich Edit-Status durchgeführt und Datumsanzeige robust über `parseFirebaseDate`/`formatDateRange` für korrekte Enddatum-Anzeige bei Zeiträumen umgesetzt.
+- **Betroffene Dateien:** `src/components/consultations/ConsultationForm.tsx`, `src/components/consultations/SkbConsultationForm.tsx`, `src/app/lectures/page.tsx`, `src/app/retreats/page.tsx`, `src/lib/firebase/services/timeTrackingService.ts`, `src/lib/firebase/services/consultationService.ts`, `src/app/clients/[id]/page.tsx`, `src/app/consultations/page.tsx`
 
 <!--
 ### [P1] Beispiel-Aufgabe – ✅ 2026-04-13

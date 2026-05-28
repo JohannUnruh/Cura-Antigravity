@@ -20,6 +20,23 @@ import { ArrowLeft, Clock, Calendar, HeartHandshake, Baby, MessagesSquare, Trash
 
 
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const formatDateRange = (from: any, to: any) => {
+    if (!from) return "";
+    const fromDate = from.toDate ? from.toDate() : new Date(from);
+    const toDate = to ? (to.toDate ? to.toDate() : new Date(to)) : fromDate;
+    
+    if (isNaN(fromDate.getTime())) return "";
+    
+    const fromStr = fromDate.toLocaleDateString("de-DE");
+    const toStr = toDate.toLocaleDateString("de-DE");
+    
+    if (fromStr === toStr || isNaN(toDate.getTime())) {
+        return fromStr;
+    }
+    return `${fromStr} – ${toStr}`;
+};
+
 export default function ClientDetailPage() {
     const params = useParams();
     const router = useRouter();
@@ -76,7 +93,12 @@ export default function ClientDetailPage() {
         }
     }, [clientId, user?.uid]);
 
-    const handleAddConsultation = async (data: Partial<Consultation>, timeOfDay: 'morning' | 'afternoon' | 'evening' | 'allday') => {
+    const handleAddConsultation = async (
+        data: Partial<Consultation>,
+        timeOfDay: 'morning' | 'afternoon' | 'evening' | 'allday',
+        trackHours: boolean = true,
+        customHours?: { date: Date; hours: number }[]
+    ) => {
         setIsSaving(true);
         try {
             const added = await consultationService.addConsultation({
@@ -85,23 +107,27 @@ export default function ClientDetailPage() {
                 authorId: user?.uid || "",
             } as Omit<Consultation, "id" | "createdAt" | "updatedAt">);
 
-            if (user?.uid) {
-                const result = await timeTrackingService.addDistributedTimeEntries(
-                    {
-                        authorId: user.uid,
-                        type: "Beratung",
-                        description: `Beratung (ID: ${added.id.slice(-6).toUpperCase()})`,
-                        referenceId: added.id
-                    },
-                    added.dateFrom,
-                    added.dateTo || added.dateFrom,
-                    added.unitsInHours || 1,
-                    timeOfDay
-                );
-                
-                // User über Overflow informieren
-                if (result.hasOverflow) {
-                    console.log(`${result.poolEntries.length} Einträge wurden im Überstundenpool gespeichert`);
+            if (user?.uid && trackHours) {
+                const totalH = (added.unitsInHours || 0) + (added.prepTimeInHours || 0);
+                if (totalH > 0) {
+                    const result = await timeTrackingService.addDistributedTimeEntries(
+                        {
+                            authorId: user.uid,
+                            type: "Beratung",
+                            description: `Beratung (ID: ${added.id.slice(-6).toUpperCase()})`,
+                            referenceId: added.id
+                        },
+                        added.dateFrom,
+                        added.dateTo || added.dateFrom,
+                        totalH,
+                        timeOfDay,
+                        customHours
+                    );
+                    
+                    // User über Overflow informieren
+                    if (result.hasOverflow) {
+                        console.log(`${result.poolEntries.length} Einträge wurden im Überstundenpool gespeichert`);
+                    }
                 }
             }
 
@@ -132,7 +158,12 @@ export default function ClientDetailPage() {
         }
     };
 
-    const handleSaveSkb = async (data: Partial<SkbConsultation>, timeOfDay: 'morning' | 'afternoon' | 'evening' | 'allday') => {
+    const handleSaveSkb = async (
+        data: Partial<SkbConsultation>,
+        timeOfDay: 'morning' | 'afternoon' | 'evening' | 'allday',
+        trackHours: boolean = true,
+        customHours?: { date: Date; hours: number }[]
+    ) => {
         setIsSaving(true);
         try {
             let savedId = selectedSkb?.id;
@@ -149,7 +180,7 @@ export default function ClientDetailPage() {
                 savedId = added.id;
 
                 // Zeiteinträge nur beim Erstellen hinzufügen
-                if (user?.uid && savedId) {
+                if (trackHours && user?.uid && savedId) {
                     const result = await timeTrackingService.addDistributedTimeEntries(
                         {
                             authorId: user.uid,
@@ -160,7 +191,8 @@ export default function ClientDetailPage() {
                         data.dateFrom || new Date(),
                         data.dateTo || data.dateFrom || new Date(),
                         data.durationInHours || 1,
-                        timeOfDay
+                        timeOfDay,
+                        customHours
                     );
 
                     // User über Overflow informieren
@@ -505,11 +537,14 @@ export default function ClientDetailPage() {
                                                             <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mt-1">
                                                                 <span className="flex items-center gap-1.5 font-medium text-indigo-600/80 bg-indigo-50 px-2 py-0.5 rounded-full">
                                                                     <Calendar className="w-3.5 h-3.5" />
-                                                                    {new Date(item.dateFrom).toLocaleDateString("de-DE")}
+                                                                    {formatDateRange(item.dateFrom, item.dateTo)}
                                                                 </span>
                                                                 <span className="flex items-center gap-1.5 text-gray-600 dark:text-slate-400">
                                                                     <Clock className="w-3.5 h-3.5" />
                                                                     {item.unitsInHours}h
+                                                                    {item.prepTimeInHours > 0 && (
+                                                                        <span className="text-xs bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 px-2 py-0.5 rounded-full">+{item.prepTimeInHours}h Vorb.</span>
+                                                                    )}
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -568,7 +603,7 @@ export default function ClientDetailPage() {
                                                             <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mt-1">
                                                                 <span className="flex items-center gap-1.5 font-medium text-emerald-600/80 bg-emerald-50 px-2 py-0.5 rounded-full">
                                                                     <Calendar className="w-3.5 h-3.5" />
-                                                                    {new Date(item.dateFrom).toLocaleDateString("de-DE")}
+                                                                    {formatDateRange(item.dateFrom, item.dateTo)}
                                                                 </span>
                                                                 <span className="flex items-center gap-1.5 text-gray-600 dark:text-slate-400">
                                                                     <Clock className="w-3.5 h-3.5" />
@@ -618,9 +653,9 @@ export default function ClientDetailPage() {
                     <ConsultationForm
                         clientId={clientId}
                         initialData={prefilledConsultation || selectedConsultation || undefined}
-                        onSubmit={(data, timeOfDay) => selectedConsultation
+                        onSubmit={(data, timeOfDay, trackHours, customHours) => selectedConsultation
                             ? handleEditConsultation(data)
-                            : handleAddConsultation(data, timeOfDay)
+                            : handleAddConsultation(data, timeOfDay, trackHours, customHours)
                         }
                         onCancel={() => {
                             setIsConsultationModalOpen(false);
@@ -643,7 +678,7 @@ export default function ClientDetailPage() {
                     <SkbConsultationForm
                         clientId={clientId}
                         initialData={prefilledSkb || selectedSkb || undefined}
-                        onSubmit={(data, timeOfDay) => handleSaveSkb(data, timeOfDay)}
+                        onSubmit={(data, timeOfDay, trackHours, customHours) => handleSaveSkb(data, timeOfDay, trackHours, customHours)}
                         onCancel={() => {
                             setIsSkbModalOpen(false);
                             setSelectedSkb(null);

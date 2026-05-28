@@ -9,10 +9,31 @@ import { useSettings } from "@/contexts/SettingsContext";
 interface ConsultationFormProps {
     clientId: string;
     initialData?: Partial<Consultation>;
-    onSubmit: (data: Partial<Consultation>, timeOfDay: 'morning' | 'afternoon' | 'evening' | 'allday') => void;
+    onSubmit: (
+        data: Partial<Consultation>,
+        timeOfDay: 'morning' | 'afternoon' | 'evening' | 'allday',
+        trackHours?: boolean,
+        customHours?: { date: Date; hours: number }[]
+    ) => void;
     onCancel: () => void;
     loading?: boolean;
 }
+
+const getDaysRange = (start: Date, end: Date): Date[] => {
+    const dates: Date[] = [];
+    const curr = new Date(start);
+    curr.setHours(0, 0, 0, 0);
+    const stop = new Date(end);
+    stop.setHours(0, 0, 0, 0);
+    
+    let count = 0;
+    while (curr <= stop && count < 100) {
+        dates.push(new Date(curr));
+        curr.setDate(curr.getDate() + 1);
+        count++;
+    }
+    return dates;
+};
 
 const CONSTS = {
     types: [
@@ -29,6 +50,7 @@ const CONSTS = {
 
 export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, loading }: ConsultationFormProps) {
     const { settings } = useSettings();
+    const isEdit = !!initialData?.id;
     const [formData, setFormData] = useState<Partial<Consultation>>(() => initialData || {
         clientId,
         type: 'Seelsorge Präsenz',
@@ -59,6 +81,42 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
     }, [initialData, settings]);
 
     const [timeOfDay, setTimeOfDay] = useState<'morning' | 'afternoon' | 'evening' | 'allday'>('morning');
+    const [trackHours, setTrackHours] = useState(true);
+    const [distributionType, setDistributionType] = useState<'equal' | 'custom'>('equal');
+    const [customHoursMap, setCustomHoursMap] = useState<Record<string, number>>({});
+
+    const dates = React.useMemo(() => {
+        if (!formData.dateFrom || !formData.dateTo) return [];
+        return getDaysRange(formData.dateFrom, formData.dateTo);
+    }, [formData.dateFrom, formData.dateTo]);
+
+    const isMultiDay = dates.length > 1;
+    const totalHours = (formData.unitsInHours || 0) + (formData.prepTimeInHours || 0);
+
+    React.useEffect(() => {
+        if (distributionType === 'equal') {
+            const count = dates.length;
+            if (count > 0) {
+                const hoursPerDay = Math.round((totalHours / count) * 100) / 100;
+                const newMap: Record<string, number> = {};
+                dates.forEach((d) => {
+                    const key = d.toISOString().split('T')[0];
+                    newMap[key] = hoursPerDay;
+                });
+                setCustomHoursMap(newMap);
+            }
+        }
+    }, [dates, totalHours, distributionType]);
+
+    const handleCustomHourChange = (dateKey: string, val: number) => {
+        const newMap = { ...customHoursMap, [dateKey]: val };
+        setCustomHoursMap(newMap);
+        
+        const sum = Object.values(newMap).reduce((acc, curr) => acc + curr, 0);
+        const prep = formData.prepTimeInHours || 0;
+        const newUnits = Math.max(0, sum - prep);
+        setFormData(prev => ({ ...prev, unitsInHours: newUnits }));
+    };
 
     const [smartCheck, setSmartCheck] = useState<SmartCheck>(() => initialData?.smartCheck || {
         specific: false,
@@ -67,8 +125,6 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
         relevant: 3,
         timeBound: null
     });
-
-
 
     const handleChange = <K extends keyof Consultation>(field: K, value: Consultation[K]) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -91,10 +147,18 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        
+        const customHoursList = distributionType === 'custom' && trackHours
+            ? dates.map(d => {
+                const key = d.toISOString().split('T')[0];
+                return { date: d, hours: customHoursMap[key] || 0 };
+              })
+            : undefined;
+
         onSubmit({
             ...formData,
             smartCheck: smartCheck.timeBound ? smartCheck : undefined
-        }, timeOfDay);
+        }, timeOfDay, trackHours, customHoursList);
     };
 
     const handleVoiceInput = (field: keyof Consultation, text: string) => {
@@ -157,7 +221,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                         onChange={(e) => handleChange('type', e.target.value as ConsultationType)}
                         className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
                     >
-                        {(settings?.consultationTypes || CONSTS.types).map(t => <option key={t} value={t}>{t}</option>)}
+                        {Array.from(new Set(settings?.consultationTypes || CONSTS.types)).map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                 </div>
                 <div>
@@ -168,7 +232,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                         onChange={(e) => handleChange('lifeStage', e.target.value as LifeStage)}
                         className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
                     >
-                        {(settings?.lifeStages || CONSTS.lifeStages).map(l => <option key={l} value={l}>{l}</option>)}
+                        {Array.from(new Set(settings?.lifeStages || CONSTS.lifeStages)).map(l => <option key={l} value={l}>{l}</option>)}
                     </select>
                 </div>
                 <div>
@@ -178,7 +242,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                         onChange={(e) => handleChange('problemOriginId', e.target.value)}
                         className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
                     >
-                        {(settings?.problemOrigins || CONSTS.mockProblemOrigins).map(p => <option key={p} value={p}>{p}</option>)}
+                        {Array.from(new Set(settings?.problemOrigins || CONSTS.mockProblemOrigins)).map(p => <option key={p} value={p}>{p}</option>)}
                     </select>
                 </div>
             </div>
@@ -187,7 +251,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
             <div>
                 <label className="block text-base font-semibold text-gray-900 mb-2">Folge-Probleme</label>
                 <div className="flex flex-wrap gap-2">
-                    {(settings?.subProblems || CONSTS.mockSubProblems).map(problem => {
+                    {Array.from(new Set(settings?.subProblems || CONSTS.mockSubProblems)).map(problem => {
                         const isSelected = formData.subProblemsIds?.includes(problem);
                         return (
                             <button
@@ -216,8 +280,13 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                         min="0"
                         required
                         value={formData.unitsInHours}
-                        onChange={(e) => handleChange('unitsInHours', parseFloat(e.target.value))}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
+                        onChange={(e) => handleChange('unitsInHours', parseFloat(e.target.value) || 0)}
+                        readOnly={distributionType === 'custom' && trackHours && isMultiDay && !isEdit}
+                        className={`w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 ${
+                            distributionType === 'custom' && trackHours && isMultiDay && !isEdit
+                                ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                                : 'bg-gray-50'
+                        }`}
                     />
                 </div>
                 <div>
@@ -227,11 +296,100 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                         step="0.25"
                         min="0"
                         value={formData.prepTimeInHours}
-                        onChange={(e) => handleChange('prepTimeInHours', parseFloat(e.target.value))}
+                        onChange={(e) => handleChange('prepTimeInHours', parseFloat(e.target.value) || 0)}
                         className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
                     />
                 </div>
             </div>
+
+            {/* Zeiterfassung Widget */}
+            {!isEdit && (
+                <div className="border-t border-gray-100 pt-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h4 className="text-base font-semibold text-gray-900">Zeiterfassung</h4>
+                            <p className="text-xs text-gray-500">Stunden automatisch in die Zeiterfassung übernehmen</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={trackHours}
+                                onChange={(e) => setTrackHours(e.target.checked)}
+                                className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+
+                    {trackHours && isMultiDay && (
+                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200/60 space-y-3">
+                            <div className="flex items-center justify-between border-b border-gray-200/50 pb-2">
+                                <span className="text-sm font-medium text-gray-700">Stundenverteilung</span>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setDistributionType('equal')}
+                                        className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                                            distributionType === 'equal'
+                                                ? 'bg-indigo-600 text-white'
+                                                : 'bg-white text-gray-600 border border-gray-200'
+                                        }`}
+                                    >
+                                        Gleichmäßig
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setDistributionType('custom')}
+                                        className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                                            distributionType === 'custom'
+                                                ? 'bg-indigo-600 text-white'
+                                                : 'bg-white text-gray-600 border border-gray-200'
+                                        }`}
+                                    >
+                                        Individuell
+                                    </button>
+                                </div>
+                            </div>
+
+                            {distributionType === 'custom' ? (
+                                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                    {dates.map((date) => {
+                                        const key = date.toISOString().split('T')[0];
+                                        const formattedDate = date.toLocaleDateString('de-DE', {
+                                            weekday: 'short',
+                                            day: '2-digit',
+                                            month: '2-digit',
+                                        });
+                                        return (
+                                            <div key={key} className="flex items-center justify-between bg-white p-2 rounded-lg border border-gray-100">
+                                                <span className="text-sm text-gray-600 font-medium">{formattedDate}</span>
+                                                <div className="flex items-center gap-1.5">
+                                                    <input
+                                                        type="number"
+                                                        step="0.25"
+                                                        min="0"
+                                                        value={customHoursMap[key] || 0}
+                                                        onChange={(e) => handleCustomHourChange(key, parseFloat(e.target.value) || 0)}
+                                                        className="w-20 px-2 py-1 text-right border border-gray-200 rounded focus:ring-2 focus:ring-indigo-500/20"
+                                                    />
+                                                    <span className="text-xs text-gray-500">Std.</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    <div className="text-right text-xs text-gray-500 pt-1">
+                                        Gesamtsumme: <span className="font-semibold text-gray-700">{totalHours} Std.</span> (inkl. Vorbereitung)
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-xs text-gray-500">
+                                    Die gesamten {totalHours} Std. (inkl. Vorbereitung) werden gleichmäßig auf {dates.length} Tage verteilt ({Math.round((totalHours / dates.length) * 100) / 100} Std./Tag).
+                                </p>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
 
 
 
@@ -244,7 +402,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                         onChange={(e) => handleChange('goalTypeId', e.target.value)}
                         className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
                     >
-                        {(settings?.goalTypes || CONSTS.mockGoalTypes).map(g => <option key={g} value={g}>{g}</option>)}
+                        {Array.from(new Set(settings?.goalTypes || CONSTS.mockGoalTypes)).map(g => <option key={g} value={g}>{g}</option>)}
                     </select>
                 </div>
                 <div>

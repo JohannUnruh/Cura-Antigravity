@@ -5,11 +5,13 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { travelService } from "@/lib/firebase/services/travelService";
 import { useSettings } from "@/contexts/SettingsContext";
+import { userService } from "@/lib/firebase/services/userService";
 import { TravelExpense, UserProfile } from "@/types";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { Car, Plus, Calendar, MapPin, CheckCircle2, XCircle, Clock3, RefreshCcw } from "lucide-react";
+import { Car, Plus, Calendar, MapPin, CheckCircle2, XCircle, Clock3, RefreshCcw, AlertCircle, QrCode, User } from "lucide-react";
+import QRCode from "qrcode";
 
 export default function TravelPage() {
     const { user, userProfile } = useAuth();
@@ -20,6 +22,12 @@ export default function TravelPage() {
     const [selected, setSelected] = useState<TravelExpense | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
+    const [usersMap, setUsersMap] = useState<Record<string, UserProfile>>({});
+    const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+    const [qrCodeExpense, setQrCodeExpense] = useState<TravelExpense | null>(null);
+    const [qrCodeUser, setQrCodeUser] = useState<UserProfile | null>(null);
+    const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+    const [lastCalculatedOneWayKm, setLastCalculatedOneWayKm] = useState<number | null>(null);
 
     const [form, setForm] = useState(() => getEmptyForm(userProfile));
 
@@ -43,6 +51,7 @@ export default function TravelPage() {
             kmStart: 0,
             kmEnd: 0,
             authorId: profile?.id || "",
+            isRoundTrip: false,
         };
     }
 
@@ -56,6 +65,15 @@ export default function TravelPage() {
         try {
             const expensesData = await travelService.getExpensesByUser(user.uid, userProfile?.role || 'Mitarbeiter');
             setExpenses(expensesData);
+
+            if (userProfile?.role === 'Kassenwart' || userProfile?.role === 'Admin') {
+                const allUsers = await userService.getAllUsers();
+                const uMap: Record<string, UserProfile> = {};
+                allUsers.forEach(u => {
+                    uMap[u.id] = u;
+                });
+                setUsersMap(uMap);
+            }
         } finally {
             setLoading(false);
         }
@@ -66,6 +84,7 @@ export default function TravelPage() {
     const openNew = () => {
         setSelected(null);
         setForm(getEmptyForm(userProfile));
+        setLastCalculatedOneWayKm(null);
         setIsModalOpen(true);
     };
 
@@ -78,7 +97,10 @@ export default function TravelPage() {
             kmStart: item.kmStart,
             kmEnd: item.kmEnd,
             authorId: item.authorId || "",
+            isRoundTrip: item.isRoundTrip || false,
         });
+        const oneWay = (item.kmEnd - item.kmStart) / (item.isRoundTrip ? 2 : 1);
+        setLastCalculatedOneWayKm(Math.round(oneWay));
         setIsModalOpen(true);
     };
 
@@ -108,9 +130,11 @@ export default function TravelPage() {
                 if (routeData.routes && routeData.routes.length > 0) {
                     // Distance is in meters, convert to km and round mathematically
                     const distanceKm = Math.round(routeData.routes[0].distance / 1000);
+                    setLastCalculatedOneWayKm(distanceKm);
+                    const multiplier = form.isRoundTrip ? 2 : 1;
                     setForm(prev => ({
                         ...prev,
-                        kmEnd: prev.kmStart + distanceKm
+                        kmEnd: prev.kmStart + (distanceKm * multiplier)
                     }));
                 } else {
                     alert("Konnte keine Route zwischen den Orten finden.");
@@ -124,6 +148,72 @@ export default function TravelPage() {
         } finally {
             setIsCalculatingDistance(false);
         }
+    };
+
+    const handleRoundTripChange = (checked: boolean) => {
+        setForm(prev => {
+            const nextRoundTrip = checked;
+            let nextKmEnd = prev.kmEnd;
+            if (lastCalculatedOneWayKm !== null) {
+                const multiplier = nextRoundTrip ? 2 : 1;
+                nextKmEnd = prev.kmStart + (lastCalculatedOneWayKm * multiplier);
+            }
+            return {
+                ...prev,
+                isRoundTrip: nextRoundTrip,
+                kmEnd: nextKmEnd,
+            };
+        });
+    };
+
+    const handleShowQrCode = async (expense: TravelExpense) => {
+        setQrCodeExpense(expense);
+        
+        let targetProfile: UserProfile | null = null;
+        if (expense.authorId === user?.uid) {
+            targetProfile = userProfile;
+        } else {
+            targetProfile = usersMap[expense.authorId] || null;
+        }
+        
+        setQrCodeUser(targetProfile);
+        
+        if (targetProfile?.bankDetails?.iban && targetProfile?.bankDetails?.accountHolder) {
+            try {
+                const purpose = `Fahrtkosten ${new Date(expense.startDate).toLocaleDateString("de-DE")} ${expense.startLocation.substring(0, 15)}...`;
+                const qrText = [
+                    "BCD",
+                    "002",
+                    "1",
+                    "SCT",
+                    targetProfile.bankDetails.bic || "",
+                    targetProfile.bankDetails.accountHolder.substring(0, 70),
+                    targetProfile.bankDetails.iban.replace(/\s+/g, ""),
+                    `EUR${(expense.calculatedAmount ?? 0).toFixed(2)}`,
+                    "",
+                    "",
+                    purpose.substring(0, 140),
+                    ""
+                ].join("\n");
+                
+                const url = await QRCode.toDataURL(qrText, {
+                    width: 250,
+                    margin: 2,
+                    color: {
+                        dark: "#0f172a",
+                        light: "#ffffff"
+                    }
+                });
+                setQrCodeUrl(url);
+            } catch (err) {
+                console.error("Error creating QR Code:", err);
+                setQrCodeUrl(null);
+            }
+        } else {
+            setQrCodeUrl(null);
+        }
+        
+        setIsQrModalOpen(true);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -195,6 +285,8 @@ export default function TravelPage() {
                         expenses.map(item => {
                             const sc = statusConfig[item.status];
                             const StatusIcon = sc.icon;
+                            const creator = item.authorId === user?.uid ? userProfile : (usersMap[item.authorId] || null);
+                            const creatorName = creator ? `${creator.firstName} ${creator.lastName}` : null;
                             return (
                                 <Card key={item.id} className="border-white/50 dark:border-white/10 shadow-sm bg-white/40 dark:bg-slate-900/40 hover:shadow-md transition-shadow group">
                                     <CardContent className="p-5 text-gray-900 dark:text-white">
@@ -211,7 +303,13 @@ export default function TravelPage() {
                                                         <StatusIcon className="w-3.5 h-3.5" /> {sc.label}
                                                     </span>
                                                 </div>
-                                                <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-slate-400 mt-1">
+                                                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-slate-400 mt-1">
+                                                    {creatorName && (
+                                                        <span className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/60 px-2.5 py-0.5 rounded-full">
+                                                            <User className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                                                            {creatorName}
+                                                        </span>
+                                                    )}
                                                     <span className="flex items-center gap-1.5 font-medium text-sky-600/80 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/30 px-2 py-0.5 rounded-full">
                                                         <Calendar className="w-3.5 h-3.5" />
                                                         {new Date(item.startDate).toLocaleDateString("de-DE")}
@@ -227,25 +325,39 @@ export default function TravelPage() {
                                                     </span>
                                                 </div>
                                             </div>
-                                            {/* Kassenwart buttons */}
-                                            {item.status === "Eingereicht" && userProfile?.role === "Kassenwart" && (
-                                                <div className="flex gap-2 shrink-0">
+                                            <div className="flex items-center gap-3 shrink-0">
+                                                {item.status !== "Abgelehnt" && (
                                                     <Button
-                                                        variant="ghost"
-                                                        onClick={() => handleStatusChange(item.id, "Genehmigt")}
-                                                        className="text-green-600 hover:bg-green-50 hover:text-green-700 gap-1.5 text-sm"
+                                                        variant="secondary"
+                                                        onClick={() => handleShowQrCode(item)}
+                                                        className="p-2.5 rounded-xl hover:bg-sky-50 dark:hover:bg-sky-950/20 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/30 gap-2 shrink-0 text-sm flex items-center bg-white dark:bg-slate-900"
+                                                        title="Überweisungs-QR-Code (GiroCode) anzeigen"
                                                     >
-                                                        <CheckCircle2 className="w-4 h-4" /> Genehmigen
+                                                        <QrCode className="w-4 h-4" />
+                                                        <span className="hidden sm:inline">GiroCode</span>
                                                     </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        onClick={() => handleStatusChange(item.id, "Abgelehnt")}
-                                                        className="text-red-600 hover:bg-red-50 hover:text-red-700 gap-1.5 text-sm"
-                                                    >
-                                                        <XCircle className="w-4 h-4" /> Ablehnen
-                                                    </Button>
-                                                </div>
-                                            )}
+                                                )}
+
+                                                {/* Kassenwart buttons */}
+                                                {item.status === "Eingereicht" && userProfile?.role === "Kassenwart" && (
+                                                    <div className="flex gap-2 shrink-0">
+                                                        <Button
+                                                            variant="ghost"
+                                                            onClick={() => handleStatusChange(item.id, "Genehmigt")}
+                                                            className="text-green-600 hover:bg-green-50 hover:text-green-700 gap-1.5 text-sm"
+                                                        >
+                                                            <CheckCircle2 className="w-4 h-4" /> Genehmigen
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            onClick={() => handleStatusChange(item.id, "Abgelehnt")}
+                                                            className="text-red-600 hover:bg-red-50 hover:text-red-700 gap-1.5 text-sm"
+                                                        >
+                                                            <XCircle className="w-4 h-4" /> Ablehnen
+                                                        </Button>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -276,6 +388,19 @@ export default function TravelPage() {
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500/20"
                                     placeholder="z.B. Zielstr. 42, 80331 München" />
                             </div>
+                        </div>
+
+                        <div className="flex items-center gap-2.5 p-3 bg-gray-50 dark:bg-slate-900/50 rounded-xl border border-gray-200 dark:border-white/10">
+                            <input
+                                id="isRoundTrip"
+                                type="checkbox"
+                                checked={form.isRoundTrip}
+                                onChange={e => handleRoundTripChange(e.target.checked)}
+                                className="w-4 h-4 text-sky-600 focus:ring-sky-500 border-gray-300 rounded dark:bg-slate-900 dark:border-white/10"
+                            />
+                            <label htmlFor="isRoundTrip" className="text-sm font-medium text-gray-700 dark:text-slate-300 cursor-pointer">
+                                Hin- und Rückfahrt berechnen (berechnete Distanz verdoppeln)
+                            </label>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -324,6 +449,84 @@ export default function TravelPage() {
                             </Button>
                         </div>
                     </form>
+                </Modal>
+
+                {/* QR Code Modal */}
+                <Modal 
+                    isOpen={isQrModalOpen} 
+                    onClose={() => {
+                        setIsQrModalOpen(false);
+                        setQrCodeUrl(null);
+                        setQrCodeExpense(null);
+                        setQrCodeUser(null);
+                    }} 
+                    title="GiroCode für Überweisung"
+                >
+                    <div className="flex flex-col items-center justify-center p-4 space-y-6 text-center">
+                        <p className="text-sm text-gray-500 dark:text-slate-400">
+                            Scanne diesen EPC-QR-Code (GiroCode) mit deiner Banking-App auf dem Smartphone, um die Überweisung direkt auszuführen.
+                        </p>
+
+                        {qrCodeUrl ? (
+                            <div className="bg-white p-4 rounded-2xl shadow-md border border-gray-100 flex items-center justify-center">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={qrCodeUrl} alt="GiroCode" className="w-[250px] h-[250px]" />
+                            </div>
+                        ) : (
+                            <div className="p-6 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded-2xl text-amber-800 dark:text-amber-300 text-sm flex flex-col items-center gap-3">
+                                <AlertCircle className="w-8 h-8 text-amber-600" />
+                                <div>
+                                    <p className="font-semibold mb-1">Keine Bankverbindung hinterlegt</p>
+                                    <p className="text-xs opacity-90">
+                                        Der einreichende Mitarbeiter ({qrCodeUser ? `${qrCodeUser.firstName} ${qrCodeUser.lastName}` : "Unbekannt"}) hat keine IBAN oder keinen Kontoinhaber in seinem Benutzerprofil eingetragen. Der QR-Code kann daher nicht generiert werden.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {qrCodeExpense && qrCodeUser && qrCodeUser.bankDetails?.iban && (
+                            <div className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-2xl p-4 text-left space-y-2 text-sm text-gray-900 dark:text-white">
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500 dark:text-slate-400">Empfänger:</span>
+                                    <span className="font-medium">{qrCodeUser.bankDetails.accountHolder}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500 dark:text-slate-400">IBAN:</span>
+                                    <span className="font-mono font-medium">{qrCodeUser.bankDetails.iban}</span>
+                                </div>
+                                {qrCodeUser.bankDetails.bic && (
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-500 dark:text-slate-400">BIC:</span>
+                                        <span className="font-mono font-medium">{qrCodeUser.bankDetails.bic}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between border-t border-gray-200 dark:border-white/10 pt-2 font-semibold">
+                                    <span className="text-gray-500 dark:text-slate-400">Betrag:</span>
+                                    <span className="text-sky-600 dark:text-sky-400">{(qrCodeExpense.calculatedAmount ?? 0).toFixed(2)} €</span>
+                                </div>
+                                <div className="flex justify-between text-xs text-gray-500 dark:text-slate-400">
+                                    <span>Verwendungszweck:</span>
+                                    <span className="truncate max-w-[200px]" title={`Fahrtkosten ${new Date(qrCodeExpense.startDate).toLocaleDateString("de-DE")} ${qrCodeExpense.startLocation.substring(0, 15)}...`}>
+                                        Fahrtkosten {new Date(qrCodeExpense.startDate).toLocaleDateString("de-DE")} ...
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+
+                        <Button 
+                            type="button" 
+                            variant="ghost" 
+                            onClick={() => {
+                                setIsQrModalOpen(false);
+                                setQrCodeUrl(null);
+                                setQrCodeExpense(null);
+                                setQrCodeUser(null);
+                            }}
+                            className="w-full"
+                        >
+                            Schließen
+                        </Button>
+                    </div>
                 </Modal>
             </div>
         </ProtectedRoute>

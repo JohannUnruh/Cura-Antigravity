@@ -91,26 +91,21 @@ firebase apphosting:deploy --project cura-ant
 
 ### 1. Einstellungen → Benachrichtigungen
 
-Als Admin gibt es jetzt einen neuen Tab **"Benachrichtigungen"** in den Einstellungen.
+Für alle Rollen (inkl. Kassenwart und Mitarbeiter) gibt es jetzt einen Tab **"Benachrichtigungen"** in den Einstellungen.
 
 ### 2. Berechtigung erteilen
 
-1. Auf **"🔔 Berechtigung erteilen"** klicken
+1. Auf **"Berechtigung erteilen"** klicken
 2. Browser-Dialog mit **"Zulassen"** bestätigen
 3. Token wird automatisch registriert
 
 ### 3. Test-Benachrichtigung senden
 
-Auf **"📬 Test-Benachrichtigung"** klicken - eine Browser-Benachrichtigung sollte erscheinen.
+Auf **"Test-Benachrichtigung senden"** klicken - eine Browser-Benachrichtigung sollte erscheinen.
 
-### 4. Erinnerungen verwalten
+### 4. Fahrtkosten-Meldungen (Kassenwart)
 
-- **"Neue Erinnerung erstellen"** klicken
-- Typ wählen (Gebetsanliegen, Geburtstag, Benutzerdefiniert)
-- Titel und Nachricht eingeben
-- Startdatum wählen
-- Wiederholung (Einmalig/Wöchentlich/Monatlich)
-- Speichern
+Der Kassenwart erhält automatisch eine Push-Benachrichtigung auf allen seinen registrierten Geräten, sobald ein Mitarbeiter eine neue Fahrtkostenabrechnung einreicht.
 
 ---
 
@@ -124,7 +119,7 @@ Auf **"📬 Test-Benachrichtigung"** klicken - eine Browser-Benachrichtigung sol
 | `public/firebase-messaging-sw.js` | Service Worker |
 | `src/components/ui/ReminderModal.tsx` | Modal zum Erstellen |
 | `src/components/ui/ReminderList.tsx` | Erinnerungsliste |
-| `src/app/settings/page.tsx` | Neuer Tab "Benachrichtigungen" |
+| `src/app/settings/page.tsx` | Tab "Benachrichtigungen" für alle Rollen |
 | `functions/src/reminderFunctions.ts` | Cloud Functions |
 | `firestore.rules` | Security Rules erweitert |
 

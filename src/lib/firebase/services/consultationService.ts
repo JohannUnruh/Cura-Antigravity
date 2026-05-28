@@ -24,6 +24,17 @@ function cleanForFirestore(obj: any): any {
     return obj;
 }
 
+// Helper to parse Firebase Timestamps or strings into valid JS Date objects
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseFirebaseDate(val: any, fallback?: Date): Date {
+    if (!val) return fallback || new Date();
+    if (typeof val.toDate === 'function') return val.toDate();
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return fallback || new Date();
+    return d;
+}
+
+
 export const consultationService = {
     // --- Standard Consultations ---
     async addConsultation(consultation: Omit<Consultation, "id" | "createdAt">): Promise<Consultation> {
@@ -87,9 +98,9 @@ export const consultationService = {
             return {
                 ...data,
                 id: d.id,
-                dateFrom: data.dateFrom?.toDate ? data.dateFrom.toDate() : new Date(data.dateFrom),
-                dateTo: data.dateTo?.toDate ? data.dateTo.toDate() : new Date(data.dateTo),
-                createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+                dateFrom: parseFirebaseDate(data.dateFrom),
+                dateTo: parseFirebaseDate(data.dateTo, parseFirebaseDate(data.dateFrom)),
+                createdAt: parseFirebaseDate(data.createdAt),
             } as Consultation;
         });
 
@@ -109,9 +120,9 @@ export const consultationService = {
             return {
                 ...data,
                 id: d.id,
-                dateFrom: data.dateFrom?.toDate ? data.dateFrom.toDate() : new Date(data.dateFrom),
-                dateTo: data.dateTo?.toDate ? data.dateTo.toDate() : new Date(data.dateTo),
-                createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+                dateFrom: parseFirebaseDate(data.dateFrom),
+                dateTo: parseFirebaseDate(data.dateTo, parseFirebaseDate(data.dateFrom)),
+                createdAt: parseFirebaseDate(data.createdAt),
             } as Consultation;
         });
 
@@ -131,9 +142,9 @@ export const consultationService = {
             return {
                 ...data,
                 id: d.id,
-                dateFrom: data.dateFrom?.toDate ? data.dateFrom.toDate() : new Date(data.dateFrom),
-                dateTo: data.dateTo?.toDate ? data.dateTo.toDate() : new Date(data.dateTo),
-                createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+                dateFrom: parseFirebaseDate(data.dateFrom),
+                dateTo: parseFirebaseDate(data.dateTo, parseFirebaseDate(data.dateFrom)),
+                createdAt: parseFirebaseDate(data.createdAt),
             } as Consultation;
         });
 
@@ -202,9 +213,9 @@ export const consultationService = {
             return {
                 ...data,
                 id: d.id,
-                dateFrom: data.dateFrom?.toDate ? data.dateFrom.toDate() : new Date(data.dateFrom),
-                dateTo: data.dateTo?.toDate ? data.dateTo.toDate() : new Date(data.dateTo),
-                createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+                dateFrom: parseFirebaseDate(data.dateFrom),
+                dateTo: parseFirebaseDate(data.dateTo, parseFirebaseDate(data.dateFrom)),
+                createdAt: parseFirebaseDate(data.createdAt),
             } as SkbConsultation;
         });
 
@@ -220,9 +231,9 @@ export const consultationService = {
             return {
                 ...data,
                 id: d.id,
-                dateFrom: data.dateFrom?.toDate ? data.dateFrom.toDate() : new Date(data.dateFrom),
-                dateTo: data.dateTo?.toDate ? data.dateTo.toDate() : new Date(data.dateTo),
-                createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+                dateFrom: parseFirebaseDate(data.dateFrom),
+                dateTo: parseFirebaseDate(data.dateTo, parseFirebaseDate(data.dateFrom)),
+                createdAt: parseFirebaseDate(data.createdAt),
             } as SkbConsultation;
         });
 
@@ -238,9 +249,9 @@ export const consultationService = {
             return {
                 ...data,
                 id: d.id,
-                dateFrom: data.dateFrom?.toDate ? data.dateFrom.toDate() : new Date(data.dateFrom),
-                dateTo: data.dateTo?.toDate ? data.dateTo.toDate() : new Date(data.dateTo),
-                createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+                dateFrom: parseFirebaseDate(data.dateFrom),
+                dateTo: parseFirebaseDate(data.dateTo, parseFirebaseDate(data.dateFrom)),
+                createdAt: parseFirebaseDate(data.createdAt),
             } as SkbConsultation;
         });
 
@@ -254,14 +265,15 @@ export const consultationService = {
 
         const items = querySnapshot.docs.map(d => {
             const data = d.data();
+            const dateFrom = parseFirebaseDate(data.dateFrom);
             return {
                 ...data,
                 id: d.id,
                 authorId: typeof data.authorId === "string" ? data.authorId : "",
                 durationInHours: typeof data.durationInHours === "number" ? data.durationInHours : 0,
-                dateFrom: data.dateFrom?.toDate ? data.dateFrom.toDate() : new Date(data.dateFrom),
-                dateTo: data.dateTo?.toDate ? data.dateTo.toDate() : new Date(data.dateTo),
-                createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+                dateFrom,
+                dateTo: parseFirebaseDate(data.dateTo, dateFrom),
+                createdAt: parseFirebaseDate(data.createdAt),
             };
         });
 
@@ -278,14 +290,15 @@ export const consultationService = {
 
         const items = querySnapshot.docs.map(d => {
             const data = d.data();
+            const dateFrom = parseFirebaseDate(data.dateFrom);
             return {
                 ...data,
                 id: d.id,
                 authorId: typeof data.authorId === "string" ? data.authorId : "",
                 durationInHours: typeof data.durationInHours === "number" ? data.durationInHours : 0,
-                dateFrom: data.dateFrom?.toDate ? data.dateFrom.toDate() : new Date(data.dateFrom),
-                dateTo: data.dateTo?.toDate ? data.dateTo.toDate() : new Date(data.dateTo),
-                createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+                dateFrom,
+                dateTo: parseFirebaseDate(data.dateTo, dateFrom),
+                createdAt: parseFirebaseDate(data.createdAt),
             };
         });
 

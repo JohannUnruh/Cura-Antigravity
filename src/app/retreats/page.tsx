@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { retreatService } from "@/lib/firebase/services/retreatService";
@@ -12,6 +12,22 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { PhotoUpload } from "@/components/ui/PhotoUpload";
 import { Tent, Plus, Calendar, Clock, MapPin, Pencil, Trash2, Church, Users } from "lucide-react";
+
+const getDaysRange = (start: Date, end: Date): Date[] => {
+    const dates: Date[] = [];
+    const curr = new Date(start);
+    curr.setHours(0, 0, 0, 0);
+    const stop = new Date(end);
+    stop.setHours(0, 0, 0, 0);
+    
+    let count = 0;
+    while (curr <= stop && count < 100) {
+        dates.push(new Date(curr));
+        curr.setDate(curr.getDate() + 1);
+        count++;
+    }
+    return dates;
+};
 
 export default function RetreatsPage() {
     const { user } = useAuth();
@@ -25,8 +41,43 @@ export default function RetreatsPage() {
     const [trackHours, setTrackHours] = useState(false);
     const [timeOfDay, setTimeOfDay] = useState<'morning' | 'afternoon' | 'evening'>('morning');
     const [retreatTypes, setRetreatTypes] = useState<string[]>([]);
+    const [distributionType, setDistributionType] = useState<'equal' | 'custom'>('equal');
+    const [customHoursMap, setCustomHoursMap] = useState<Record<string, number>>({});
 
     const [form, setForm] = useState(() => getEmptyForm());
+
+    const dates = useMemo(() => {
+        if (!form.dateFrom || !form.dateTo) return [];
+        return getDaysRange(new Date(form.dateFrom), new Date(form.dateTo));
+    }, [form.dateFrom, form.dateTo]);
+
+    const isMultiDay = dates.length > 1;
+    const totalHours = (form.durationInHours || 0) + (form.prepTimeInHours || 0);
+
+    useEffect(() => {
+        if (distributionType === 'equal') {
+            const count = dates.length;
+            if (count > 0) {
+                const hoursPerDay = Math.round((totalHours / count) * 100) / 100;
+                const newMap: Record<string, number> = {};
+                dates.forEach((d) => {
+                    const key = d.toISOString().split('T')[0];
+                    newMap[key] = hoursPerDay;
+                });
+                setCustomHoursMap(newMap);
+            }
+        }
+    }, [dates, totalHours, distributionType]);
+
+    const handleCustomHourChange = (dateKey: string, val: number) => {
+        const newMap = { ...customHoursMap, [dateKey]: val };
+        setCustomHoursMap(newMap);
+        
+        const sum = Object.values(newMap).reduce((acc, curr) => acc + curr, 0);
+        const prep = form.prepTimeInHours || 0;
+        const newUnits = Math.max(0, sum - prep);
+        setForm(prev => ({ ...prev, durationInHours: newUnits }));
+    };
 
     function getEmptyForm() {
         return {
@@ -73,6 +124,8 @@ export default function RetreatsPage() {
         setForm(getEmptyForm());
         setTrackHours(false);
         setTimeOfDay('morning');
+        setDistributionType('equal');
+        setCustomHoursMap({});
         setIsModalOpen(true);
     };
 
@@ -94,6 +147,8 @@ export default function RetreatsPage() {
         });
         setTrackHours(false);
         setTimeOfDay('morning');
+        setDistributionType('equal');
+        setCustomHoursMap({});
         setIsModalOpen(true);
     };
 
@@ -122,6 +177,13 @@ export default function RetreatsPage() {
                 if (trackHours && user?.uid && savedId) {
                     const totalH = (form.durationInHours || 0) + (form.prepTimeInHours || 0);
                     if (totalH > 0) {
+                        const customHoursList = distributionType === 'custom'
+                            ? dates.map(d => {
+                                const key = d.toISOString().split('T')[0];
+                                return { date: d, hours: customHoursMap[key] || 0 };
+                              })
+                            : undefined;
+
                         const result = await timeTrackingService.addDistributedTimeEntries(
                             {
                                 authorId: user.uid,
@@ -132,7 +194,8 @@ export default function RetreatsPage() {
                             new Date(form.dateFrom),
                             new Date(form.dateTo),
                             totalH,
-                            timeOfDay
+                            timeOfDay,
+                            customHoursList
                         );
 
                         // User über Overflow informieren
@@ -310,46 +373,123 @@ export default function RetreatsPage() {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Durchführung (Std.)</label>
                                 <input type="number" step="0.25" min="0" required value={form.durationInHours}
-                                    onChange={e => setForm({ ...form, durationInHours: parseFloat(e.target.value) })}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500/20" />
+                                    onChange={e => setForm({ ...form, durationInHours: parseFloat(e.target.value) || 0 })}
+                                    readOnly={distributionType === 'custom' && trackHours && isMultiDay && !selected}
+                                    className={`w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500/20 ${
+                                        distributionType === 'custom' && trackHours && isMultiDay && !selected
+                                            ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                                            : 'bg-gray-50'
+                                    }`} />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Vorbereitungszeit (Std.)</label>
                                 <input type="number" step="0.25" min="0" value={form.prepTimeInHours}
-                                    onChange={e => setForm({ ...form, prepTimeInHours: parseFloat(e.target.value) })}
+                                    onChange={e => setForm({ ...form, prepTimeInHours: parseFloat(e.target.value) || 0 })}
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500/20" />
                             </div>
                         </div>
 
                         {/* Time Tracking Checkbox */}
-                        <div className="flex flex-col gap-3 px-4 py-3 bg-teal-50/50 rounded-xl border border-teal-100/50">
-                            <label className="flex items-center gap-3 cursor-pointer hover:bg-teal-50 transition-colors">
-                                <input
-                                    type="checkbox"
-                                    checked={trackHours}
-                                    onChange={(e) => setTrackHours(e.target.checked)}
-                                    className="w-4 h-4 rounded border-teal-300 text-teal-600 focus:ring-teal-500"
-                                />
-                                <span className="text-sm font-medium text-gray-700">Stunden in Zeiterfassung übernehmen</span>
-                                <span className="text-xs text-gray-400 ml-auto flex items-center gap-1"><Clock className="w-3 h-3" /> inkl. Vorbereitung</span>
-                            </label>
+                        {!selected && (
+                            <div className="flex flex-col gap-3 px-4 py-3 bg-teal-50/30 rounded-xl border border-teal-200/50">
+                                <label className="flex items-center gap-3 cursor-pointer hover:bg-teal-50/50 transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        checked={trackHours}
+                                        onChange={(e) => setTrackHours(e.target.checked)}
+                                        className="w-4 h-4 rounded border-teal-300 text-teal-600 focus:ring-teal-500"
+                                    />
+                                    <span className="text-sm font-medium text-gray-700">Stunden in Zeiterfassung übernehmen</span>
+                                    <span className="text-xs text-gray-400 ml-auto flex items-center gap-1"><Clock className="w-3 h-3" /> inkl. Vorbereitung</span>
+                                </label>
 
-                            {trackHours && (
-                                <div className="pl-7 flex items-center gap-4 mt-2">
-                                    <span className="text-sm text-gray-600">Tagesabschnitt:</span>
-                                    <select
-                                        value={timeOfDay}
-                                        title="Tagesabschnitt"
-                                        onChange={(e) => setTimeOfDay(e.target.value as 'morning' | 'afternoon' | 'evening')}
-                                        className="px-2 py-1 text-sm bg-white border border-gray-200 rounded-md focus:ring-2 focus:ring-teal-500/20"
-                                    >
-                                        <option value="morning">Vormittags (ab 08:00)</option>
-                                        <option value="afternoon">Nachmittags (ab 15:00)</option>
-                                        <option value="evening">Abends (ab 18:00)</option>
-                                    </select>
-                                </div>
-                            )}
-                        </div>
+                                {trackHours && (
+                                    <>
+                                        <div className="pl-7 flex items-center gap-4 mt-2">
+                                            <span className="text-sm text-gray-600">Tagesabschnitt:</span>
+                                            <select
+                                                value={timeOfDay}
+                                                title="Tagesabschnitt"
+                                                onChange={(e) => setTimeOfDay(e.target.value as 'morning' | 'afternoon' | 'evening')}
+                                                className="px-2 py-1 text-sm bg-white border border-gray-200 rounded-md focus:ring-2 focus:ring-teal-500/20"
+                                            >
+                                                <option value="morning">Vormittags (ab 08:00)</option>
+                                                <option value="afternoon">Nachmittags (ab 15:00)</option>
+                                                <option value="evening">Abends (ab 18:00)</option>
+                                            </select>
+                                        </div>
+
+                                        {isMultiDay && (
+                                            <div className="pl-7 pt-2 border-t border-teal-200/30 space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-medium text-gray-700">Stundenverteilung</span>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setDistributionType('equal')}
+                                                            className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                                                                distributionType === 'equal'
+                                                                    ? 'bg-teal-600 text-white'
+                                                                    : 'bg-white text-gray-600 border border-gray-200'
+                                                            }`}
+                                                        >
+                                                            Gleichmäßig
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setDistributionType('custom')}
+                                                            className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                                                                distributionType === 'custom'
+                                                                    ? 'bg-teal-600 text-white'
+                                                                    : 'bg-white text-gray-600 border border-gray-200'
+                                                            }`}
+                                                        >
+                                                            Individuell
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {distributionType === 'custom' ? (
+                                                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                                        {dates.map((date) => {
+                                                            const key = date.toISOString().split('T')[0];
+                                                            const formattedDate = date.toLocaleDateString('de-DE', {
+                                                                weekday: 'short',
+                                                                day: '2-digit',
+                                                                month: '2-digit',
+                                                            });
+                                                            return (
+                                                                <div key={key} className="flex items-center justify-between bg-white p-2 rounded-lg border border-gray-100">
+                                                                    <span className="text-sm text-gray-600 font-medium">{formattedDate}</span>
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <input
+                                                                            type="number"
+                                                                            step="0.25"
+                                                                            min="0"
+                                                                            value={customHoursMap[key] || 0}
+                                                                            onChange={(e) => handleCustomHourChange(key, parseFloat(e.target.value) || 0)}
+                                                                            className="w-20 px-2 py-1 text-right border border-gray-200 rounded focus:ring-2 focus:ring-teal-500/20"
+                                                                        />
+                                                                        <span className="text-xs text-gray-500">Std.</span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                        <div className="text-right text-xs text-gray-500 pt-1">
+                                                            Gesamtsumme: <span className="font-semibold text-gray-700">{totalHours} Std.</span> (inkl. Vorbereitung)
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-xs text-gray-500">
+                                                        Die gesamten {totalHours} Std. (inkl. Vorbereitung) werden gleichmäßig auf {dates.length} Tage verteilt ({Math.round((totalHours / dates.length) * 100) / 100} Std./Tag).
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        )}
 
                         {/* Foto-Upload */}
                         <div className="mt-4">

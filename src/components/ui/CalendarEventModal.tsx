@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Modal } from "./Modal";
 import { Button } from "./Button";
-import { Calendar, Clock, MapPin, FileText } from "lucide-react";
+import { Calendar, Clock, MapPin, FileText, Download } from "lucide-react";
+import { downloadICS } from "@/lib/utils/icsExport";
 
 interface CalendarEventModalProps {
     isOpen: boolean;
@@ -40,7 +41,36 @@ export function CalendarEventModal({
         description: ""
     });
 
-    const title = clientName ? `Gespräch: ${clientName}` : "Gespräch";
+    const title = clientName ? `Erstgespräch: ${clientName}` : "Erstgespräch";
+
+    const handleIcsExport = () => {
+        const [startHours, startMinutes] = formData.startTime.split(':').map(Number);
+        const [endHours, endMinutes] = formData.endTime.split(':').map(Number);
+        
+        const startDate = new Date(formData.date);
+        startDate.setHours(startHours, startMinutes, 0, 0);
+        
+        const endDate = formData.endDate 
+            ? new Date(formData.endDate)
+            : new Date(formData.date);
+        endDate.setHours(endHours, endMinutes, 0, 0);
+        
+        if (endDate < startDate) {
+            alert("Enddatum/-zeit muss nach Startdatum/-zeit liegen!");
+            return;
+        }
+
+        downloadICS({
+            title,
+            description: formData.description || `Erstgespräch mit ${clientName || 'Klient'}`,
+            startDate,
+            endDate,
+            allDay: false,
+            fileName: `erstgespraech_${clientName ? clientName.replace(/\s+/g, '_') : 'klient'}_${formData.date}.ics`
+        });
+        
+        onClose();
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -84,7 +114,7 @@ export function CalendarEventModal({
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title="Kalendereintrag erstellen"
+            title="Erstgespräch planen"
         >
             <form onSubmit={handleSubmit} className="space-y-5">
                 {/* Klientenname / Titel */}
@@ -186,14 +216,23 @@ export function CalendarEventModal({
                 </div>
 
                 {/* Buttons */}
-                <div className="flex gap-3 pt-4 border-t border-gray-100 dark:border-white/10">
+                <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100 dark:border-white/10">
                     <Button
                         type="submit"
                         variant="primary"
                         className="flex-1"
                         disabled={loading}
                     >
-                        {loading ? "Wird erstellt..." : "Kalendereintrag erstellen"}
+                        {loading ? "Wird eingetragen..." : "In Belegungsplan eintragen"}
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={handleIcsExport}
+                        className="flex-1 gap-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/20 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30"
+                        disabled={loading}
+                    >
+                        <Download className="w-4 h-4" /> Als ICS exportieren
                     </Button>
                     <Button
                         type="button"

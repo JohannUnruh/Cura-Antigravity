@@ -11,8 +11,9 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { TagInput } from "@/components/ui/TagInput";
 import { UserProfile, Role, AppSettings, ContractType } from "@/types";
-import { Settings, User, MapPin, CreditCard, ShieldCheck, Users, Key, AppWindow, Plus, Pencil, Trash2, FileSignature, Moon, Sun, Cloud, Eye, EyeOff } from "lucide-react";
+import { Settings, User, MapPin, CreditCard, ShieldCheck, Users, Key, AppWindow, Plus, Pencil, Trash2, FileSignature, Moon, Sun, Cloud, Eye, EyeOff, Bell, CheckCircle2, AlertCircle } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
+import { usePushNotification } from "@/contexts/PushNotificationContext";
 import { updatePassword } from "firebase/auth";
 import { initializeApp, getApps } from "firebase/app";
 import { SignaturePad } from "@/components/ui/SignaturePad";
@@ -26,7 +27,8 @@ export default function SettingsPage() {
     const { user, userProfile } = useAuth();
     const { theme, setTheme } = useTheme();
     const { refreshSettings } = useSettings();
-    const [activeTab, setActiveTab] = useState<'profil' | 'benutzer' | 'app'>('profil');
+    const push = usePushNotification();
+    const [activeTab, setActiveTab] = useState<'profil' | 'benutzer' | 'app' | 'benachrichtigungen'>('profil');
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
@@ -335,19 +337,24 @@ export default function SettingsPage() {
                         </h1>
                         <p className="text-gray-500 dark:text-slate-400 mt-2">Verwalte dein Profil und App-Konfigurationen.</p>
                     </div>
-                    {userProfile?.role === 'Admin' && (
-                        <div className="flex flex-wrap bg-gray-50 dark:bg-slate-900/40 p-1 rounded-xl shadow-sm border border-gray-100 dark:border-white/10 w-full md:w-auto gap-2">
-                            <button onClick={() => setActiveTab('profil')} className={`flex items-center gap-2 px-4 py-2 ${activeTab === 'profil' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 dark:text-slate-400 dark:hover:bg-white/5 hover:bg-gray-100'} rounded-lg transition-all text-sm font-medium whitespace-nowrap`}>
-                                <User className="w-4 h-4" /> Profil
-                            </button>
-                            <button onClick={() => setActiveTab('benutzer')} className={`flex items-center gap-2 px-4 py-2 ${activeTab === 'benutzer' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 dark:text-slate-400 dark:hover:bg-white/5 hover:bg-gray-100'} rounded-lg transition-all text-sm font-medium whitespace-nowrap`}>
-                                <Users className="w-4 h-4" /> Benutzer
-                            </button>
-                            <button onClick={() => setActiveTab('app')} className={`flex items-center gap-2 px-4 py-2 ${activeTab === 'app' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 dark:text-slate-400 dark:hover:bg-white/5 hover:bg-gray-100'} rounded-lg transition-all text-sm font-medium whitespace-nowrap`}>
-                                <AppWindow className="w-4 h-4" /> Dropdowns & App
-                            </button>
-                        </div>
-                    )}
+                    <div className="flex flex-wrap bg-gray-50 dark:bg-slate-900/40 p-1 rounded-xl shadow-sm border border-gray-100 dark:border-white/10 w-full md:w-auto gap-2">
+                        <button onClick={() => setActiveTab('profil')} className={`flex items-center gap-2 px-4 py-2 ${activeTab === 'profil' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 dark:text-slate-400 dark:hover:bg-white/5 hover:bg-gray-100'} rounded-lg transition-all text-sm font-medium whitespace-nowrap`}>
+                            <User className="w-4 h-4" /> Profil
+                        </button>
+                        <button onClick={() => setActiveTab('benachrichtigungen')} className={`flex items-center gap-2 px-4 py-2 ${activeTab === 'benachrichtigungen' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 dark:text-slate-400 dark:hover:bg-white/5 hover:bg-gray-100'} rounded-lg transition-all text-sm font-medium whitespace-nowrap`}>
+                            <Bell className="w-4 h-4" /> Benachrichtigungen
+                        </button>
+                        {userProfile?.role === 'Admin' && (
+                            <>
+                                <button onClick={() => setActiveTab('benutzer')} className={`flex items-center gap-2 px-4 py-2 ${activeTab === 'benutzer' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 dark:text-slate-400 dark:hover:bg-white/5 hover:bg-gray-100'} rounded-lg transition-all text-sm font-medium whitespace-nowrap`}>
+                                    <Users className="w-4 h-4" /> Benutzer
+                                </button>
+                                <button onClick={() => setActiveTab('app')} className={`flex items-center gap-2 px-4 py-2 ${activeTab === 'app' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 dark:text-slate-400 dark:hover:bg-white/5 hover:bg-gray-100'} rounded-lg transition-all text-sm font-medium whitespace-nowrap`}>
+                                    <AppWindow className="w-4 h-4" /> Dropdowns & App
+                                </button>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 {message && (
@@ -1025,8 +1032,150 @@ export default function SettingsPage() {
                             </Button>
                         </div>
                     </form>
-            </div>
-          )}
+                </div>
+            )}
+
+            {/* --- BENACHRICHTIGUNGEN TAB --- */}
+            {activeTab === 'benachrichtigungen' && (
+                <div className="space-y-6">
+                    <Card className="border-indigo-100 dark:border-indigo-500/20 bg-indigo-50/50 dark:bg-indigo-900/10 shadow-sm">
+                        <CardContent className="p-5 flex items-start gap-4">
+                            <Bell className="w-6 h-6 text-indigo-600 dark:text-indigo-400 mt-1" />
+                            <div>
+                                <h3 className="font-bold text-indigo-900 dark:text-indigo-200">Push-Benachrichtigungen</h3>
+                                <p className="text-sm text-indigo-700 dark:text-indigo-300 mt-1">
+                                    Aktiviere Benachrichtigungen auf diesem Gerät, um wichtige Mitteilungen (z.B. neue Fahrtkosten-Anfragen für Kassenwarte) direkt zu erhalten.
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Push-Status */}
+                    <Card className="border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm shadow-sm">
+                        <CardContent className="p-6">
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                                Geräte-Registrierung
+                            </h2>
+
+                            <div className="space-y-4">
+                                {/* Status */}
+                                <div className="flex items-center justify-between p-4 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-gray-200 dark:border-white/10">
+                                    <div className="flex items-center gap-3">
+                                        {push.isSupported ? (
+                                            <CheckCircle2 className="w-5 h-5 text-green-600" />
+                                        ) : (
+                                            <AlertCircle className="w-5 h-5 text-amber-600" />
+                                        )}
+                                        <div>
+                                            <div className="font-medium text-gray-900 dark:text-white">
+                                                {push.isSupported ? 'Push-Mitteilungen werden unterstützt' : 'Push-Mitteilungen nicht unterstützt'}
+                                            </div>
+                                            <div className="text-sm text-gray-500 dark:text-slate-400">
+                                                {push.isSupported 
+                                                    ? 'Dein aktueller Browser unterstützt Web-Push.' 
+                                                    : 'Dein aktueller Browser unterstützt leider keine Web-Push-Mitteilungen.'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Permission Status */}
+                                <div className="flex items-center justify-between p-4 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-gray-200 dark:border-white/10">
+                                    <div className="flex items-center gap-3">
+                                        {push.permission === 'granted' ? (
+                                            <CheckCircle2 className="w-5 h-5 text-green-600" />
+                                        ) : push.permission === 'denied' ? (
+                                            <AlertCircle className="w-5 h-5 text-red-600" />
+                                        ) : (
+                                            <AlertCircle className="w-5 h-5 text-amber-600" />
+                                        )}
+                                        <div>
+                                            <div className="font-medium text-gray-900 dark:text-white">
+                                                Berechtigung: {push.permission === 'granted' ? 'Erteilt' : push.permission === 'denied' ? 'Blockiert' : 'Nicht erteilt'}
+                                            </div>
+                                            <div className="text-sm text-gray-500 dark:text-slate-400">
+                                                {push.permission === 'granted' 
+                                                    ? 'Die Berechtigung für dieses Gerät ist aktiv.' 
+                                                    : push.permission === 'denied'
+                                                    ? 'Benachrichtigungen sind im Browser blockiert und müssen dort manuell erlaubt werden.'
+                                                    : 'Es wurde noch keine Berechtigung für Benachrichtigungen erteilt.'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex gap-3 pt-2">
+                                    {push.permission !== 'granted' && push.isSupported && (
+                                        <Button
+                                            type="button"
+                                            variant="primary"
+                                            onClick={push.requestPermission}
+                                        >
+                                            Berechtigung erteilen
+                                        </Button>
+                                    )}
+
+                                    {push.permission === 'granted' && !push.isInitialized && push.isSupported && (
+                                        <Button
+                                            type="button"
+                                            variant="primary"
+                                            onClick={() => {
+                                                console.log("[UI] Gerät registrieren geklickt");
+                                                push.registerToken();
+                                            }}
+                                            disabled={push.isRegistering}
+                                        >
+                                            {push.isRegistering ? 'Registriere...' : 'Dieses Gerät registrieren'}
+                                        </Button>
+                                    )}
+
+                                    {push.isInitialized && (
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            onClick={push.sendTestNotification}
+                                            disabled={push.isSending}
+                                        >
+                                            {push.isSending ? 'Sende...' : 'Test-Benachrichtigung senden'}
+                                        </Button>
+                                    )}
+
+                                    {push.isInitialized && (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            onClick={push.refreshRegistration}
+                                        >
+                                            Aktualisieren
+                                        </Button>
+                                    )}
+                                </div>
+
+                                {/* Info: VAPID Key / Registrierung */}
+                                {push.permission === 'granted' && !push.isInitialized && !push.error && (
+                                    <div className="p-4 rounded-xl bg-blue-50 dark:bg-indigo-900/20 border border-blue-200 dark:border-indigo-500/20 text-blue-700 dark:text-indigo-300 text-sm">
+                                        <strong>Hinweis:</strong> Klicke auf &bdquo;Dieses Gerät registrieren&ldquo;, um den Push-Token für dieses Gerät zu aktivieren.
+                                    </div>
+                                )}
+
+                                {/* Error Message */}
+                                {push.error && (
+                                    <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-300 text-sm">
+                                        {push.error}
+                                    </div>
+                                )}
+
+                                {/* Info für iOS/Safari */}
+                                <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-500/20 text-amber-800 dark:text-amber-300 text-sm">
+                                    <strong>Hinweis zu iOS (iPhones/iPads):</strong><br />
+                                    Damit Push-Benachrichtigungen auf Apple-Geräten funktionieren, muss diese App zuerst **zum Home-Bildschirm hinzugefügt werden** (als PWA installiert werden). Öffne die Seite dazu in Safari, tippe auf das Teilen-Symbol (Viereck mit Pfeil nach oben) und wähle &bdquo;Zum Home-Bildschirm&ldquo;. Starte dann die App vom Home-Bildschirm aus und aktiviere hier die Benachrichtigungen.
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
         </div>
       </ProtectedRoute>
     );

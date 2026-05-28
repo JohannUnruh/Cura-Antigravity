@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Client, PersonGroup } from "@/types";
 import { Button } from "../ui/Button";
 import { useSettings } from "@/contexts/SettingsContext";
-import { Calendar, Clock } from "lucide-react";
+import { Calendar, Clock, Download } from "lucide-react";
+import { downloadICS } from "@/lib/utils/icsExport";
 
 type ClientCalendarData = {
     date: string;
@@ -43,6 +44,7 @@ export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientF
 
     // Calendar-Option State
     const [createCalendarEvent, setCreateCalendarEvent] = useState(false);
+    const [saveToGoogleCalendar, setSaveToGoogleCalendar] = useState(true);
     const [calendarData, setCalendarData] = useState({
         date: new Date().toISOString().split('T')[0],
         endDate: "",
@@ -51,12 +53,39 @@ export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientF
         location: ""
     });
 
+    const handleIcsExport = () => {
+        const [startHours, startMinutes] = calendarData.startTime.split(':').map(Number);
+        const [endHours, endMinutes] = calendarData.endTime.split(':').map(Number);
+        
+        const startDate = new Date(calendarData.date);
+        startDate.setHours(startHours, startMinutes, 0, 0);
+        
+        const endDate = calendarData.endDate 
+            ? new Date(calendarData.endDate)
+            : new Date(calendarData.date);
+        endDate.setHours(endHours, endMinutes, 0, 0);
+        
+        if (endDate < startDate) {
+            alert("Enddatum/-zeit muss nach Startdatum/-zeit liegen!");
+            return;
+        }
+
+        downloadICS({
+            title: `Erstgespräch: ${formData.name || 'Klient'}`,
+            description: `Erstgespräch mit neuem Klienten`,
+            startDate,
+            endDate,
+            allDay: false,
+            fileName: `erstgespraech_${formData.name ? formData.name.replace(/\s+/g, '_') : 'klient'}_${calendarData.date}.ics`
+        });
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         await onSubmit({
             ...formData,
-            createCalendarEvent,
-            calendarData
+            createCalendarEvent: createCalendarEvent && saveToGoogleCalendar,
+            calendarData: createCalendarEvent ? calendarData : undefined
         });
     };
 
@@ -143,60 +172,88 @@ export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientF
                     />
                     <label htmlFor="createCalendarEvent" className="text-sm font-medium text-gray-700 dark:text-slate-300 cursor-pointer flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-indigo-600" />
-                        Kalendereintrag für Erstgespräch erstellen
+                        Erstgespräch planen
                     </label>
                 </div>
 
                 {createCalendarEvent && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-slate-900/50 rounded-xl border border-gray-200 dark:border-white/10">
-                        <div className="space-y-2">
-                            <label className="text-xs font-medium text-gray-600 dark:text-slate-400 flex items-center gap-1">
-                                <Calendar className="w-3.5 h-3.5" />
-                                Datum
-                            </label>
+                    <div className="space-y-4 p-4 bg-gray-50 dark:bg-slate-900/50 rounded-xl border border-gray-200 dark:border-white/10">
+                        {/* Option: Google Kalender / Belegungsplan */}
+                        <div className="flex items-center gap-3 pb-3 border-b border-gray-200 dark:border-white/10">
                             <input
-                                type="date"
-                                value={calendarData.date}
-                                onChange={(e) => setCalendarData({ ...calendarData, date: e.target.value })}
-                                className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                                type="checkbox"
+                                id="saveToGoogleCalendar"
+                                checked={saveToGoogleCalendar}
+                                onChange={(e) => setSaveToGoogleCalendar(e.target.checked)}
+                                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
+                            <label htmlFor="saveToGoogleCalendar" className="text-sm font-medium text-gray-700 dark:text-slate-300 cursor-pointer">
+                                Kalendereintrag für den Belegungsplan erstellen
+                            </label>
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-xs font-medium text-gray-600 dark:text-slate-400 flex items-center gap-1">
-                                <Calendar className="w-3.5 h-3.5" />
-                                Enddatum (optional)
-                            </label>
-                            <input
-                                type="date"
-                                value={calendarData.endDate}
-                                onChange={(e) => setCalendarData({ ...calendarData, endDate: e.target.value })}
-                                min={calendarData.date}
-                                className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-                            />
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-gray-600 dark:text-slate-400 flex items-center gap-1">
+                                    <Calendar className="w-3.5 h-3.5" />
+                                    Datum
+                                </label>
+                                <input
+                                    type="date"
+                                    value={calendarData.date}
+                                    onChange={(e) => setCalendarData({ ...calendarData, date: e.target.value })}
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-gray-600 dark:text-slate-400 flex items-center gap-1">
+                                    <Calendar className="w-3.5 h-3.5" />
+                                    Enddatum (optional)
+                                </label>
+                                <input
+                                    type="date"
+                                    value={calendarData.endDate}
+                                    onChange={(e) => setCalendarData({ ...calendarData, endDate: e.target.value })}
+                                    min={calendarData.date}
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-gray-600 dark:text-slate-400 flex items-center gap-1">
+                                    <Clock className="w-3.5 h-3.5" />
+                                    Von
+                                </label>
+                                <input
+                                    type="time"
+                                    value={calendarData.startTime}
+                                    onChange={(e) => setCalendarData({ ...calendarData, startTime: e.target.value })}
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-gray-600 dark:text-slate-400 flex items-center gap-1">
+                                    <Clock className="w-3.5 h-3.5" />
+                                    Bis
+                                </label>
+                                <input
+                                    type="time"
+                                    value={calendarData.endTime}
+                                    onChange={(e) => setCalendarData({ ...calendarData, endTime: e.target.value })}
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                                />
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-xs font-medium text-gray-600 dark:text-slate-400 flex items-center gap-1">
-                                <Clock className="w-3.5 h-3.5" />
-                                Von
-                            </label>
-                            <input
-                                type="time"
-                                value={calendarData.startTime}
-                                onChange={(e) => setCalendarData({ ...calendarData, startTime: e.target.value })}
-                                className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-xs font-medium text-gray-600 dark:text-slate-400 flex items-center gap-1">
-                                <Clock className="w-3.5 h-3.5" />
-                                Bis
-                            </label>
-                            <input
-                                type="time"
-                                value={calendarData.endTime}
-                                onChange={(e) => setCalendarData({ ...calendarData, endTime: e.target.value })}
-                                className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-                            />
+
+                        {/* ICS Button */}
+                        <div className="pt-2">
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={handleIcsExport}
+                                className="w-full gap-2 bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 hover:bg-indigo-50 dark:hover:bg-indigo-950/20"
+                            >
+                                <Download className="w-4 h-4" /> Erstgespräch als ICS exportieren
+                            </Button>
                         </div>
                     </div>
                 )}

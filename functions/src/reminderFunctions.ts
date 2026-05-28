@@ -361,3 +361,103 @@ export const cleanupInvalidTokens = regionalFunctions.pubsub
             };
         }
     });
+
+/**
+ * Triggert bei der Erstellung einer neuen Fahrtkostenabrechnung (travel_expenses).
+ * Sendet eine Push-Benachrichtigung an alle Benutzer mit der Rolle 'Kassenwart'.
+ */
+export const onTravelExpenseCreated = regionalFunctions.firestore
+    .document("travel_expenses/{expenseId}")
+    .onCreate(async (snapshot, context) => {
+        const expense = snapshot.data();
+        if (!expense) return;
+
+        const db = admin.firestore();
+
+        try {
+            // 1. Details des Einreichenden (Mitarbeiters) holen
+            const authorId = expense.authorId;
+            let authorName = "Ein Mitarbeiter";
+            if (authorId) {
+                const authorDoc = await db.collection("users").doc(authorId).get();
+                if (authorDoc.exists) {
+                    const authorData = authorDoc.data();
+                    if (authorData) {
+                        authorName = `${authorData.firstName || ""} ${authorData.lastName || ""}`.trim() || authorName;
+                    }
+                }
+            }
+
+            const amount = expense.calculatedAmount ?? 0;
+            const startLoc = expense.startLocation || "Start";
+            const endLoc = expense.endLocation || "Ziel";
+
+            // 2. Kassenwarte finden
+            const kassenwarteSnapshot = await db.collection("users")
+                .where("role", "==", "Kassenwart")
+                .get();
+
+            if (kassenwarteSnapshot.empty) {
+                functions.logger.info("Keine Kassenwarte im System registriert.");
+                return;
+            }
+
+            const kassenwarteIds = kassenwarteSnapshot.docs.map(doc => doc.id);
+            functions.logger.info(`Kassenwarte gefunden: ${kassenwarteIds.join(", ")}`);
+
+            // 3. FCM-Tokens für diese Kassenwarte holen
+            const tokensSnapshot = await db.collection("fcmTokens")
+                .where("userId", "in", kassenwarteIds)
+                .where("isValid", "==", true)
+                .get();
+
+            if (tokensSnapshot.empty) {
+                functions.logger.info("Keine gültigen FCM-Tokens für Kassenwarte gefunden.");
+                return;
+            }
+
+            const tokens = tokensSnapshot.docs.map(doc => doc.data().token);
+            functions.logger.info(`Sende Push-Benachrichtigung an ${tokens.length} Kassenwart-Tokens.`);
+
+            // 4. Benachrichtigung an FCM senden
+            const response = await getMessaging().sendEachForMulticast({
+                notification: {
+                    title: "Neue Fahrtkostenabrechnung 🚗",
+                    body: `${authorName} hat eine Fahrtkostenabrechnung eingereicht: ${amount.toFixed(2)} € für die Fahrt ${startLoc} → ${endLoc}.`,
+                },
+                data: {
+                    type: "travel_expense",
+                    expenseId: context.params.expenseId || "",
+                },
+                tokens,
+            });
+
+            // Falls einige Tokens ungültig sind, markieren wir sie
+            const invalidTokens: string[] = [];
+            response.responses.forEach((resp, idx) => {
+                if (!resp.success && resp.error) {
+                    const errCode = resp.error.code;
+                    if (errCode === 'messaging/invalid-registration-token' || errCode === 'messaging/registration-token-not-registered') {
+                        invalidTokens.push(tokens[idx]);
+                    }
+                }
+            });
+
+            if (invalidTokens.length > 0) {
+                functions.logger.info(`Markiere ${invalidTokens.length} ungültige FCM-Tokens.`);
+                const batch = db.batch();
+                const invalidDocs = await db.collection("fcmTokens")
+                    .where("token", "in", invalidTokens)
+                    .get();
+                invalidDocs.docs.forEach(doc => {
+                    batch.update(doc.ref, { isValid: false });
+                });
+                await batch.commit();
+            }
+
+            functions.logger.info(`onTravelExpenseCreated erfolgreich: ${response.successCount} gesendet, ${response.failureCount} fehlgeschlagen.`);
+
+        } catch (error) {
+            functions.logger.error("Fehler in onTravelExpenseCreated Cloud Function", error);
+        }
+    });

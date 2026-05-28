@@ -8,6 +8,7 @@ export function downloadICS({
     endDate,
     allDay = true,
     repeatWeeklyUntilDate,
+    fileName,
 }: {
     title: string;
     description: string;
@@ -15,6 +16,7 @@ export function downloadICS({
     endDate?: Date;
     allDay?: boolean;
     repeatWeeklyUntilDate?: Date;
+    fileName?: string;
 }) {
     // Format date for ICS
     const formatDate = (date: Date, isAllDay: boolean) => {
@@ -61,7 +63,7 @@ END:VCALENDAR`;
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `zieltermin_${startDate.toISOString().split('T')[0]}.ics`;
+    link.download = fileName || `zieltermin_${startDate.toISOString().split('T')[0]}.ics`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

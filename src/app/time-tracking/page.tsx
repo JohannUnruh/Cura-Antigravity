@@ -5,6 +5,8 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { timeTrackingService, getMaxHoursForMonth, getHoursByMonth, getRemainingHours, addTimeEntryWithCheck, isMinijobber } from "@/lib/firebase/services/timeTrackingService";
 import { settingsService } from "@/lib/firebase/services/settingsService";
+import { consultationService } from "@/lib/firebase/services/consultationService";
+import { clientService } from "@/lib/firebase/services/clientService";
 import { TimeEntry, TimeEntryType, OvertimeTransfer } from "@/types";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
@@ -108,6 +110,7 @@ export default function TimeTrackingPage() {
     const [vacationDaysPerYear, setVacationDaysPerYear] = useState<number>(0);
     const [takenVacationDays, setTakenVacationDays] = useState<number>(0);
     const [remainingVacationDays, setRemainingVacationDays] = useState<number>(0);
+    const [clientNamesMap, setClientNamesMap] = useState<Record<string, string>>({});
 
     const [form, setForm] = useState(() => getEmptyForm());
 
@@ -135,6 +138,32 @@ export default function TimeTrackingPage() {
         if (!user) return;
         setLoading(true);
         try {
+            // Lade alle Beratungen, SKB-Beratungen und Klienten parallel
+            const [consultations, skbConsultations, clients] = await Promise.all([
+                consultationService.getConsultationsByAuthor(user.uid),
+                consultationService.getSkbConsultationsByAuthor(user.uid),
+                clientService.getClientsByAuthor(user.uid)
+            ]);
+
+            const clientMap: Record<string, string> = {};
+            clients.forEach(c => {
+                clientMap[c.id] = c.name;
+            });
+
+            const refMap: Record<string, string> = {};
+            consultations.forEach(co => {
+                if (co.clientId && clientMap[co.clientId]) {
+                    refMap[co.id] = clientMap[co.clientId];
+                }
+            });
+            skbConsultations.forEach(skb => {
+                if (skb.clientId && clientMap[skb.clientId]) {
+                    refMap[skb.id] = clientMap[skb.clientId];
+                }
+            });
+
+            setClientNamesMap(refMap);
+
             // Prüfen, ob User ein Minijobber ist
             const isMinijob = await isMinijobber(user.uid);
             setIsMinijobberUser(isMinijob);
@@ -238,6 +267,17 @@ export default function TimeTrackingPage() {
             loadTargetMonthHours();
         }
     }, [isDistributeModalOpen, targetMonth, targetYear, user]);
+
+    const getUIDescription = useCallback((desc?: string, referenceId?: string) => {
+        if (!desc) return "-";
+        if (referenceId && clientNamesMap[referenceId]) {
+            const clientName = clientNamesMap[referenceId];
+            if (!desc.includes(clientName)) {
+                return `${desc} - ${clientName}`;
+            }
+        }
+        return desc;
+    }, [clientNamesMap]);
 
     const openNew = () => {
         setSelected(null);
@@ -570,7 +610,7 @@ export default function TimeTrackingPage() {
                                     <div className="flex items-center justify-between mb-2">
                                         <div className="flex items-center gap-2">
                                             <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
-                                                <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                                <Calendar className="w-5 h-5 text-blue-600 dark:blue-400" />
                                             </div>
                                             <div>
                                                 <h3 className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide">Monat</h3>
@@ -806,7 +846,7 @@ export default function TimeTrackingPage() {
                                             <span className="flex items-center gap-1.5 text-gray-600 dark:text-slate-300">
                                                 <Clock className="w-3.5 h-3.5" /> {formatHours(item.durationInHours)}h
                                             </span>
-                                            {item.description && <span className="text-gray-400 dark:text-slate-500 max-w-sm truncate whitespace-nowrap" title={item.description}>| {item.description}</span>}
+                                            {item.description && <span className="text-gray-400 dark:text-slate-500 max-w-sm truncate whitespace-nowrap" title={getUIDescription(item.description, item.referenceId)}>| {getUIDescription(item.description, item.referenceId)}</span>}
                                         </div>
                                     </div>
                                     <div className="flex gap-2">
@@ -902,7 +942,7 @@ export default function TimeTrackingPage() {
 
                 {/* Info Message Toast */}
                 {infoMessage && (
-                    <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <div className="fixed bottom-6 right-6 z-[100] animate-in fade-in slide-in-from-bottom-4 duration-300">
                         <div className={`px-6 py-4 rounded-xl shadow-2xl border flex items-start gap-3 max-w-md ${
                             infoMessage.type === 'success' 
                                 ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200'
@@ -1002,7 +1042,7 @@ export default function TimeTrackingPage() {
                                                 {entry.originalMonth && ` (Ursprünglich: ${entry.originalMonth})`}
                                             </div>
                                             {entry.description && (
-                                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 truncate">{entry.description}</p>
+                                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 truncate">{getUIDescription(entry.description, entry.referenceId)}</p>
                                             )}
                                         </div>
                                         <div className="flex gap-1">

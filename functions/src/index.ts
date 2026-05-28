@@ -3,7 +3,7 @@
  */
 
 import { onClientCreated, createCalendarEvent, checkCalendarConfig } from "./calendarFunctions";
-import { sendScheduledReminders, sendImmediateReminder, cleanupInvalidTokens } from "./reminderFunctions";
+import { sendScheduledReminders, sendImmediateReminder, cleanupInvalidTokens, onTravelExpenseCreated } from "./reminderFunctions";
 
 // Export alle Functions
 export {
@@ -15,4 +15,5 @@ export {
     sendScheduledReminders,
     sendImmediateReminder,
     cleanupInvalidTokens,
+    onTravelExpenseCreated,
 };

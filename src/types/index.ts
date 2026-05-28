@@ -206,6 +206,7 @@ export interface TravelExpense {
     kmEnd: number;
     kmDriven: number;
     calculatedAmount?: number;
+    isRoundTrip?: boolean;
     status: 'Eingereicht' | 'Genehmigt' | 'Abgelehnt';
     createdAt: Date;
 }

@@ -89,6 +89,12 @@ service cloud.firestore {
       allow create: if isOwner(request.resource.data.authorId);
     }
 
+    // 6b. overtime_transfers (Überstunden-Transfers)
+    match /overtime_transfers/{transferId} {
+      allow read: if isOwner(resource.data.authorId) || isAdmin();
+      allow create: if isOwner(request.resource.data.authorId);
+    }
+
     // 7. short_consultations (Kurzgespräche)
     match /short_consultations/{consultationId} {
       allow read: if isOwner(resource.data.authorId) || isAdmin();

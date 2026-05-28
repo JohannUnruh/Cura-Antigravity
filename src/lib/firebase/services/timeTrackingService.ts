@@ -218,23 +218,13 @@ export const timeTrackingService = {
         dateFrom: Date | string,
         dateTo: Date | string,
         totalHours: number,
-        timeOfDay: 'morning' | 'afternoon' | 'evening' | 'allday' = 'morning'
+        timeOfDay: 'morning' | 'afternoon' | 'evening' | 'allday' = 'morning',
+        customHours?: { date: Date | string; hours: number }[]
     ): Promise<{
         activeEntries: TimeEntry[];
         poolEntries: TimeEntry[];
         hasOverflow: boolean;
     }> {
-
-        const start = new Date(dateFrom);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(dateTo);
-        end.setHours(0, 0, 0, 0);
-
-        let diffTime = end.getTime() - start.getTime();
-        if (diffTime < 0) diffTime = 0;
-
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-        const hoursPerDay = totalHours / diffDays;
 
         let timeOfDayFormatted: 'Vormittags' | 'Nachmittags' | 'Abends' | 'Ganztägig' = 'Ganztägig';
         if (timeOfDay === 'morning') timeOfDayFormatted = 'Vormittags';
@@ -250,29 +240,67 @@ export const timeTrackingService = {
         const poolEntries: TimeEntry[] = [];
         let hasOverflow = false;
 
-        // Einträge nacheinander erstellen mit Kontingent-Prüfung
-        for (let i = 0; i < diffDays; i++) {
-            const currentDate = new Date(start);
-            currentDate.setDate(currentDate.getDate() + i);
-            currentDate.setHours(startHour, 0, 0, 0);
+        if (customHours && customHours.length > 0) {
+            // Benutzerdefinierte Verteilung
+            for (const item of customHours) {
+                if (item.hours <= 0) continue;
 
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
+                const currentDate = new Date(item.date);
+                currentDate.setHours(startHour, 0, 0, 0);
 
-            // Verwende addTimeEntryWithCheck für Kontingent-Prüfung
-            const result = await addTimeEntryWithCheck({
-                ...entry,
-                date: currentDate,
-                durationInHours: hoursPerDay,
-                timeOfDay: timeOfDayFormatted,
-            }, year, month);
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
 
-            if (result.activeEntry) {
-                activeEntries.push(result.activeEntry);
+                const result = await addTimeEntryWithCheck({
+                    ...entry,
+                    date: currentDate,
+                    durationInHours: item.hours,
+                    timeOfDay: timeOfDayFormatted,
+                }, year, month);
+
+                if (result.activeEntry) {
+                    activeEntries.push(result.activeEntry);
+                }
+                if (result.poolEntry) {
+                    poolEntries.push(result.poolEntry);
+                    hasOverflow = true;
+                }
             }
-            if (result.poolEntry) {
-                poolEntries.push(result.poolEntry);
-                hasOverflow = true;
+        } else {
+            // Gleichmäßige Verteilung (Verhalten wie bisher)
+            const start = new Date(dateFrom);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(dateTo);
+            end.setHours(0, 0, 0, 0);
+
+            let diffTime = end.getTime() - start.getTime();
+            if (diffTime < 0) diffTime = 0;
+
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            const hoursPerDay = totalHours / diffDays;
+
+            for (let i = 0; i < diffDays; i++) {
+                const currentDate = new Date(start);
+                currentDate.setDate(currentDate.getDate() + i);
+                currentDate.setHours(startHour, 0, 0, 0);
+
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+
+                const result = await addTimeEntryWithCheck({
+                    ...entry,
+                    date: currentDate,
+                    durationInHours: hoursPerDay,
+                    timeOfDay: timeOfDayFormatted,
+                }, year, month);
+
+                if (result.activeEntry) {
+                    activeEntries.push(result.activeEntry);
+                }
+                if (result.poolEntry) {
+                    poolEntries.push(result.poolEntry);
+                    hasOverflow = true;
+                }
             }
         }
 
