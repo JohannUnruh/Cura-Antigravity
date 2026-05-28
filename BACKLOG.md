@@ -30,18 +30,18 @@ Jeder Eintrag folgt diesem Schema:
 
 <!-- Trage hier neue Aufgaben ein. Der Night Agent arbeitet sie der Priorität nach ab. -->
 
-### [P2] Lesezeichen-Funktion für Klienten
-- **Status:** pending
-- **Beschreibung:** Nutzer sollen Klienten als Favorit markieren können
-- **Akzeptanzkriterien:** Stern-Icon im Klienten-Profil, Favoriten-Liste in der Sidebar, Persistenz in Firestore
-- **Betroffene Dateien:** `src/app/clients/page.tsx`, `src/components/ui/ClientCard.tsx`, Firestore Collection `users/{uid}/favorites`
-- **Hinweise:** Firestore Security Rules für die neue Collection nicht vergessen
-
 ---
 
 ## Abgeschlossene Aufgaben
 
 <!-- Der Night Agent verschiebt erledigte Aufgaben hierher mit Datum -->
+
+### Lesezeichen-Funktion für Klienten – ✅ 2026-05-28
+- **Status:** done
+- **Beschreibung:** Nutzer sollen Klienten als Favorit markieren können
+- **Akzeptanzkriterien:** Stern-Icon im Klienten-Profil, Favoriten-Liste in der Sidebar, Persistenz in Firestore
+- **Betroffene Dateien:** `src/app/clients/page.tsx`, `src/components/ui/ClientCard.tsx`, Firestore Collection `users/{uid}/favorites`
+- **Hinweise:** Firestore Security Rules für die neue Collection nicht vergessen
 
 ### Datums-Validierung in Erstellungsformularen verbessern – ✅ 2026-05-28
 - **Status:** done

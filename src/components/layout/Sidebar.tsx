@@ -1,11 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Presentation, Tent, Car, Settings, HandHeart, MessagesSquare, Clock, LogOut, Coffee, X } from "lucide-react";
+import { LayoutDashboard, Users, Presentation, Tent, Car, Settings, HandHeart, MessagesSquare, Clock, LogOut, Coffee, X, Star } from "lucide-react";
 import { cn } from "../ui/Card";
 import { auth } from "@/lib/firebase/config";
 import { signOut } from "firebase/auth";
+import { useAuth } from "@/contexts/AuthContext";
+import { clientService } from "@/lib/firebase/services/clientService";
 
 const navItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -28,6 +31,16 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
     const pathname = usePathname();
     const router = useRouter();
+    const { user } = useAuth();
+    const [favorites, setFavorites] = useState<{ clientId: string; name: string }[]>([]);
+
+    useEffect(() => {
+        if (!user?.uid) return;
+        const unsubscribe = clientService.subscribeFavorites(user.uid, (list) => {
+            setFavorites(list);
+        });
+        return () => unsubscribe();
+    }, [user?.uid]);
 
     const handleLogout = async () => {
         try {
@@ -81,6 +94,35 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     );
                 })}
             </nav>
+
+            {favorites.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-white/5">
+                    <span className="px-5 text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
+                        <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" /> Favoriten
+                    </span>
+                    <div className="space-y-1 overflow-y-auto max-h-48 pr-2 custom-scrollbar">
+                        {favorites.map((fav) => {
+                            const isFavActive = pathname === `/clients/${fav.clientId}`;
+                            return (
+                                <Link
+                                    key={fav.clientId}
+                                    href={`/clients/${fav.clientId}`}
+                                    onClick={onClose}
+                                    className={cn(
+                                        "flex items-center gap-3 px-5 py-2 text-sm rounded-xl transition-all duration-200",
+                                        isFavActive 
+                                            ? "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 font-semibold" 
+                                            : "text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white"
+                                    )}
+                                >
+                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                                    <span className="truncate">{fav.name}</span>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             <div className="mt-auto px-5 pt-4 border-t border-gray-100 dark:border-white/5">
                 <button

@@ -33,6 +33,11 @@ service cloud.firestore {
       allow update, delete: if isOwner(userId) || isAdmin();
       // Admin darf neue User anlegen
       allow create: if isOwner(userId) || isAdmin();
+
+      // Favoriten-Subcollection
+      match /favorites/{favoriteId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // 2. clients Collection

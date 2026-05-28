@@ -1,7 +1,7 @@
 import { Client } from "@/types";
 import { consultationService } from "./consultationService";
 import { db } from "@/lib/firebase/config";
-import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where } from "firebase/firestore";
+import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where, onSnapshot } from "firebase/firestore";
 
 const COLLECTION_NAME = "clients";
 
@@ -77,6 +77,37 @@ export const clientService = {
                 id: doc.id,
                 createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt)
             } as Client;
+        });
+    },
+
+    async addFavorite(uid: string, clientId: string, name: string) {
+        const docRef = doc(db, "users", uid, "favorites", clientId);
+        await setDoc(docRef, {
+            clientId,
+            name,
+            addedAt: new Date()
+        });
+    },
+
+    async removeFavorite(uid: string, clientId: string) {
+        const docRef = doc(db, "users", uid, "favorites", clientId);
+        await deleteDoc(docRef);
+    },
+
+    async isFavorite(uid: string, clientId: string): Promise<boolean> {
+        const docRef = doc(db, "users", uid, "favorites", clientId);
+        const docSnap = await getDoc(docRef);
+        return docSnap.exists();
+    },
+
+    subscribeFavorites(uid: string, callback: (favorites: {clientId: string; name: string}[]) => void) {
+        const q = collection(db, "users", uid, "favorites");
+        return onSnapshot(q, (snapshot) => {
+            const list = snapshot.docs.map(doc => ({
+                clientId: doc.id,
+                name: doc.data().name || ""
+            }));
+            callback(list);
         });
     }
 };

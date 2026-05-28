@@ -16,7 +16,7 @@ import { Modal } from "@/components/ui/Modal";
 import { ConsultationForm } from "@/components/consultations/ConsultationForm";
 import { SkbConsultationForm } from "@/components/consultations/SkbConsultationForm";
 import { CalendarEventModal } from "@/components/ui/CalendarEventModal";
-import { ArrowLeft, Clock, Calendar, HeartHandshake, Baby, MessagesSquare, Trash2, Pencil, FileText, CalendarPlus, Target } from "lucide-react";
+import { ArrowLeft, Clock, Calendar, HeartHandshake, Baby, MessagesSquare, Trash2, Pencil, FileText, CalendarPlus, Target, Star } from "lucide-react";
 
 
 
@@ -63,18 +63,39 @@ export default function ClientDetailPage() {
     const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
     const [isCalendarSaving, setIsCalendarSaving] = useState(false);
 
+    const [isFavorite, setIsFavorite] = useState(false);
+
     const loadClient = useCallback(async () => {
         if (!clientId) return;
         setLoading(true);
         try {
             const data = await clientService.getClientById(clientId);
             setClient(data);
+            if (user?.uid) {
+                const favStatus = await clientService.isFavorite(user.uid, clientId);
+                setIsFavorite(favStatus);
+            }
         } catch (error) {
             console.error("Error loading client:", error);
         } finally {
             setLoading(false);
         }
-    }, [clientId]);
+    }, [clientId, user?.uid]);
+
+    const toggleFavorite = async () => {
+        if (!user || !client) return;
+        try {
+            if (isFavorite) {
+                await clientService.removeFavorite(user.uid, client.id);
+                setIsFavorite(false);
+            } else {
+                await clientService.addFavorite(user.uid, client.id, client.name);
+                setIsFavorite(true);
+            }
+        } catch (error) {
+            console.error("Fehler beim Ändern des Favoriten-Status:", error);
+        }
+    };
 
     const loadHistory = useCallback(async () => {
         if (!clientId || !user?.uid) return;
@@ -401,8 +422,17 @@ export default function ClientDetailPage() {
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </button>
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{client.name}</h1>
+                    <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{client.name}</h1>
+                            <button
+                                onClick={toggleFavorite}
+                                className="p-1.5 rounded-xl hover:bg-white/50 dark:hover:bg-slate-800/50 text-amber-500 transition-colors"
+                                title={isFavorite ? "Von Favoriten entfernen" : "Zu Favoriten hinzufügen"}
+                            >
+                                <Star className={isFavorite ? "w-6 h-6 fill-amber-400 text-amber-400" : "w-6 h-6 text-gray-400 hover:text-amber-500"} />
+                            </button>
+                        </div>
                         <p className="text-sm text-gray-500 dark:text-slate-400 font-medium tracking-wide uppercase mt-1">
                             {client.personGroup} • {client.gender} • {client.isChurchMember ? "Mitglied" : "Kein Mitglied"}
                         </p>
