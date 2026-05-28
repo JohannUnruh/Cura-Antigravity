@@ -332,6 +332,13 @@ export const timeTrackingService = {
         await Promise.all(promises);
     },
 
+    async deleteTimeEntriesByReferenceIdOnly(referenceId: string): Promise<void> {
+        const q = query(collection(db, COLLECTION_NAME), where("referenceId", "==", referenceId));
+        const snapshots = await getDocs(q);
+        const promises = snapshots.docs.map(d => deleteDoc(d.ref));
+        await Promise.all(promises);
+    },
+
     async getTimeEntriesByAuthor(authorId: string): Promise<TimeEntry[]> {
         const q = query(collection(db, COLLECTION_NAME), where("authorId", "==", authorId));
         const querySnapshot = await getDocs(q);

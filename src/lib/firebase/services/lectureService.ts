@@ -1,6 +1,7 @@
 import { Lecture } from "@/types";
 import { db } from "@/lib/firebase/config";
 import { collection, doc, getDocs, setDoc, deleteDoc, query, where, Timestamp } from "firebase/firestore";
+import { timeTrackingService } from "./timeTrackingService";
 
 const LECTURES_COLLECTION = "lectures";
 
@@ -75,6 +76,7 @@ export const lectureService = {
     async deleteLecture(id: string) {
         const docRef = doc(db, LECTURES_COLLECTION, id);
         await deleteDoc(docRef);
+        await timeTrackingService.deleteTimeEntriesByReferenceIdOnly(id);
     },
 };
 

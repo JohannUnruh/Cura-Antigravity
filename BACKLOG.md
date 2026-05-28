@@ -30,12 +30,6 @@ Jeder Eintrag folgt diesem Schema:
 
 <!-- Trage hier neue Aufgaben ein. Der Night Agent arbeitet sie der Priorität nach ab. -->
 
-### [P1] Verwaiste Zeiterfassungseinträge beim Löschen entfernen
-- **Status:** pending
-- **Beschreibung:** Wenn eine Beratung, eine SKB-Beratung, ein Vortrag oder eine Freizeit gelöscht wird, sollten die zugehörigen Zeiterfassungseinträge (die über die `referenceId` verknüpft sind) ebenfalls automatisch gelöscht werden, um Datenmüll zu vermeiden.
-- **Akzeptanzkriterien:** Beim Klick auf "Löschen" für eines der Module werden die verknüpften Zeiterfassungseinträge in der `time_tracking` Firestore Collection gesucht und mitgelöscht.
-- **Betroffene Dateien:** `src/lib/firebase/services/consultationService.ts`, `src/lib/firebase/services/timeTrackingService.ts`, `src/app/clients/[id]/page.tsx`
-
 ### [P2] Datums-Validierung in Erstellungsformularen verbessern
 - **Status:** pending
 - **Beschreibung:** In allen Formularen (`ConsultationForm`, `SkbConsultationForm`, Vorträge und Freizeiten) soll eine clientseitige Validierung sicherstellen, dass das Enddatum (`dateTo`) nicht vor dem Startdatum (`dateFrom`) liegen kann.
@@ -54,6 +48,12 @@ Jeder Eintrag folgt diesem Schema:
 ## Abgeschlossene Aufgaben
 
 <!-- Der Night Agent verschiebt erledigte Aufgaben hierher mit Datum -->
+
+### Verwaiste Zeiterfassungseinträge beim Löschen entfernen – ✅ 2026-05-28
+- **Status:** done
+- **Beschreibung:** Wenn eine Beratung, eine SKB-Beratung, ein Vortrag oder eine Freizeit gelöscht wird, werden die zugehörigen Zeiterfassungseinträge (die über die `referenceId` verknüpft sind) automatisch gelöscht, um Datenmüll zu vermeiden.
+- **Akzeptanzkriterien:** Beim Klick auf "Löschen" für eines der Module werden die verknüpften Zeiterfassungseinträge in der `time_tracking` Firestore Collection gesucht und mitgelöscht.
+- **Betroffene Dateien:** `src/lib/firebase/services/consultationService.ts`, `src/lib/firebase/services/timeTrackingService.ts`, `src/app/clients/[id]/page.tsx`
 
 ### Benachrichtigungs-Reaktivierung & Fahrtkosten-Erweiterung – ✅ 2026-05-28
 - **Status:** done

@@ -1,6 +1,7 @@
 import { Consultation, LegacyConsultation, SkbConsultation } from "@/types";
 import { db } from "@/lib/firebase/config";
 import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where } from "firebase/firestore";
+import { timeTrackingService } from "./timeTrackingService";
 
 const CONSULTATIONS_COLLECTION = "consultations";
 const SKB_COLLECTION = "skb_consultations";
@@ -72,6 +73,7 @@ export const consultationService = {
     async deleteConsultation(id: string): Promise<void> {
         const docRef = doc(db, CONSULTATIONS_COLLECTION, id);
         await deleteDoc(docRef);
+        await timeTrackingService.deleteTimeEntriesByReferenceIdOnly(id);
     },
 
     async deleteConsultationsByClientId(clientId: string, authorId: string): Promise<void> {
@@ -187,6 +189,7 @@ export const consultationService = {
     async deleteSkbConsultation(id: string): Promise<void> {
         const docRef = doc(db, SKB_COLLECTION, id);
         await deleteDoc(docRef);
+        await timeTrackingService.deleteTimeEntriesByReferenceIdOnly(id);
     },
 
     async deleteSkbConsultationsByClientId(clientId: string, authorId: string): Promise<void> {

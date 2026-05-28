@@ -1,6 +1,7 @@
 import { Retreat } from "@/types";
 import { db } from "@/lib/firebase/config";
 import { collection, doc, getDocs, setDoc, deleteDoc, query, where, Timestamp } from "firebase/firestore";
+import { timeTrackingService } from "./timeTrackingService";
 
 const RETREATS_COLLECTION = "retreats";
 
@@ -75,6 +76,7 @@ export const retreatService = {
     async deleteRetreat(id: string) {
         const docRef = doc(db, RETREATS_COLLECTION, id);
         await deleteDoc(docRef);
+        await timeTrackingService.deleteTimeEntriesByReferenceIdOnly(id);
     },
 };
 
