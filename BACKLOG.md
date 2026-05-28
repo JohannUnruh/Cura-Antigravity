@@ -30,12 +30,6 @@ Jeder Eintrag folgt diesem Schema:
 
 <!-- Trage hier neue Aufgaben ein. Der Night Agent arbeitet sie der Priorität nach ab. -->
 
-### [P2] Datums-Validierung in Erstellungsformularen verbessern
-- **Status:** pending
-- **Beschreibung:** In allen Formularen (`ConsultationForm`, `SkbConsultationForm`, Vorträge und Freizeiten) soll eine clientseitige Validierung sicherstellen, dass das Enddatum (`dateTo`) nicht vor dem Startdatum (`dateFrom`) liegen kann.
-- **Akzeptanzkriterien:** Wenn ein Nutzer das Startdatum nach dem aktuellen Enddatum wählt, wird das Enddatum automatisch auf dasselbe Datum angehoben. Ein Absenden mit `dateTo < dateFrom` wird verhindert.
-- **Betroffene Dateien:** `src/components/consultations/ConsultationForm.tsx`, `src/components/consultations/SkbConsultationForm.tsx`, `src/app/lectures/page.tsx`, `src/app/retreats/page.tsx`
-
 ### [P2] Lesezeichen-Funktion für Klienten
 - **Status:** pending
 - **Beschreibung:** Nutzer sollen Klienten als Favorit markieren können
@@ -48,6 +42,12 @@ Jeder Eintrag folgt diesem Schema:
 ## Abgeschlossene Aufgaben
 
 <!-- Der Night Agent verschiebt erledigte Aufgaben hierher mit Datum -->
+
+### Datums-Validierung in Erstellungsformularen verbessern – ✅ 2026-05-28
+- **Status:** done
+- **Beschreibung:** In allen Formularen (`ConsultationForm`, `SkbConsultationForm`, Vorträge und Freizeiten) soll eine clientseitige Validierung sicherstellen, dass das Enddatum (`dateTo`) nicht vor dem Startdatum (`dateFrom`) liegen kann.
+- **Akzeptanzkriterien:** Wenn ein Nutzer das Startdatum nach dem aktuellen Enddatum wählt, wird das Enddatum automatisch auf dasselbe Datum angehoben. Ein Absenden mit `dateTo < dateFrom` wird verhindert.
+- **Betroffene Dateien:** `src/components/consultations/ConsultationForm.tsx`, `src/components/consultations/SkbConsultationForm.tsx`, `src/app/lectures/page.tsx`, `src/app/retreats/page.tsx`
 
 ### Verwaiste Zeiterfassungseinträge beim Löschen entfernen – ✅ 2026-05-28
 - **Status:** done

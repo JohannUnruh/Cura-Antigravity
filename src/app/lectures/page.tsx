@@ -162,6 +162,26 @@ export default function LecturesPage() {
         setIsModalOpen(true);
     };
 
+    const handleDateFromChange = (val: string) => {
+        setForm(prev => {
+            const updated = { ...prev, dateFrom: val };
+            if (prev.dateTo && val > prev.dateTo) {
+                updated.dateTo = val;
+            }
+            return updated;
+        });
+    };
+
+    const handleDateToChange = (val: string) => {
+        setForm(prev => {
+            const updated = { ...prev, dateTo: val };
+            if (prev.dateFrom && val < prev.dateFrom) {
+                updated.dateTo = prev.dateFrom;
+            }
+            return updated;
+        });
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSaving(true);
@@ -369,12 +389,12 @@ export default function LecturesPage() {
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Datum Von</label>
-                                <input type="date" required value={form.dateFrom} onChange={e => setForm({ ...form, dateFrom: e.target.value })}
+                                <input type="date" required value={form.dateFrom} onChange={e => handleDateFromChange(e.target.value)}
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500/20" />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Datum Bis</label>
-                                <input type="date" required value={form.dateTo} onChange={e => setForm({ ...form, dateTo: e.target.value })}
+                                <input type="date" required value={form.dateTo} onChange={e => handleDateToChange(e.target.value)}
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500/20" />
                             </div>
                         </div>

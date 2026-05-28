@@ -130,6 +130,26 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
+    const handleDateFromChange = (date: Date) => {
+        setFormData(prev => {
+            const updated = { ...prev, dateFrom: date };
+            if (prev.dateTo && date.getTime() > prev.dateTo.getTime()) {
+                updated.dateTo = date;
+            }
+            return updated;
+        });
+    };
+
+    const handleDateToChange = (date: Date) => {
+        setFormData(prev => {
+            const updated = { ...prev, dateTo: date };
+            if (prev.dateFrom && date.getTime() < prev.dateFrom.getTime()) {
+                updated.dateTo = prev.dateFrom;
+            }
+            return updated;
+        });
+    };
+
     const toggleMulti = (field: 'conflictPointsIds' | 'interventionsIds', item: string) => {
         setFormData(prev => {
             const current = (prev[field] as string[]) || [];
@@ -167,7 +187,7 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                         type="date"
                         required
                         value={formData.dateFrom ? formatDate(new Date(formData.dateFrom)) : ''}
-                        onChange={(e) => handleChange('dateFrom', new Date(e.target.value))}
+                        onChange={(e) => handleDateFromChange(new Date(e.target.value))}
                         className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
                     />
                 </div>
@@ -177,7 +197,7 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                         type="date"
                         required
                         value={formData.dateTo ? formatDate(new Date(formData.dateTo)) : ''}
-                        onChange={(e) => handleChange('dateTo', new Date(e.target.value))}
+                        onChange={(e) => handleDateToChange(new Date(e.target.value))}
                         className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
                     />
                 </div>
