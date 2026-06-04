@@ -100,7 +100,7 @@ export const clientService = {
         return docSnap.exists();
     },
 
-    subscribeFavorites(uid: string, callback: (favorites: {clientId: string; name: string}[]) => void) {
+    subscribeFavorites(uid: string, callback: (favorites: {clientId: string; name: string}[]) => void, onError?: (error: Error) => void) {
         const q = collection(db, "users", uid, "favorites");
         return onSnapshot(q, (snapshot) => {
             const list = snapshot.docs.map(doc => ({
@@ -108,6 +108,9 @@ export const clientService = {
                 name: doc.data().name || ""
             }));
             callback(list);
+        }, (error) => {
+            console.error("Error in subscribeFavorites snapshot listener:", error);
+            if (onError) onError(error);
         });
     }
 };

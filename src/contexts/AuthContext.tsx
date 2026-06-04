@@ -44,6 +44,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     setLoading(false);
                 });
             } else {
+                if (unsubscribeSnapshot) {
+                    unsubscribeSnapshot();
+                }
                 setUserProfile(null);
                 setLoading(false);
             }

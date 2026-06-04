@@ -9,6 +9,7 @@ import { PushNotificationProvider } from "@/contexts/PushNotificationContext";
 export const metadata: Metadata = {
   title: "Cura - Vereins- und Seelsorgeverwaltung",
   description: "Sichere, moderne Web-App für christliche Vereins- und Seelsorgeverwaltung.",
+  manifest: "/manifest.json",
   icons: {
     icon: "/icon.png",
     apple: "/apple-icon.png",

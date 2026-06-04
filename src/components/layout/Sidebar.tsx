@@ -36,9 +36,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
     useEffect(() => {
         if (!user?.uid) return;
-        const unsubscribe = clientService.subscribeFavorites(user.uid, (list) => {
-            setFavorites(list);
-        });
+        const unsubscribe = clientService.subscribeFavorites(
+            user.uid,
+            (list) => {
+                setFavorites(list);
+            },
+            (error) => {
+                console.error("Sidebar: Fehler beim Laden der Favoriten:", error);
+            }
+        );
         return () => unsubscribe();
     }, [user?.uid]);
 
