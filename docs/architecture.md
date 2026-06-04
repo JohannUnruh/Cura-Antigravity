@@ -46,7 +46,8 @@ C:\web-apps\Cura-Antigravity\
 │   └── types/
 │       └── index.ts            # Zentrale TypeScript Interfaces
 ├── public/
-│   └── firebase-messaging-sw.js  # Push Notification Service Worker
+│   ├── firebase-messaging-sw.js  # Push Notification Service Worker
+│   └── manifest.json             # Web App Manifest für PWA (wichtig für iOS-Push)
 ├── functions/                  # Firebase Cloud Functions (separates npm-Paket, eigene tsconfig!)
 │   ├── src/                    # Functions Source (TypeScript)
 │   └── lib/                    # Kompilierte Functions

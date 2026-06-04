@@ -36,6 +36,15 @@ Jeder Eintrag folgt diesem Schema:
 
 <!-- Der Night Agent verschiebt erledigte Aufgaben hierher mit Datum -->
 
+### Push-Registrierung auf Mobilgeräten & Live-Listener-Fixes – ✅ 2026-06-04
+- **Status:** done
+- **Beschreibung:** 
+  1. Fehler `Uncaught Error in snapshot listener` behoben, indem ein Error-Callback in `clientService.subscribeFavorites` und `Sidebar.tsx` integriert wurde.
+  2. Memory Leak und `permission-denied` beim Logout in `AuthContext.tsx` behoben durch sauberes Aufrufen von `unsubscribeSnapshot()`.
+  3. PWA-Support für iOS/Android durch Hinzufügen von `public/manifest.json` und Verlinkung in `src/app/layout.tsx` ermöglicht (zwingend erforderlich für iOS Push-Benachrichtigungen).
+  4. `NEXT_PUBLIC_FIREBASE_VAPID_KEY` in `apphosting.yaml` integriert, damit die Registrierung in der Produktion nicht an einem leeren Key scheitert.
+- **Betroffene Dateien:** `src/lib/firebase/services/clientService.ts`, `src/contexts/AuthContext.tsx`, `src/components/layout/Sidebar.tsx`, `src/app/layout.tsx`, `public/manifest.json`, `apphosting.yaml`
+
 ### Lesezeichen-Funktion für Klienten – ✅ 2026-05-28
 - **Status:** done
 - **Beschreibung:** Nutzer sollen Klienten als Favorit markieren können
