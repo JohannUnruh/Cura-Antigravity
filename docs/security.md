@@ -61,6 +61,13 @@ Wenn ein Key kompromittiert wurde oder regelmäßig (empfohlen: alle 90 Tage):
 - `firebase-admin` hat vollen Zugriff – daher nur in Functions/API Routes verwenden
 - Callable Functions prüfen immer `context.auth` auf Authentifizierung
 
+## Kalender-Abonnement (iCal-Feed) Sicherheit
+
+- **Token-basierte Authentifizierung**: Da Kalender-Clients (Google Calendar, Outlook) keine HTTP-Header-Authentifizierung oder OAuth unterstützen, ist der Feed über ein Query-Parameter-Token (`?token=...`) geschützt.
+- **Kryptografisch sichere Tokens**: Das Token wird mit `crypto.randomUUID()` generiert und in Firestore beim Benutzerdokument gespeichert.
+- **Token-Rotation**: Benutzer können ihr Kalendertoken in den Einstellungen jederzeit zurücksetzen. Das alte Token wird sofort ungültig, wodurch der alte Feed-Link keinen Zugriff mehr bietet.
+- **Minimale Daten-Exposition**: Die API-Route liest nur die Daten des verknüpften Autors (Beraters).
+
 ## Best Practices
 
 - **Keine sensiblen Daten** (Passwörter, Tokens) client-seitig speichern

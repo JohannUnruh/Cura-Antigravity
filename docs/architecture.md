@@ -36,6 +36,7 @@ C:\web-apps\Cura-Antigravity\
 │   │   ├── page.tsx            # Startseite
 │   │   ├── settings/           # Einstellungsseiten
 │   │   └── api/                # API Routes (Server-seitig)
+│   │       └── calendar/feed/route.ts # iCal-Feed Generator (geschützt durch Token)
 │   ├── components/
 │   │   └── ui/                 # UI-Komponenten (Modals, Listen, etc.)
 │   ├── contexts/               # React Context (Auth, Push Notifications, etc.)
@@ -81,3 +82,15 @@ FCM Push Notifications → Service Worker → Browser Notification
 - **firebase-admin** – Server-seitig (Cloud Functions, API Routes)
 - **@google-cloud/bigquery** – BigQuery Integration
 - **googleapis** – Google API (Kalender, Sheets, etc.)
+
+## Kalender-Abonnement (iCal-Feed)
+
+Die App bietet einen geschützten iCal-Live-Feed, den Berater in ihren persönlichen Kalendern (Google Calendar, Outlook, macOS/iOS) abonnieren können.
+
+- **Endpunkt:** `/api/calendar/feed?token=XYZ`
+- **Sicherheitskonzept:** Der Zugriff wird über ein kryptografisch starkes `calendarToken` geschützt, das im Benutzerprofil (`users/{uid}`) in Firestore gespeichert ist und vom Benutzer jederzeit in den Einstellungen zurückgesetzt werden kann.
+- **Datenquellen:** Der Feed aggregiert automatisch alle anstehenden und vergangenen Termine aus:
+  - Standard-Beratungsgesprächen (inkl. Zielterminen)
+  - Schwangerschaftskonfliktberatungen
+  - Vorträgen
+  - Freizeiten

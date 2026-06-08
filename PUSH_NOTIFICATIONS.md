@@ -178,9 +178,9 @@ firebase functions:log --only sendImmediateReminder --project cura-ant
 
 ## 📝 Nächste Schritte (Optional)
 
-- [ ] Automatische Erinnerungen aus Consultation.smartCheck.timeBound
+- [x] Automatische Erinnerungen aus Consultation.smartCheck.timeBound (Gelöst über das Dashboard-Schnellfilter-Widget und iCal-Kalender-Abonnement)
+- [x] Erinnerungen in Klienten-Detailansicht erstellen (Gelöst durch direkte Inline-Erstellung und automatischen Import aus Beratungen)
 - [ ] E-Mail-Fallback für iOS-Nutzer
-- [ ] Erinnerungen in Klienten-Detailansicht erstellen
 - [ ] Batch-Verarbeitung für größere User-Zahlen
 
 ---
