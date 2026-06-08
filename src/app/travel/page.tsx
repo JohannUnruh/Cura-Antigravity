@@ -10,8 +10,10 @@ import { TravelExpense, UserProfile } from "@/types";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { Car, Plus, Calendar, MapPin, CheckCircle2, XCircle, Clock3, RefreshCcw, AlertCircle, QrCode, User } from "lucide-react";
+import { Car, Plus, Calendar, MapPin, CheckCircle2, XCircle, Clock3, RefreshCcw, AlertCircle, QrCode, User, FileText } from "lucide-react";
 import QRCode from "qrcode";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function TravelPage() {
     const { user, userProfile } = useAuth();
@@ -216,6 +218,140 @@ export default function TravelPage() {
         setIsQrModalOpen(true);
     };
 
+    const handleExportPDF = async (expense: TravelExpense) => {
+        const doc = new jsPDF();
+        
+        let creator: UserProfile | null = null;
+        if (expense.authorId === user?.uid) {
+            creator = userProfile;
+        } else {
+            creator = usersMap[expense.authorId] || null;
+        }
+        
+        const creatorName = creator ? `${creator.firstName} ${creator.lastName}`.trim() : "Unbekannter Mitarbeiter";
+        const lastName = creator ? creator.lastName : "Berater";
+        const safeLastName = lastName.replace(/[^a-zA-Z0-9]/g, "");
+        const dateObj = new Date(expense.startDate);
+        const yearMonth = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}`;
+        const amountStr = (expense.calculatedAmount ?? 0).toFixed(2).replace(".", "_");
+        
+        const fileName = `Fahrtkosten_${amountStr}_${yearMonth}_${safeLastName}.pdf`;
+
+        try {
+            const getBase64Image = async (url: string) => {
+                const res = await fetch(url);
+                const blob = await res.blob();
+                return new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            };
+            const logoBase64 = await getBase64Image("/zefabiko_logo.png");
+            doc.addImage(logoBase64, 'PNG', 14, 12, 16, 16);
+            doc.setFontSize(18);
+            doc.setFont("helvetica", "bold");
+            doc.text("Fahrtkostenabrechnung", 34, 23);
+        } catch (error) {
+            console.error("Could not load logo for PDF", error);
+            doc.setFontSize(18);
+            doc.setFont("helvetica", "bold");
+            doc.text("Fahrtkostenabrechnung", 14, 20);
+        }
+
+        // Header info
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        
+        // Metadata / Date
+        doc.text(`Erstellungsdatum: ${new Date().toLocaleDateString("de-DE")}`, 140, 20);
+        doc.text(`Status: ${expense.status}`, 140, 25);
+        
+        // Divider line
+        doc.setDrawColor(226, 232, 240); // slate-200
+        doc.line(14, 32, 196, 32);
+
+        // Submitter details
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text("Angaben zum Mitarbeiter:", 14, 40);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text(`Name: ${creatorName}`, 14, 46);
+        doc.text(`Vertragstyp: ${creator?.contractType || "Ehrenamtlich"}`, 14, 51);
+        doc.text(`Anschrift: ${creator?.address?.street || ""}, ${creator?.address?.zipCode || ""} ${creator?.address?.city || ""}`, 14, 56);
+        
+        // Bank details if available
+        if (creator?.bankDetails?.iban) {
+            doc.text(`Kontoinhaber: ${creator.bankDetails.accountHolder}`, 110, 46);
+            doc.text(`IBAN: ${creator.bankDetails.iban}`, 110, 51);
+            if (creator.bankDetails.bic) {
+                doc.text(`BIC: ${creator.bankDetails.bic}`, 110, 56);
+            }
+        } else {
+            doc.text("Bankverbindung: Keine hinterlegt", 110, 46);
+        }
+
+        // Divider line
+        doc.line(14, 63, 196, 63);
+
+        // Details of the trip
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text("Details der Fahrt:", 14, 71);
+        doc.setFont("helvetica", "normal");
+        
+        const tableColumn = ["Parameter", "Wert"];
+        const tableRows = [
+            ["Datum der Fahrt", new Date(expense.startDate).toLocaleDateString("de-DE")],
+            ["Startort", expense.startLocation],
+            ["Zielort", expense.endLocation],
+            ["Fahrttyp", expense.isRoundTrip ? "Hin- und Rückfahrt" : "Einfache Fahrt"],
+            ["Kilometerstand Start", `${expense.kmStart.toLocaleString("de-DE")} km`],
+            ["Kilometerstand Ende", `${expense.kmEnd.toLocaleString("de-DE")} km`],
+            ["Gefahrene Distanz", `${expense.kmDriven.toLocaleString("de-DE")} km`],
+            ["Erstattungssatz", `${(settings?.travelExpenseRate || 0.30).toFixed(2).replace(".", ",")} €/km`],
+        ];
+
+        autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: 77,
+            theme: 'striped',
+            headStyles: { fillColor: [14, 165, 233] }, // sky-500
+            styles: { fontSize: 10 }
+        });
+
+        // Get final Y after table
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const finalY = (doc as any).lastAutoTable?.finalY || 130;
+
+        // Reimbursement amount summary
+        doc.setDrawColor(14, 165, 233); // sky-500
+        doc.setFillColor(240, 249, 255); // sky-50
+        doc.rect(14, finalY + 8, 182, 16, "FD");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(3, 105, 161); // sky-700
+        doc.text("Erstattungsbetrag Gesamt:", 18, finalY + 18);
+        doc.text(`${(expense.calculatedAmount ?? 0).toFixed(2).replace(".", ",")} €`, 150, finalY + 18);
+        doc.setTextColor(0, 0, 0); // reset to black
+
+        // Signature area
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        
+        doc.line(14, finalY + 45, 80, finalY + 45);
+        doc.text("Unterschrift Mitarbeiter", 14, finalY + 50);
+
+        doc.line(110, finalY + 45, 176, finalY + 45);
+        doc.text("Freigabe (Kassenwart/Vorstand)", 110, finalY + 50);
+
+        doc.save(fileName);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSaving(true);
@@ -337,6 +473,16 @@ export default function TravelPage() {
                                                         <span className="hidden sm:inline">GiroCode</span>
                                                     </Button>
                                                 )}
+
+                                                <Button
+                                                    variant="secondary"
+                                                    onClick={() => handleExportPDF(item)}
+                                                    className="p-2.5 rounded-xl hover:bg-sky-50 dark:hover:bg-sky-950/20 text-slate-700 dark:text-slate-300 border border-gray-200 dark:border-white/10 gap-2 shrink-0 text-sm flex items-center bg-white dark:bg-slate-900"
+                                                    title="PDF Abrechnung herunterladen"
+                                                >
+                                                    <FileText className="w-4 h-4" />
+                                                    <span className="hidden sm:inline">PDF</span>
+                                                </Button>
 
                                                 {/* Kassenwart buttons */}
                                                 {item.status === "Eingereicht" && userProfile?.role === "Kassenwart" && (

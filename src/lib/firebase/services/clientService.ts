@@ -32,7 +32,7 @@ export const clientService = {
                 id: doc.id,
                 createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt)
             } as Client;
-        });
+        }).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     },
 
     async getClientById(clientId: string): Promise<Client | null> {
@@ -77,7 +77,7 @@ export const clientService = {
                 id: doc.id,
                 createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt)
             } as Client;
-        });
+        }).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     },
 
     async addFavorite(uid: string, clientId: string, name: string) {

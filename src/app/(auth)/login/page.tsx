@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
-import { HandHeart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
@@ -36,10 +35,14 @@ export default function LoginPage() {
             <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-700">
                 <div className="flex justify-center mb-8">
                     <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-xl shadow-blue-500/20">
-                            <HandHeart className="text-white w-8 h-8" />
+                        <div className="w-14 h-14 rounded-2xl overflow-hidden flex items-center justify-center bg-white shadow-xl">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src="/zefabiko_logo.png" alt="ZeFabiKo Logo" className="w-12 h-12 object-contain" />
                         </div>
-                        <span className="text-5xl font-bold tracking-tight text-gray-900 dark:text-white">Cura</span>
+                        <div className="flex flex-col justify-center">
+                            <span className="text-5xl font-bold tracking-tight text-gray-900 dark:text-white leading-none">Cura</span>
+                            <span className="text-xs font-semibold text-gray-500 dark:text-slate-400 mt-1">ZeFabiKo</span>
+                        </div>
                     </div>
                 </div>
 

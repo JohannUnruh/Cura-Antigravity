@@ -15,6 +15,7 @@ import { Clock, Plus, Calendar, FileText, Briefcase, Car, Tent, Presentation, Me
 import { useRouter, useSearchParams } from "next/navigation";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 const sanitizeDescription = (desc?: string, referenceId?: string) => {
     if (!desc) return "-";
@@ -50,6 +51,11 @@ const getTimeRangeStr = (timeOfDay?: string, durationInHours?: number) => {
 };
 
 const formatHours = (h?: number) => h ? Math.round(h * 10) / 10 : 0;
+
+const months = [
+    "Januar", "Februar", "März", "April", "Mai", "Juni",
+    "Juli", "August", "September", "Oktober", "November", "Dezember"
+];
 
 export default function TimeTrackingPage() {
     const router = useRouter();
@@ -99,6 +105,12 @@ export default function TimeTrackingPage() {
 
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [chartView, setChartView] = useState<'month' | 'year'>('month');
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     // Overtime State
     const [maxHours, setMaxHours] = useState<number>(0);
@@ -511,6 +523,55 @@ export default function TimeTrackingPage() {
     const totalHours = filteredEntries.reduce((acc, curr) => acc + curr.durationInHours, 0);
     const totalHoursRounded = Math.round(totalHours * 10) / 10;
 
+    // Data calculations for Recharts
+    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    const dailyData = Array.from({ length: daysInMonth }, (_, i) => {
+        const day = i + 1;
+        const dayEntries = filteredEntries.filter(e => {
+            const entryDate = new Date(e.date);
+            return entryDate.getDate() === day;
+        });
+        const hours = dayEntries.reduce((sum, e) => sum + e.durationInHours, 0);
+        return {
+            name: `${day}.`,
+            Stunden: Math.round(hours * 10) / 10,
+        };
+    });
+
+    const CHART_COLORS = {
+        Beratung: "#4f46e5", // indigo-600
+        Büro: "#0284c7",     // sky-600
+        Fahrt: "#0d9488",    // teal-600
+        Vortrag: "#9333ea",  // purple-600
+        Freizeit: "#ea580c", // orange-600
+        Urlaub: "#ca8a04",   // yellow-600
+        Sonstiges: "#4b5563" // gray-600
+    };
+
+    const categoryMap: Record<string, number> = {};
+    filteredEntries.forEach(e => {
+        categoryMap[e.type] = (categoryMap[e.type] || 0) + e.durationInHours;
+    });
+    const categoryData = Object.entries(categoryMap)
+        .map(([name, value]) => ({
+            name,
+            value: Math.round(value * 10) / 10,
+            color: CHART_COLORS[name as keyof typeof CHART_COLORS] || "#6b7280"
+        }))
+        .filter(item => item.value > 0);
+
+    const yearlyData = months.map((m, i) => {
+        const monthEntries = entries.filter(e => {
+            const d = new Date(e.date);
+            return d.getMonth() === i && d.getFullYear() === selectedYear;
+        });
+        const hours = monthEntries.reduce((sum, e) => sum + e.durationInHours, 0);
+        return {
+            name: m.slice(0, 3), // E.g., "Jan", "Feb"
+            Stunden: Math.round(hours * 10) / 10,
+        };
+    });
+
     const exportPDF = async () => {
         const doc = new jsPDF();
         const monthName = new Date(selectedYear, selectedMonth, 1).toLocaleString('de-DE', { month: 'long', year: 'numeric' });
@@ -575,13 +636,11 @@ export default function TimeTrackingPage() {
         doc.setFontSize(14);
         doc.text(`Gesamtstunden: ${formatHours(totalHoursRounded)}h`, 14, finalY + 15);
 
-        doc.save(`Zeiterfassung_${monthName.replace(' ', '_')}.pdf`);
+        const lastName = userProfile?.lastName || "Berater";
+        const safeLastName = lastName.replace(/[^a-zA-Z0-9]/g, "");
+        const yearMonth = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
+        doc.save(`Zeiterfassung_${yearMonth}_${safeLastName}.pdf`);
     };
-
-    const months = [
-        "Januar", "Februar", "März", "April", "Mai", "Juni",
-        "Juli", "August", "September", "Oktober", "November", "Dezember"
-    ];
 
     return (
         <ProtectedRoute>
@@ -808,7 +867,127 @@ export default function TimeTrackingPage() {
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* Kategorie-Verteilung */}
+                    <Card className="border-white/50 shadow-sm bg-white/40">
+                        <CardContent className="p-6 flex flex-col justify-between h-[180px]">
+                            <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-2">Kategorie-Verteilung ({months[selectedMonth]})</h3>
+                            {isMounted && categoryData.length > 0 ? (
+                                <div className="flex items-center justify-between h-full">
+                                    <div className="w-[110px] h-[110px] relative shrink-0">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie
+                                                    data={categoryData}
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    innerRadius={30}
+                                                    outerRadius={50}
+                                                    paddingAngle={2}
+                                                    dataKey="value"
+                                                >
+                                                    {categoryData.map((entry, index) => (
+                                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                                    ))}
+                                                </Pie>
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <div className="flex-1 pl-4 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] overflow-y-auto max-h-[110px] scrollbar-none">
+                                        {categoryData.map((entry, i) => (
+                                            <div key={i} className="flex items-center gap-1.5 min-w-0">
+                                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
+                                                <span className="truncate text-gray-700 dark:text-slate-300 font-medium" title={entry.name}>
+                                                    {entry.name}: <span className="font-bold">{entry.value}h</span>
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-center h-full text-xs text-gray-400 dark:text-slate-500">
+                                    Keine Daten zur Darstellung vorhanden
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
                 </div>
+
+                {/* Arbeitsstunden im Detail */}
+                <Card className="border-white/50 shadow-sm bg-white/40">
+                    <CardContent className="p-6">
+                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Arbeitsstunden im Detail</h3>
+                                <p className="text-xs text-gray-500 dark:text-slate-400">
+                                    {chartView === 'month' 
+                                        ? `Stundenverlauf für ${months[selectedMonth]} ${selectedYear}` 
+                                        : `Monatsvergleich für das Jahr ${selectedYear}`}
+                                </p>
+                            </div>
+                            <div className="flex gap-1 p-0.5 bg-gray-100/80 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10 text-xs font-medium shrink-0 w-fit">
+                                <button
+                                    onClick={() => setChartView('month')}
+                                    className={`px-3 py-1.5 rounded-md transition-all ${chartView === 'month' ? 'bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-slate-300'}`}
+                                >
+                                    Monat (Tage)
+                                </button>
+                                <button
+                                    onClick={() => setChartView('year')}
+                                    className={`px-3 py-1.5 rounded-md transition-all ${chartView === 'year' ? 'bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-slate-300'}`}
+                                >
+                                    Jahr (Monate)
+                                </button>
+                            </div>
+                        </div>
+
+                        {isMounted && (chartView === 'month' ? filteredEntries.length > 0 : entries.length > 0) ? (
+                            <div className="w-full h-[220px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart
+                                        data={chartView === 'month' ? dailyData : yearlyData}
+                                        margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
+                                    >
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" className="dark:stroke-slate-800" />
+                                        <XAxis 
+                                            dataKey="name" 
+                                            tickLine={false} 
+                                            axisLine={false} 
+                                            tick={{ fill: '#64748b', fontSize: 10 }}
+                                        />
+                                        <YAxis 
+                                            tickLine={false} 
+                                            axisLine={false} 
+                                            tick={{ fill: '#64748b', fontSize: 10 }}
+                                        />
+                                        <Tooltip 
+                                            cursor={{ fill: 'rgba(244, 63, 94, 0.05)' }} 
+                                            contentStyle={{
+                                                backgroundColor: '#0f172a',
+                                                border: 'none',
+                                                borderRadius: '8px',
+                                                color: '#fff',
+                                                fontSize: '11px',
+                                            }}
+                                            labelStyle={{ fontWeight: 'bold', color: '#f43f5e' }}
+                                        />
+                                        <Bar 
+                                            dataKey="Stunden" 
+                                            fill="#f43f5e" 
+                                            radius={[4, 4, 0, 0]} 
+                                            maxBarSize={chartView === 'month' ? 12 : 24}
+                                        />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-[220px] text-sm text-gray-400 dark:text-slate-500 gap-2">
+                                <Clock className="w-8 h-8 opacity-40 text-gray-400" />
+                                Keine Daten im ausgewählten Zeitraum
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
 
                 <div className="space-y-4">
                     {loading ? (

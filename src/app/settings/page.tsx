@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { TagInput } from "@/components/ui/TagInput";
 import { UserProfile, Role, AppSettings, ContractType } from "@/types";
-import { Settings, User, MapPin, CreditCard, ShieldCheck, Users, Key, AppWindow, Plus, Pencil, Trash2, FileSignature, Moon, Sun, Cloud, Eye, EyeOff, Bell, CheckCircle2, AlertCircle } from "lucide-react";
+import { Settings, User, MapPin, CreditCard, ShieldCheck, Users, Key, AppWindow, Plus, Pencil, Trash2, FileSignature, Moon, Sun, Cloud, Eye, EyeOff, Bell, CheckCircle2, AlertCircle, Calendar, Copy, RefreshCw, Check } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePushNotification } from "@/contexts/PushNotificationContext";
 import { updatePassword } from "firebase/auth";
@@ -31,6 +31,56 @@ export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState<'profil' | 'benutzer' | 'app' | 'benachrichtigungen'>('profil');
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [copied, setCopied] = useState(false);
+
+    const getCalendarUrl = () => {
+        if (typeof window === "undefined" || !userProfile?.calendarToken) return "";
+        return `${window.location.origin}/api/calendar/feed?token=${userProfile.calendarToken}`;
+    };
+
+    const handleCopyCalendarUrl = () => {
+        const url = getCalendarUrl();
+        if (!url) return;
+        navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handleGenerateCalendarToken = async () => {
+        if (!userProfile) return;
+        setIsSaving(true);
+        try {
+            const token = (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2)).replace(/-/g, "");
+            const updatedProfile = { ...userProfile, calendarToken: token };
+            await userService.saveUserProfile(updatedProfile);
+            setMessage({ type: 'success', text: "Kalender-Abonnement-Link wurde erstellt." });
+            setTimeout(() => setMessage(null), 3000);
+        } catch (error) {
+            console.error("Error generating calendar token:", error);
+            setMessage({ type: 'error', text: "Fehler beim Erstellen des Kalender-Links." });
+            setTimeout(() => setMessage(null), 3000);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleResetCalendarToken = async () => {
+        if (!userProfile) return;
+        setIsSaving(true);
+        try {
+            const token = (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2)).replace(/-/g, "");
+            const updatedProfile = { ...userProfile, calendarToken: token };
+            await userService.saveUserProfile(updatedProfile);
+            setMessage({ type: 'success', text: "Kalender-Abonnement-Link wurde zurückgesetzt." });
+            setTimeout(() => setMessage(null), 3000);
+        } catch (error) {
+            console.error("Error resetting calendar token:", error);
+            setMessage({ type: 'error', text: "Fehler beim Zurücksetzen des Kalender-Links." });
+            setTimeout(() => setMessage(null), 3000);
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     // -- Profile Tab State --
     const [form, setForm] = useState({
@@ -309,7 +359,8 @@ export default function SettingsPage() {
             await settingsService.saveSettings(appForm);
             setAppSettings(appForm);
             await refreshSettings();
-            showMessage('success', 'App-Einstellungen erfolgreich gespeichert.');
+            showMessage('success', 'Einstellungen wurden gespeichert.');
+            setActiveTab('profil');
         } catch (err) {
             console.error(err);
             showMessage('error', 'Fehler beim Speichern der App-Einstellungen.');
@@ -1172,6 +1223,110 @@ export default function SettingsPage() {
                                     Damit Push-Benachrichtigungen auf Apple-Geräten funktionieren, muss diese App zuerst **zum Home-Bildschirm hinzugefügt werden** (als PWA installiert werden). Öffne die Seite dazu in Safari, tippe auf das Teilen-Symbol (Viereck mit Pfeil nach oben) und wähle &bdquo;Zum Home-Bildschirm&ldquo;. Starte dann die App vom Home-Bildschirm aus und aktiviere hier die Benachrichtigungen.
                                 </div>
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Kalender-Abonnement (ICS-Live-Feed) */}
+                    <Card className="border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm shadow-sm mt-6">
+                        <CardContent className="p-6">
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                                <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                                Kalender-Abonnement (ICS-Feed)
+                            </h2>
+                            <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">
+                                Abonniere deine Cura-Termine (Beratungsgespräche, Zieltermine, Vorträge und Freizeiten) direkt in deiner bevorzugten Kalender-App. Die Synchronisation erfolgt automatisch im Hintergrund.
+                            </p>
+
+                            {!userProfile?.calendarToken ? (
+                                <div className="p-6 text-center border-2 border-dashed border-gray-200 dark:border-white/10 rounded-2xl bg-gray-50/50 dark:bg-white/5 animate-in fade-in duration-300">
+                                    <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
+                                        Du hast noch keinen Kalender-Abonnement-Link generiert.
+                                    </p>
+                                    <Button
+                                        type="button"
+                                        variant="primary"
+                                        onClick={handleGenerateCalendarToken}
+                                        disabled={isSaving}
+                                    >
+                                        <Plus className="w-4 h-4 mr-2 inline" />
+                                        Persönlichen Kalender-Link erstellen
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="space-y-6 animate-in fade-in duration-300">
+                                    {/* Link display & copy */}
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                                            Dein persönlicher Abo-Link:
+                                        </label>
+                                        <div className="flex gap-2">
+                                            <div className="flex-1 bg-gray-50 dark:bg-slate-800/80 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 font-mono text-xs text-gray-600 dark:text-slate-300 select-all overflow-x-auto whitespace-nowrap scrollbar-none flex items-center">
+                                                {getCalendarUrl()}
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                variant="secondary"
+                                                onClick={handleCopyCalendarUrl}
+                                                className="shrink-0 h-10 w-10 p-0 flex items-center justify-center"
+                                            >
+                                                {copied ? (
+                                                    <Check className="w-4 h-4 text-green-600" />
+                                                ) : (
+                                                    <Copy className="w-4 h-4" />
+                                                )}
+                                            </Button>
+                                        </div>
+                                        {copied && (
+                                            <p className="text-xs text-green-600 dark:text-green-400 animate-in fade-in duration-200">
+                                                Link in die Zwischenablage kopiert!
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* Warnung & Reset */}
+                                    <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 flex items-start gap-3">
+                                        <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+                                        <div className="text-xs text-amber-800 dark:text-amber-300 space-y-2">
+                                            <p>
+                                                <strong>Wichtiger Sicherheitshinweis:</strong> Jeder, der Zugriff auf diesen Link hat, kann deine Termine einsehen. Teile den Link niemals mit Dritten.
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (confirm("Möchtest du deinen Kalender-Link wirklich zurücksetzen? Alle bisherigen Kalender-Abonnements mit dem alten Link werden ungültig.")) {
+                                                        handleResetCalendarToken();
+                                                    }
+                                                }}
+                                                className="text-amber-700 dark:text-amber-400 font-bold hover:underline flex items-center gap-1.5"
+                                            >
+                                                <RefreshCw className="w-3.5 h-3.5" />
+                                                Link zurücksetzen (Neuen Token generieren)
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Integration instructions */}
+                                    <div className="border-t border-gray-100 dark:border-white/5 pt-5">
+                                        <h3 className="font-bold text-gray-900 dark:text-white text-sm mb-3">
+                                            Wie abonniere ich diesen Kalender?
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-500 dark:text-slate-400">
+                                            <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/5 space-y-1">
+                                                <h4 className="font-bold text-gray-800 dark:text-slate-200">Google Kalender</h4>
+                                                <p>In Google Kalender links neben &bdquo;Weitere Kalender&ldquo; auf das **+** Symbol klicken, &bdquo;Per URL&ldquo; auswählen und den Link einfügen.</p>
+                                            </div>
+                                            <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/5 space-y-1">
+                                                <h4 className="font-bold text-gray-800 dark:text-slate-200">Outlook / Exchange</h4>
+                                                <p>Auf &bdquo;Kalender hinzufügen&bdquo; klicken, &bdquo;Aus dem Internet abonnieren&ldquo; wählen und den Link einfügen.</p>
+                                            </div>
+                                            <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/5 space-y-1">
+                                                <h4 className="font-bold text-gray-800 dark:text-slate-200">Apple Kalender (Mac/iOS)</h4>
+                                                <p>Ablage &gt; &bdquo;Neues Kalenderabonnement...&ldquo; wählen, den Link eingeben und &bdquo;Abonnieren&ldquo; klicken.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>

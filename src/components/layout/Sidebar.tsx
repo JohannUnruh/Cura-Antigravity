@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Presentation, Tent, Car, Settings, HandHeart, MessagesSquare, Clock, LogOut, Coffee, X, Star } from "lucide-react";
+import { LayoutDashboard, Users, Presentation, Tent, Car, Settings, MessagesSquare, Clock, LogOut, Coffee, X, Star } from "lucide-react";
 import { cn } from "../ui/Card";
 import { auth } from "@/lib/firebase/config";
 import { signOut } from "firebase/auth";
@@ -62,10 +62,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <>
             <div className="flex items-center justify-between mb-12 px-2">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                        <HandHeart className="text-white w-6 h-6" />
+                    <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-white shadow-md">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/zefabiko_logo.png" alt="ZeFabiKo Logo" className="w-9 h-9 object-contain" />
                     </div>
-                    <span className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Cura</span>
+                    <div>
+                        <span className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white block leading-none">Cura</span>
+                        <span className="text-[10px] font-medium text-gray-500 dark:text-slate-400 block mt-0.5">ZeFabiKo</span>
+                    </div>
                 </div>
                 {onClose && (
                     <button 

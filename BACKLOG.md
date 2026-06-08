@@ -28,13 +28,50 @@ Jeder Eintrag folgt diesem Schema:
 
 ## Backlog
 
-<!-- Trage hier neue Aufgaben ein. Der Night Agent arbeitet sie der Priorität nach ab. -->
-
 ---
 
 ## Abgeschlossene Aufgaben
 
 <!-- Der Night Agent verschiebt erledigte Aufgaben hierher mit Datum -->
+
+### Dashboard-Schnellfilter für überfällige Zieltermine – ✅ 2026-06-08
+- **Status:** done
+- **Beschreibung:** Ein Widget oder Warn-Badge auf dem Dashboard, das dem Berater sofort anzeigt, welche Klienten vereinbarte Zieltermine überschritten haben, ohne dass ein neues Gespräch erfasst wurde.
+- **Akzeptanzkriterien:** Rotes Badge/Liste auf dem Dashboard bei überfälligen Terminen.
+- **Betroffene Dateien:** `src/app/page.tsx`
+
+### Visuelle Monats- und Jahresstatistik in der Zeiterfassung – ✅ 2026-06-08
+- **Status:** done
+- **Beschreibung:** Einbindung einer grafischen Auswertung (Balken- und Kreisdiagramm mit Recharts) in der Zeiterfassung. Zeigt die Verteilung der Stunden nach Kategorien und den täglichen/monatlichen Arbeitszeitverlauf (inkl. Toggle zwischen Monats- und Jahresansicht).
+- **Akzeptanzkriterien:** Responsive Recharts-Diagramme auf dem Zeiterfassungs-Dashboard integriert.
+- **Betroffene Dateien:** `src/app/time-tracking/page.tsx`
+
+### Einheitliches Dateinamens-Schema für PDF-Exporte – ✅ 2026-06-08
+- **Status:** done
+- **Beschreibung:** Automatisches Generieren von standardisierten und gut lesbaren Dateinamen beim PDF-Export von Fahrtkostenabrechnungen und Zeiterfassungs-Berichten (z.B. `Fahrtkosten_2_50_2026-06_Mustername.pdf` bzw. `Zeiterfassung_2026-06_Mustername.pdf`).
+- **Akzeptanzkriterien:** PDFs werden beim Herunterladen automatisch mit dem formatierten Namen benannt. PDF-Export für Einzeleinträge der Fahrtkosten wurde neu implementiert.
+- **Betroffene Dateien:** `src/app/travel/page.tsx`, `src/app/time-tracking/page.tsx`
+
+### Kalender-Abonnement (ICS-Live-Feed) – ✅ 2026-06-08
+- **Status:** done
+- **Beschreibung:** Bereitstellung eines geschützten iCal-Live-Feeds (URL), den Nutzer in Google Kalender, Outlook oder Apple Kalender abonnieren können. Termine synchronisieren sich dadurch automatisch, wenn neue Beratungen/Zieltermine/Vorträge/Freizeiten angelegt werden.
+- **Akzeptanzkriterien:** Einstellungsoption zum Kopieren des persönlichen Kalender-Abo-Links ist in den Benachrichtigungs-Einstellungen integriert.
+- **Betroffene Dateien:** `src/app/settings/page.tsx`, `src/lib/firebase/firebaseAdmin.ts`, `src/app/api/calendar/feed/route.ts`
+
+### Optimierungen aus Teambesprechung – ✅ 2026-06-08
+- **Status:** done
+- **Beschreibung:**
+  1. Klienten in der Übersicht nach Datum absteigend sortiert (In-Memory in `clientService`).
+  2. Dunkle Überschriften und Labels in den Erfassungsmasken im Darkmode korrigiert (verbesserter Farbkontrast).
+  3. Nummern-Inputs (Dauer, Einheiten, Vorbereitung) in der Erfassungsmaske direkt überschreibbar gemacht (Einführung lokaler String-States zur Umgehung von React Number-Input-Bugs).
+  4. ZeFabiKo-Logo (`zefabiko_logo.png`) kopiert und in Sidebar sowie auf der Login-Seite integriert.
+  5. Nach dem Speichern der App-Einstellungen (Dropdowns) wird der Tab geschlossen (navigiert zum Profil-Tab) und eine Erfolgsmeldung ("Einstellungen wurden gespeichert.") angezeigt.
+  6. Sektionen im Beratungsformular (Lebensabschnitt, Problemherkunft, Folgeprobleme, Zieltyp, Zielvereinbarung, Zieltermin) standardmäßig einklappbar gemacht (bei neuen Gesprächen eingeklappt, bei Vorliegen von Daten oder Bearbeitung ausgeklappt).
+  7. Bekannten Next.js Fast Refresh-Bug im Firestore SDK behoben, indem IndexedDB-Caching durch `memoryLocalCache` ersetzt wurde (verhindert den Fehler `FIRESTORE INTERNAL ASSERTION FAILED: Unexpected state` bei Modul-Reloads).
+  8. Berechtigungsproblem (`Missing or insufficient permissions`) beim Laden der Favoriten-Liste in der Sidebar behoben durch Vereinfachung des Scopes in den Firestore Rules.
+  9. Layout-Ausrichtung der Schwangerschaftsdaten-Labels in `SkbConsultationForm` korrigiert (durch min-h und flexbox fluchten die Inputs jetzt perfekt auf einer horizontalen Linie).
+- **Betroffene Dateien:** `src/lib/firebase/services/clientService.ts`, `src/components/consultations/ConsultationForm.tsx`, `src/components/consultations/SkbConsultationForm.tsx`, `src/components/layout/Sidebar.tsx`, `src/app/(auth)/login/page.tsx`, `src/app/settings/page.tsx`, `src/lib/firebase/config.ts`, `firestore.rules`
+
 
 ### Push-Registrierung auf Mobilgeräten & Live-Listener-Fixes – ✅ 2026-06-04
 - **Status:** done

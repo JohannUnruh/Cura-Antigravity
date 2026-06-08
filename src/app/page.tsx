@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/Card";
-import { Users, Clock, Presentation, Tent, Tag, TrendingUp, Info } from "lucide-react";
+import { Users, Clock, Presentation, Tent, Tag, TrendingUp, Info, AlertTriangle, ArrowRight, Calendar } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, Cell as ReCell } from "recharts";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
@@ -93,6 +94,59 @@ export default function Dashboard() {
 
     loadAllData();
   }, [user, userProfile?.role, viewMode]);
+
+  // --- Overdue target dates check ---
+  const overdueClients = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const clientsMap = new Map<string, Client>();
+    data.clients.forEach(c => clientsMap.set(c.id, c));
+
+    const consByClient = new Map<string, Consultation[]>();
+    data.consultations.forEach(c => {
+      if (!consByClient.has(c.clientId)) {
+        consByClient.set(c.clientId, []);
+      }
+      consByClient.get(c.clientId)!.push(c);
+    });
+
+    const overdueList: Array<{
+      client: Client;
+      latestConsultation: Consultation;
+      targetDate: Date;
+      goalAgreement: string;
+    }> = [];
+
+    consByClient.forEach((cons, clientId) => {
+      const client = clientsMap.get(clientId);
+      if (!client) return;
+
+      const sorted = [...cons].sort((a, b) => new Date(b.dateFrom).getTime() - new Date(a.dateFrom).getTime());
+      const latest = sorted[0];
+
+      if (latest.smartCheck?.timeBound) {
+        const rawBound = latest.smartCheck.timeBound;
+        let tDate: Date;
+        if (rawBound && typeof rawBound === 'object' && 'toDate' in rawBound) {
+          tDate = (rawBound as { toDate: () => Date }).toDate();
+        } else {
+          tDate = new Date(rawBound as string | number | Date);
+        }
+
+        if (tDate < today) {
+          overdueList.push({
+            client,
+            latestConsultation: latest,
+            targetDate: tDate,
+            goalAgreement: latest.goalAgreement || "Keine spezifische Zielvereinbarung"
+          });
+        }
+      }
+    });
+
+    return overdueList.sort((a, b) => a.targetDate.getTime() - b.targetDate.getTime());
+  }, [data.clients, data.consultations]);
 
   // --- Aggregations ---
 
@@ -310,6 +364,64 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Overdue Target Dates Widget */}
+        {overdueClients.length > 0 && (
+          <Card className="rounded-[2.5rem] border-rose-500/20 bg-rose-50/40 dark:bg-rose-950/10 backdrop-blur-sm shadow-sm overflow-hidden">
+            <CardContent className="p-6 md:p-8">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-500/10 dark:bg-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                    <AlertTriangle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                      Überfällige Zieltermine
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-slate-400">
+                      Folgende Klienten haben ihren vereinbarten Zieltermin überschritten, ohne dass ein neues Beratungsgespräch erfasst wurde.
+                    </p>
+                  </div>
+                </div>
+                <span className="px-3 py-1 text-xs font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 rounded-full w-fit">
+                  {overdueClients.length} {overdueClients.length === 1 ? 'Klient' : 'Klienten'} überfällig
+                </span>
+              </div>
+
+              <div className="grid gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                {overdueClients.map(({ client, targetDate, goalAgreement }) => (
+                  <div
+                    key={client.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-white/50 dark:border-white/10 hover:border-rose-500/30 dark:hover:border-rose-500/30 transition-all duration-200"
+                  >
+                    <div className="flex flex-col gap-1 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-gray-900 dark:text-white truncate">
+                          {client.name}
+                        </span>
+                        <span className="text-xs px-2.5 py-0.5 rounded-full font-medium bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/30 flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5" />
+                          Zieltermin: {new Date(targetDate).toLocaleDateString('de-DE')}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500 dark:text-slate-400 line-clamp-1 italic">
+                        &ldquo;{goalAgreement}&rdquo;
+                      </p>
+                    </div>
+                    
+                    <Link
+                      href={`/clients/${client.id}`}
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold text-rose-600 dark:text-rose-400 hover:text-white dark:hover:text-white bg-rose-500/10 hover:bg-rose-600 dark:bg-rose-500/10 dark:hover:bg-rose-600 rounded-xl transition-all shadow-sm group shrink-0"
+                    >
+                      Klient öffnen
+                      <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Multi-Section Content */}
         <div className="grid gap-8 lg:grid-cols-2">

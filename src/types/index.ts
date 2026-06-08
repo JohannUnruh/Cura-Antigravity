@@ -30,6 +30,9 @@ export interface UserProfile {
     notificationHour?: number;    // 0-23
     notificationMinute?: number;  // 0-59
     notificationDayOfWeek?: number; // 0-6 (0=Sonntag, 1=Montag, ...)
+
+    // Kalender-Abonnement
+    calendarToken?: string;
 }
 
 export interface AppSettings {

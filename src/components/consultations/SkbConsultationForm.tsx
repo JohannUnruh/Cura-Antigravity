@@ -88,6 +88,7 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
     const [trackHours, setTrackHours] = useState(true);
     const [distributionType, setDistributionType] = useState<'equal' | 'custom'>('equal');
     const [customHoursMap, setCustomHoursMap] = useState<Record<string, number>>({});
+    const [durationStr, setDurationStr] = useState(formData.durationInHours?.toString() ?? "1");
 
     const dates = React.useMemo(() => {
         if (!formData.dateFrom || !formData.dateTo) return [];
@@ -111,6 +112,13 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
             }
         }
     }, [dates, totalHours, distributionType]);
+
+    React.useEffect(() => {
+        if (formData.durationInHours !== undefined && parseFloat(durationStr) !== formData.durationInHours) {
+            setDurationStr(formData.durationInHours.toString());
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [formData.durationInHours]);
 
     const handleCustomHourChange = (dateKey: string, val: number) => {
         const newMap = { ...customHoursMap, [dateKey]: val };
@@ -182,32 +190,32 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
             {/* Row 1: Dates + Duration */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                    <label className="block text-base font-semibold text-gray-900 mb-1">Datum Von</label>
+                    <label className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Datum Von</label>
                     <input
                         type="date"
                         required
                         value={formData.dateFrom ? formatDate(new Date(formData.dateFrom)) : ''}
                         onChange={(e) => handleDateFromChange(new Date(e.target.value))}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
+                        className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500/20"
                     />
                 </div>
                 <div>
-                    <label className="block text-base font-semibold text-gray-900 mb-1">Datum Bis</label>
+                    <label className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Datum Bis</label>
                     <input
                         type="date"
                         required
                         value={formData.dateTo ? formatDate(new Date(formData.dateTo)) : ''}
                         onChange={(e) => handleDateToChange(new Date(e.target.value))}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
+                        className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500/20"
                     />
                 </div>
                 <div>
-                    <label className="block text-base font-semibold text-gray-900 mb-1">Tagesabschnitt</label>
+                    <label className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Tagesabschnitt</label>
                     <select
                         title="Tagesabschnitt"
                         value={timeOfDay}
                         onChange={(e) => setTimeOfDay(e.target.value as 'morning' | 'afternoon' | 'evening' | 'allday')}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
+                        className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500/20"
                     >
                         <option value="morning">Vormittags (ab 08:00)</option>
                         <option value="afternoon">Nachmittags (ab 15:00)</option>
@@ -216,19 +224,28 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                     </select>
                 </div>
                 <div>
-                    <label className="block text-base font-semibold text-gray-900 mb-1">Dauer (Std.)</label>
+                    <label className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Dauer (Std.)</label>
                     <input
-                        type="number"
-                        step="0.25"
-                        min="0"
+                        type="text"
+                        inputMode="decimal"
+                        pattern="[0-9]*[.,]?[0-9]*"
                         required
-                        value={formData.durationInHours}
-                        onChange={(e) => handleChange('durationInHours', parseFloat(e.target.value) || 0)}
+                        value={durationStr}
+                        onChange={(e) => {
+                            const val = e.target.value.replace(',', '.');
+                            setDurationStr(val);
+                            const parsed = parseFloat(val);
+                            if (!isNaN(parsed)) {
+                                handleChange('durationInHours', parsed);
+                            } else if (val === '') {
+                                handleChange('durationInHours', 0);
+                            }
+                        }}
                         readOnly={distributionType === 'custom' && trackHours && isMultiDay && !isEdit}
-                        className={`w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 ${
+                        className={`w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500/20 ${
                             distributionType === 'custom' && trackHours && isMultiDay && !isEdit
-                                ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                                : 'bg-gray-50'
+                                ? 'bg-gray-100 dark:bg-slate-800 text-gray-500 cursor-not-allowed'
+                                : 'bg-gray-50 dark:bg-slate-800'
                         }`}
                     />
                 </div>
@@ -236,11 +253,11 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
 
             {/* Zeiterfassung Widget */}
             {!isEdit && (
-                <div className="border-t border-gray-100 pt-4 space-y-4">
+                <div className="border-t border-gray-100 dark:border-white/10 pt-4 space-y-4">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h4 className="text-base font-semibold text-gray-900">Zeiterfassung</h4>
-                            <p className="text-xs text-gray-500">Stunden automatisch in die Zeiterfassung übernehmen</p>
+                            <h4 className="text-base font-semibold text-gray-900 dark:text-white">Zeiterfassung</h4>
+                            <p className="text-xs text-gray-500 dark:text-slate-400">Stunden automatisch in die Zeiterfassung übernehmen</p>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
                             <input
@@ -249,14 +266,14 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                                 onChange={(e) => setTrackHours(e.target.checked)}
                                 className="sr-only peer"
                             />
-                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                            <div className="w-11 h-6 bg-gray-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                         </label>
                     </div>
 
                     {trackHours && isMultiDay && (
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200/60 space-y-3">
-                            <div className="flex items-center justify-between border-b border-gray-200/50 pb-2">
-                                <span className="text-sm font-medium text-gray-700">Stundenverteilung</span>
+                        <div className="bg-gray-50 dark:bg-slate-800/50 p-4 rounded-xl border border-gray-200/60 dark:border-white/10 space-y-3">
+                            <div className="flex items-center justify-between border-b border-gray-200/50 dark:border-white/10 pb-2">
+                                <span className="text-sm font-medium text-gray-700 dark:text-slate-200">Stundenverteilung</span>
                                 <div className="flex gap-2">
                                     <button
                                         type="button"
@@ -264,7 +281,7 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                                         className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
                                             distributionType === 'equal'
                                                 ? 'bg-indigo-600 text-white'
-                                                : 'bg-white text-gray-600 border border-gray-200'
+                                                : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-white/10'
                                         }`}
                                     >
                                         Gleichmäßig
@@ -275,7 +292,7 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                                         className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
                                             distributionType === 'custom'
                                                 ? 'bg-indigo-600 text-white'
-                                                : 'bg-white text-gray-600 border border-gray-200'
+                                                : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-white/10'
                                         }`}
                                     >
                                         Individuell
@@ -293,8 +310,8 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                                             month: '2-digit',
                                         });
                                         return (
-                                            <div key={key} className="flex items-center justify-between bg-white p-2 rounded-lg border border-gray-100">
-                                                <span className="text-sm text-gray-600 font-medium">{formattedDate}</span>
+                                            <div key={key} className="flex items-center justify-between bg-white dark:bg-slate-800 p-2 rounded-lg border border-gray-100 dark:border-white/5">
+                                                <span className="text-sm text-gray-600 dark:text-slate-300 font-medium">{formattedDate}</span>
                                                 <div className="flex items-center gap-1.5">
                                                     <input
                                                         type="number"
@@ -302,19 +319,19 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                                                         min="0"
                                                         value={customHoursMap[key] || 0}
                                                         onChange={(e) => handleCustomHourChange(key, parseFloat(e.target.value) || 0)}
-                                                        className="w-20 px-2 py-1 text-right border border-gray-200 rounded focus:ring-2 focus:ring-indigo-500/20"
+                                                        className="w-20 px-2 py-1 text-right border border-gray-200 dark:border-white/10 dark:text-white bg-gray-50 dark:bg-slate-900 rounded focus:ring-2 focus:ring-indigo-500/20"
                                                     />
-                                                    <span className="text-xs text-gray-500">Std.</span>
+                                                    <span className="text-xs text-gray-500 dark:text-slate-400">Std.</span>
                                                 </div>
                                             </div>
                                         );
                                     })}
-                                    <div className="text-right text-xs text-gray-500 pt-1">
-                                        Gesamtsumme: <span className="font-semibold text-gray-700">{totalHours} Std.</span>
+                                    <div className="text-right text-xs text-gray-500 dark:text-slate-400 pt-1">
+                                        Gesamtsumme: <span className="font-semibold text-gray-700 dark:text-white">{totalHours} Std.</span>
                                     </div>
                                 </div>
                             ) : (
-                                <p className="text-xs text-gray-500">
+                                <p className="text-xs text-gray-500 dark:text-slate-400">
                                     Die gesamten {totalHours} Std. werden gleichmäßig auf {dates.length} Tage verteilt ({Math.round((totalHours / dates.length) * 100) / 100} Std./Tag).
                                 </p>
                             )}
@@ -323,16 +340,14 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                 </div>
             )}
 
-
-
             {/* Companion */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100 dark:border-white/10">
                 <div>
-                    <label className="block text-base font-semibold text-gray-900 mb-1">Begleitperson</label>
+                    <label className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Begleitperson</label>
                     <select
                         value={formData.companion}
                         onChange={(e) => handleChange('companion', e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
+                        className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500/20"
                     >
                         {companions.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
@@ -340,33 +355,33 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
             </div>
 
             {/* Row 3: Pregnancy Data */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-gray-100 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-gray-100 dark:border-white/10 pt-4">
                 <div>
-                    <label className="block text-base font-semibold text-gray-900 mb-1">Schwangerschaftswoche (SSW)</label>
+                    <label className="block text-base font-semibold text-gray-900 dark:text-white mb-1 min-h-[3rem] flex items-end pb-1">Schwangerschaftswoche (SSW)</label>
                     <input
                         type="number"
                         min="0"
                         max="42"
                         value={formData.pregnancyWeek || 0}
                         onChange={(e) => handleChange('pregnancyWeek', parseInt(e.target.value))}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
+                        className="w-full h-10 px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500/20"
                     />
                 </div>
                 <div>
-                    <label className="block text-base font-semibold text-gray-900 mb-1">Voraussichtl. Entbindungstermin</label>
+                    <label className="block text-base font-semibold text-gray-900 dark:text-white mb-1 min-h-[3rem] flex items-end pb-1">Voraussichtl. Entbindungstermin</label>
                     <input
                         type="date"
                         value={formData.expectedDeliveryDate ? formatDate(new Date(formData.expectedDeliveryDate)) : ''}
                         onChange={(e) => handleChange('expectedDeliveryDate', e.target.value ? new Date(e.target.value) : null)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
+                        className="w-full h-10 px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500/20"
                     />
                 </div>
                 <div>
-                    <label className="block text-base font-semibold text-gray-900 mb-1">Externer Beratungsschein</label>
+                    <label className="block text-base font-semibold text-gray-900 dark:text-white mb-1 min-h-[3rem] flex items-end pb-1">Externer Beratungsschein</label>
                     <select
                         value={formData.certificateStatus}
                         onChange={(e) => handleChange('certificateStatus', e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20"
+                        className="w-full h-10 px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500/20"
                     >
                         {certificateOptions.map(o => <option key={o} value={o}>{o}</option>)}
                     </select>
@@ -374,8 +389,8 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
             </div>
 
             {/* Conflict Points */}
-            <div className="border-t border-gray-100 pt-4">
-                <label className="block text-base font-semibold text-gray-900 mb-2">Haupt-Konfliktpunkte</label>
+            <div className="border-t border-gray-100 dark:border-white/10 pt-4">
+                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-2">Haupt-Konfliktpunkte</label>
                 <div className="flex flex-wrap gap-2">
                     {conflictPoints.map(point => {
                         const isSelected = formData.conflictPointsIds?.includes(point);
@@ -385,8 +400,8 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                                 type="button"
                                 onClick={() => toggleMulti('conflictPointsIds', point)}
                                 className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${isSelected
-                                    ? 'bg-rose-100 text-rose-800 border-rose-200'
-                                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-50'
+                                    ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800/50'
+                                    : 'bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-slate-700'
                                     }`}
                             >
                                 {point}
@@ -397,8 +412,8 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
             </div>
 
             {/* Interventions */}
-            <div>
-                <label className="block text-base font-semibold text-gray-900 mb-2">Intervention & Hilfsangebote</label>
+            <div className="border-t border-gray-100 dark:border-white/10 pt-4">
+                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-2">Intervention & Hilfsangebote</label>
                 <div className="flex flex-wrap gap-2">
                     {interventions.map(item => {
                         const isSelected = formData.interventionsIds?.includes(item);
@@ -408,8 +423,8 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                                 type="button"
                                 onClick={() => toggleMulti('interventionsIds', item)}
                                 className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${isSelected
-                                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-50'
+                                    ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/50'
+                                    : 'bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-slate-700'
                                     }`}
                             >
                                 {item}
@@ -420,31 +435,31 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
             </div>
 
             {/* Text Fields */}
-            <div className="space-y-4 border-t border-gray-100 pt-4">
+            <div className="space-y-4 border-t border-gray-100 dark:border-white/10 pt-4">
                 <div>
                     <div className="flex justify-between mb-1">
-                        <label className="block text-base font-semibold text-gray-900">Zielvereinbarung / Nächste Schritte</label>
+                        <label className="block text-base font-semibold text-gray-900 dark:text-white">Zielvereinbarung / Nächste Schritte</label>
                         <VoiceInput onResult={(text) => handleVoiceInput('goalAgreement', text)} />
                     </div>
                     <textarea
                         rows={3}
                         value={formData.goalAgreement}
                         onChange={(e) => handleChange('goalAgreement', e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 resize-none"
+                        className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500/20 resize-none"
                         placeholder="Was sind die konkreten nächsten Schritte für Klientin und Berater?"
                     />
                 </div>
 
                 <div>
                     <div className="flex justify-between mb-1">
-                        <label className="block text-base font-semibold text-gray-900">Notizen / Fazit</label>
+                        <label className="block text-base font-semibold text-gray-900 dark:text-white">Notizen / Fazit</label>
                         <VoiceInput onResult={(text) => handleVoiceInput('notes', text)} />
                     </div>
                     <textarea
                         rows={4}
                         value={formData.notes}
                         onChange={(e) => handleChange('notes', e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 resize-none"
+                        className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500/20 resize-none"
                         placeholder="Gesprächsverlauf und Fazit..."
                     />
                 </div>
@@ -461,7 +476,7 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
             </div>
 
             {/* Actions */}
-            <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
+            <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 dark:border-white/10">
                 <Button
                     type="button"
                     variant="ghost"
