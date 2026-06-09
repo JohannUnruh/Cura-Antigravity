@@ -31,13 +31,6 @@ Jeder Eintrag folgt diesem Schema:
 
 
 
-### [P1] Absichern des Calendar Feed API-Endpunkts und der Token-Generierung
-- **Status:** pending
-- **Beschreibung:** Der iCal-Feed-Endpunkt (`/api/calendar/feed`) liest Kalendereinträge und Klientennotizen basierend auf einem `calendarToken` aus. Er prüft jedoch nicht, ob der zugehörige Benutzer gelöscht (`isDeleted: true`) oder deaktiviert ist. Zudem verwendet die Token-Generierung in den Einstellungen einen unsicheren Fallback (`Math.random()`), der potenziell vorhersagbar ist.
-- **Akzeptanzkriterien:**
-  1. Der API-Endpunkt `/api/calendar/feed/route.ts` prüft nach dem Abruf des Benutzers, ob `userData.isDeleted` oder `userData.deletedAt` vorhanden sind, und gibt in diesem Fall einen Fehler (z.B. 403 Forbidden) zurück.
-  2. Die Generierung des Tokens in `src/app/settings/page.tsx` nutzt eine kryptografisch sichere Methode (z.B. `crypto.randomUUID()` oder ein sicheres clientseitiges/serverseitiges Äquivalent) und verzichtet auf den unsicheren `Math.random()` Fallback, bzw. delegiert die Token-Generierung an eine sichere serverseitige Funktion.
-- **Betroffene Dateien:** `src/app/api/calendar/feed/route.ts`, `src/app/settings/page.tsx`
 
 ### [P1] Beheben des Sicherheitsrisikos durch Hochladen des Service Account Keys
 - **Status:** pending
@@ -100,6 +93,14 @@ Jeder Eintrag folgt diesem Schema:
 ## Abgeschlossene Aufgaben
 
 <!-- Der Night Agent verschiebt erledigte Aufgaben hierher mit Datum -->
+
+### Absichern des Calendar Feed API-Endpunkts und der Token-Generierung – ✅ 2026-06-09
+- **Status:** done
+- **Beschreibung:** Der iCal-Feed-Endpunkt (`/api/calendar/feed`) liest Kalendereinträge und Klientennotizen basierend auf einem `calendarToken` aus. Er prüft jedoch nicht, ob der zugehörige Benutzer gelöscht (`isDeleted: true`) oder deaktiviert ist. Zudem verwendet die Token-Generierung in den Einstellungen einen unsicheren Fallback (`Math.random()`), der potenziell vorhersagbar ist.
+- **Akzeptanzkriterien:**
+  1. Der API-Endpunkt `/api/calendar/feed/route.ts` prüft nach dem Abruf des Benutzers, ob `userData.isDeleted` oder `userData.deletedAt` vorhanden sind, und gibt in diesem Fall einen Fehler (z.B. 403 Forbidden) zurück.
+  2. Die Generierung des Tokens in `src/app/settings/page.tsx` nutzt eine kryptografisch sichere Methode (z.B. `crypto.randomUUID()` oder ein sicheres clientseitiges/serverseitiges Äquivalent) und verzichtet auf den unsicheren `Math.random()` Fallback, bzw. delegiert die Token-Generierung an eine sichere serverseitige Funktion.
+- **Betroffene Dateien:** `src/app/api/calendar/feed/route.ts`, `src/app/settings/page.tsx`
 
 ### Fehlerbehebung bei Odometer-Eingabe und Fehlerbehandlung im Fahrtkosten-Modul – ✅ 2026-06-09
 - **Status:** done
