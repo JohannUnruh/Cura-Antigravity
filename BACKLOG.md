@@ -33,14 +33,6 @@ Jeder Eintrag folgt diesem Schema:
 
 
 
-### [P1] Absicherung gegen Invalid Date, NaN und Fehlerbehandlung in Vorträgen, Freizeiten und Beratungen
-- **Status:** pending
-- **Beschreibung:** Wenn Datumsfelder oder Zahlenfelder (wie Schwangerschaftswoche) in den Formularen geleert werden, werden sie als `Invalid Date` oder `NaN` an Firestore übertragen. Zudem fehlen in den Formularen für Vorträge und Freizeiten catch-Blöcke bei Speicher- und Löschvorgängen.
-- **Akzeptanzkriterien:**
-  1. Datumsänderungen werden vor dem Schreiben in den State validiert (`!isNaN(date.getTime())`). Leere Datumsfelder werden beim Absenden abgefangen und führen nicht zu `Invalid Date` in der DB.
-  2. In `SkbConsultationForm` führt das Leeren der Schwangerschaftswoche nicht zu `NaN` im State (Fallback auf `null` oder `0`).
-  3. In `LecturesPage` und `RetreatsPage` fangen die Submit- und Delete-Funktionen Fehler ab und benachrichtigen den Benutzer im UI, falls ein Datenbank- oder Berechtigungsfehler auftritt.
-- **Betroffene Dateien:** `src/components/consultations/ConsultationForm.tsx`, `src/components/consultations/SkbConsultationForm.tsx`, `src/app/lectures/page.tsx`, `src/app/retreats/page.tsx`
 
 ### [P1] Behebung von Tastatursteuerungs- und ARIA-Mängeln bei Klick-Elementen und Formularen
 - **Status:** pending
@@ -85,6 +77,15 @@ Jeder Eintrag folgt diesem Schema:
 ## Abgeschlossene Aufgaben
 
 <!-- Der Night Agent verschiebt erledigte Aufgaben hierher mit Datum -->
+
+### Absicherung gegen Invalid Date, NaN und Fehlerbehandlung in Vorträgen, Freizeiten und Beratungen – ✅ 2026-06-09
+- **Status:** done
+- **Beschreibung:** Wenn Datumsfelder oder Zahlenfelder (wie Schwangerschaftswoche) in den Formularen geleert werden, werden sie als `Invalid Date` oder `NaN` an Firestore übertragen. Zudem fehlen in den Formularen für Vorträge und Freizeiten catch-Blöcke bei Speicher- und Löschvorgängen.
+- **Akzeptanzkriterien:**
+  1. Datumsänderungen werden vor dem Schreiben in den State validiert (`!isNaN(date.getTime())`). Leere Datumsfelder werden beim Absenden abgefangen und führen nicht zu `Invalid Date` in der DB.
+  2. In `SkbConsultationForm` führt das Leeren der Schwangerschaftswoche nicht zu `NaN` im State (Fallback auf `null` oder `0`).
+  3. In `LecturesPage` and `RetreatsPage` fangen die Submit- und Delete-Funktionen Fehler ab und benachrichtigen den Benutzer im UI, falls ein Datenbank- oder Berechtigungsfehler auftritt.
+- **Betroffene Dateien:** `src/components/consultations/ConsultationForm.tsx`, `src/components/consultations/SkbConsultationForm.tsx`, `src/app/lectures/page.tsx`, `src/app/retreats/page.tsx`
 
 ### Beheben des Sicherheitsrisikos durch Hochladen des Service Account Keys – ✅ 2026-06-09
 - **Status:** done
