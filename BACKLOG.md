@@ -32,14 +32,6 @@ Jeder Eintrag folgt diesem Schema:
 
 
 
-### [P1] Beheben des Sicherheitsrisikos durch Hochladen des Service Account Keys
-- **Status:** pending
-- **Beschreibung:** Die Firebase Admin SDK-Initialisierung in `firebaseAdmin.ts` sucht nach `functions/service-account-key.json`. Dieses File liegt im lokalen Workspace. Obwohl es im Root-.gitignore steht, fehlt es in `functions/.gitignore` (dort steht nur `*-service-account-key.json` und `service-account.json`) und es gibt keine `.gcloudignore` Datei. Beim Deployment der Cloud Functions wird diese Datei unbemerkt zu Google Cloud hochgeladen.
-- **Akzeptanzkriterien:**
-  1. In `functions/.gitignore` wird die genaue Datei `service-account-key.json` eingetragen.
-  2. Eine `.gcloudignore` Datei wird im Projekt-Root und im `functions/` Verzeichnis angelegt, um sicherzustellen, dass keine sensitiven JSON-Schlüsseldateien hochgeladen werden.
-  3. Die Admin SDK Initialisierung wird so angepasst, dass sie primär Umgebungsvariablen (`process.env.FIREBASE_SERVICE_ACCOUNT`) nutzt, anstatt nach einer lokalen Datei zu suchen.
-- **Betroffene Dateien:** `functions/.gitignore`, `src/lib/firebase/firebaseAdmin.ts`, `.gcloudignore` (neu), `functions/.gcloudignore` (neu)
 
 ### [P1] Absicherung gegen Invalid Date, NaN und Fehlerbehandlung in Vorträgen, Freizeiten und Beratungen
 - **Status:** pending
@@ -93,6 +85,15 @@ Jeder Eintrag folgt diesem Schema:
 ## Abgeschlossene Aufgaben
 
 <!-- Der Night Agent verschiebt erledigte Aufgaben hierher mit Datum -->
+
+### Beheben des Sicherheitsrisikos durch Hochladen des Service Account Keys – ✅ 2026-06-09
+- **Status:** done
+- **Beschreibung:** Die Firebase Admin SDK-Initialisierung in `firebaseAdmin.ts` sucht nach `functions/service-account-key.json`. Dieses File liegt im lokalen Workspace. Obwohl es im Root-.gitignore steht, fehlt es in `functions/.gitignore` (dort steht nur `*-service-account-key.json` und `service-account.json`) und es gibt keine `.gcloudignore` Datei. Beim Deployment der Cloud Functions wird diese Datei unbemerkt zu Google Cloud hochgeladen.
+- **Akzeptanzkriterien:**
+  1. In `functions/.gitignore` wird die genaue Datei `service-account-key.json` eingetragen.
+  2. Eine `.gcloudignore` Datei wird im Projekt-Root und im `functions/` Verzeichnis angelegt, um sicherzustellen, dass keine sensitiven JSON-Schlüsseldateien hochgeladen werden.
+  3. Die Admin SDK Initialisierung wird so angepasst, dass sie primär Umgebungsvariablen (`process.env.FIREBASE_SERVICE_ACCOUNT`) nutzt, anstatt nach einer lokalen Datei zu suchen.
+- **Betroffene Dateien:** `functions/.gitignore`, `src/lib/firebase/firebaseAdmin.ts`, `.gcloudignore` (neu), `functions/.gcloudignore` (neu)
 
 ### Absichern des Calendar Feed API-Endpunkts und der Token-Generierung – ✅ 2026-06-09
 - **Status:** done
