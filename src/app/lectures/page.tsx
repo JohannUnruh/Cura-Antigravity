@@ -38,6 +38,7 @@ export default function LecturesPage() {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<string | null>(null);
     const [selected, setSelected] = useState<Lecture | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [trackHours, setTrackHours] = useState(false);
     const [timeOfDay, setTimeOfDay] = useState<'morning' | 'afternoon' | 'evening'>('morning');
     const [lectureTypes, setLectureTypes] = useState<string[]>([]);
@@ -120,6 +121,7 @@ export default function LecturesPage() {
 
     const openNew = () => {
         setSelected(null);
+        setErrorMessage(null);
         setForm({
             topic: "",
             lectureType: "",
@@ -142,6 +144,7 @@ export default function LecturesPage() {
 
     const openEdit = (item: Lecture) => {
         setSelected(item);
+        setErrorMessage(null);
         setForm({
             topic: item.topic,
             lectureType: item.lectureType || "",
@@ -184,13 +187,26 @@ export default function LecturesPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setErrorMessage(null);
+
+        if (!form.dateFrom || !form.dateTo) {
+            setErrorMessage("Bitte wähle ein Start- und Enddatum aus.");
+            return;
+        }
+        const dFrom = new Date(form.dateFrom);
+        const dTo = new Date(form.dateTo);
+        if (isNaN(dFrom.getTime()) || isNaN(dTo.getTime())) {
+            setErrorMessage("Ungültiges Start- oder Enddatum.");
+            return;
+        }
+
         setIsSaving(true);
         try {
             const payload = {
                 ...form,
                 authorId: user?.uid || "",
-                dateFrom: new Date(form.dateFrom),
-                dateTo: new Date(form.dateTo),
+                dateFrom: dFrom,
+                dateTo: dTo,
             };
 
             let savedId = selected?.id;
@@ -221,8 +237,8 @@ export default function LecturesPage() {
                                 description: `Vortrag: ${form.topic}`,
                                 referenceId: savedId
                             },
-                            new Date(form.dateFrom),
-                            new Date(form.dateTo),
+                            dFrom,
+                            dTo,
                             totalH,
                             timeOfDay,
                             customHoursList
@@ -238,6 +254,9 @@ export default function LecturesPage() {
 
             await loadData();
             setIsModalOpen(false);
+        } catch (error) {
+            console.error("Error saving lecture:", error);
+            setErrorMessage("Fehler beim Speichern des Vortrags. Bitte versuche es erneut.");
         } finally {
             setIsSaving(false);
         }
@@ -252,6 +271,7 @@ export default function LecturesPage() {
             await loadData();
         } catch (error) {
             console.error(error);
+            alert("Fehler beim Löschen des Vortrags. Bitte versuche es erneut.");
         } finally {
             setIsSaving(false);
         }
@@ -343,6 +363,11 @@ export default function LecturesPage() {
 
                 <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={selected ? "Vortrag bearbeiten" : "Neuer Vortrag"}>
                     <form onSubmit={handleSubmit} className="space-y-5">
+                        {errorMessage && (
+                            <div className="p-3 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-sm rounded-lg border border-red-200 dark:border-red-800/50">
+                                {errorMessage}
+                            </div>
+                        )}
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-1">Thema</label>
                             <input type="text" required value={form.topic} onChange={e => setForm({ ...form, topic: e.target.value })}

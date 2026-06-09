@@ -221,7 +221,16 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                         type="date"
                         required
                         value={formData.dateFrom ? formatDate(new Date(formData.dateFrom)) : ''}
-                        onChange={(e) => handleDateFromChange(new Date(e.target.value))}
+                        onChange={(e) => {
+                            if (!e.target.value) {
+                                setFormData(prev => ({ ...prev, dateFrom: undefined }));
+                                return;
+                            }
+                            const d = new Date(e.target.value);
+                            if (!isNaN(d.getTime())) {
+                                handleDateFromChange(d);
+                            }
+                        }}
                         className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500/20"
                     />
                 </div>
@@ -231,7 +240,16 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                         type="date"
                         required
                         value={formData.dateTo ? formatDate(new Date(formData.dateTo)) : ''}
-                        onChange={(e) => handleDateToChange(new Date(e.target.value))}
+                        onChange={(e) => {
+                            if (!e.target.value) {
+                                setFormData(prev => ({ ...prev, dateTo: undefined }));
+                                return;
+                            }
+                            const d = new Date(e.target.value);
+                            if (!isNaN(d.getTime())) {
+                                handleDateToChange(d);
+                            }
+                        }}
                         className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500/20"
                     />
                 </div>
@@ -465,7 +483,16 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                                             return isNaN((d as Date).getTime()) ? '' : (d as Date).toISOString().split('T')[0];
                                         } catch { return ''; }
                                     })()}
-                                    onChange={(e) => handleSmartChange('timeBound', e.target.value ? new Date(e.target.value) : null)}
+                                    onChange={(e) => {
+                                        if (!e.target.value) {
+                                            handleSmartChange('timeBound', null);
+                                            return;
+                                        }
+                                        const d = new Date(e.target.value);
+                                        if (!isNaN(d.getTime())) {
+                                            handleSmartChange('timeBound', d);
+                                        }
+                                    }}
                                     className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500/20"
                                 />
                             </div>

@@ -38,6 +38,7 @@ export default function RetreatsPage() {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<string | null>(null);
     const [selected, setSelected] = useState<Retreat | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [trackHours, setTrackHours] = useState(false);
     const [timeOfDay, setTimeOfDay] = useState<'morning' | 'afternoon' | 'evening'>('morning');
     const [retreatTypes, setRetreatTypes] = useState<string[]>([]);
@@ -121,6 +122,7 @@ export default function RetreatsPage() {
 
     const openNew = () => {
         setSelected(null);
+        setErrorMessage(null);
         setForm(getEmptyForm());
         setTrackHours(false);
         setTimeOfDay('morning');
@@ -131,6 +133,7 @@ export default function RetreatsPage() {
 
     const openEdit = (item: Retreat) => {
         setSelected(item);
+        setErrorMessage(null);
         setForm({
             title: item.title,
             retreatType: item.retreatType || "",
@@ -174,13 +177,26 @@ export default function RetreatsPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setErrorMessage(null);
+
+        if (!form.dateFrom || !form.dateTo) {
+            setErrorMessage("Bitte wähle ein Start- und Enddatum aus.");
+            return;
+        }
+        const dFrom = new Date(form.dateFrom);
+        const dTo = new Date(form.dateTo);
+        if (isNaN(dFrom.getTime()) || isNaN(dTo.getTime())) {
+            setErrorMessage("Ungültiges Start- oder Enddatum.");
+            return;
+        }
+
         setIsSaving(true);
         try {
             const payload = {
                 ...form,
                 authorId: user?.uid || "",
-                dateFrom: new Date(form.dateFrom),
-                dateTo: new Date(form.dateTo),
+                dateFrom: dFrom,
+                dateTo: dTo,
             };
 
             let savedId = selected?.id;
@@ -211,8 +227,8 @@ export default function RetreatsPage() {
                                 description: `Freizeit: ${form.title}`,
                                 referenceId: savedId
                             },
-                            new Date(form.dateFrom),
-                            new Date(form.dateTo),
+                            dFrom,
+                            dTo,
                             totalH,
                             timeOfDay,
                             customHoursList
@@ -228,6 +244,9 @@ export default function RetreatsPage() {
 
             await loadData();
             setIsModalOpen(false);
+        } catch (error) {
+            console.error("Error saving retreat:", error);
+            setErrorMessage("Fehler beim Speichern der Freizeit. Bitte versuche es erneut.");
         } finally {
             setIsSaving(false);
         }
@@ -242,6 +261,7 @@ export default function RetreatsPage() {
             await loadData();
         } catch (error) {
             console.error(error);
+            alert("Fehler beim Löschen der Freizeit. Bitte versuche es erneut.");
         } finally {
             setIsSaving(false);
         }
@@ -328,6 +348,11 @@ export default function RetreatsPage() {
 
                 <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={selected ? "Freizeit bearbeiten" : "Neue Freizeit"}>
                     <form onSubmit={handleSubmit} className="space-y-5">
+                        {errorMessage && (
+                            <div className="p-3 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-sm rounded-lg border border-red-200 dark:border-red-800/50">
+                                {errorMessage}
+                            </div>
+                        )}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Titel der Freizeit</label>
                             <input type="text" required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
