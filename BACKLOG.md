@@ -28,15 +28,6 @@ Jeder Eintrag folgt diesem Schema:
 
 ## Backlog
 
-### [P0] Beheben der Berechtigungs-Eskalation in den Firestore-Regeln für Benutzerprofile
-- **Status:** pending
-- **Beschreibung:** Die aktuellen Firestore-Sicherheitsregeln erlauben es jedem angemeldeten Benutzer, sein eigenes Profildokument zu bearbeiten (`allow update: if isOwner(userId)`). Da es keine Prüfung auf geänderte Felder gibt, kann ein normaler Benutzer seine eigene Rolle direkt in Firestore auf `'Admin'` ändern. Dadurch erhält er sofort administrativen Zugriff auf die gesamte Anwendung und alle Datenbankdokumente.
-- **Akzeptanzkriterien:**
-  1. In `firestore.rules` wird beim Erstellen (`create`) eines Benutzerdokuments durch einen Nicht-Admin erzwungen, dass die Rolle standardmäßig auf `'Mitarbeiter'` gesetzt wird.
-  2. Beim Aktualisieren (`update`) eines Benutzerdokuments durch einen Nicht-Admin darf sich die Rolle (`role`) sowie vertragliche Felder (`contractType`, `vacationDaysPerYear`, `contractDocumentUrl`, `entryDate`) nicht ändern.
-  3. Lokale Verifikation mittels `npm run build` und Simulation von unberechtigten Firestore-Writes über Firebase Emulator/Rules Tests.
-- **Betroffene Dateien:** `firestore.rules`
-- **Hinweise:** Verwende `request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'contractType', 'vacationDaysPerYear', 'contractDocumentUrl', 'entryDate'])` in Firestore Rules, um die Änderung dieser Felder durch Nicht-Admins zu verbieten.
 
 ### [P0] Absichern der Fahrtkostenabrechnungen (Travel Expenses) gegen Statusmanipulation
 - **Status:** pending
@@ -127,6 +118,15 @@ Jeder Eintrag folgt diesem Schema:
 ## Abgeschlossene Aufgaben
 
 <!-- Der Night Agent verschiebt erledigte Aufgaben hierher mit Datum -->
+
+### Beheben der Berechtigungs-Eskalation in den Firestore-Regeln für Benutzerprofile – ✅ 2026-06-09
+- **Status:** done
+- **Beschreibung:** Die aktuellen Firestore-Sicherheitsregeln erlauben es jedem angemeldeten Benutzer, sein eigenes Profildokument zu bearbeiten (`allow update: if isOwner(userId)`). Da es keine Prüfung auf geänderte Felder gibt, kann ein normaler Benutzer seine eigene Rolle direkt in Firestore auf `'Admin'` ändern. Dadurch erhält er sofort administrativen Zugriff auf die gesamte Anwendung und alle Datenbankdokumente.
+- **Akzeptanzkriterien:**
+  1. In `firestore.rules` wird beim Erstellen (`create`) eines Benutzerdokuments durch einen Nicht-Admin erzwungen, dass die Rolle standardmäßig auf `'Mitarbeiter'` gesetzt wird.
+  2. Beim Aktualisieren (`update`) eines Benutzerdokuments durch einen Nicht-Admin darf sich die Rolle (`role`) sowie vertragliche Felder (`contractType`, `vacationDaysPerYear`, `contractDocumentUrl`, `entryDate`) nicht ändern.
+  3. Lokale Verifikation mittels `npm run build` und Simulation von unberechtigten Firestore-Writes über Firebase Emulator/Rules Tests.
+- **Betroffene Dateien:** `firestore.rules`
 
 ### Firebase-Berechtigungsfehler beim Laden der App-Einstellungen behoben – ✅ 2026-06-09
 - **Status:** done
