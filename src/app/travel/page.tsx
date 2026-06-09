@@ -30,6 +30,8 @@ export default function TravelPage() {
     const [qrCodeUser, setQrCodeUser] = useState<UserProfile | null>(null);
     const [isQrModalOpen, setIsQrModalOpen] = useState(false);
     const [lastCalculatedOneWayKm, setLastCalculatedOneWayKm] = useState<number | null>(null);
+    const [isManualKm, setIsManualKm] = useState(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
 
     const [form, setForm] = useState(() => getEmptyForm(userProfile));
 
@@ -87,6 +89,8 @@ export default function TravelPage() {
         setSelected(null);
         setForm(getEmptyForm(userProfile));
         setLastCalculatedOneWayKm(null);
+        setIsManualKm(false);
+        setSubmitError(null);
         setIsModalOpen(true);
     };
 
@@ -103,6 +107,8 @@ export default function TravelPage() {
         });
         const oneWay = (item.kmEnd - item.kmStart) / (item.isRoundTrip ? 2 : 1);
         setLastCalculatedOneWayKm(Math.round(oneWay));
+        setIsManualKm(false);
+        setSubmitError(null);
         setIsModalOpen(true);
     };
 
@@ -355,6 +361,15 @@ export default function TravelPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSaving(true);
+        setSubmitError(null);
+
+        // Plausibilitätsprüfung
+        if (form.kmEnd <= form.kmStart) {
+            setSubmitError("Der Kilometerstand am Ende muss größer sein als der Kilometerstand am Start.");
+            setIsSaving(false);
+            return;
+        }
+
         try {
             const kmDriven = Math.max(0, form.kmEnd - form.kmStart);
             const calculatedAmount = parseFloat((kmDriven * (settings?.travelExpenseRate || 0.30)).toFixed(2));
@@ -372,14 +387,22 @@ export default function TravelPage() {
             }
             await loadData();
             setIsModalOpen(false);
+        } catch (error) {
+            console.error("Error saving expense:", error);
+            setSubmitError("Fehler beim Speichern der Fahrtkostenabrechnung. Bitte versuche es erneut.");
         } finally {
             setIsSaving(false);
         }
     };
 
     const handleStatusChange = async (id: string, status: TravelExpense["status"]) => {
-        await travelService.updateExpense(id, { status });
-        await loadData();
+        try {
+            await travelService.updateExpense(id, { status });
+            await loadData();
+        } catch (error) {
+            console.error("Error updating status:", error);
+            alert("Fehler beim Aktualisieren des Status.");
+        }
     };
 
     const statusConfig = {
@@ -549,6 +572,26 @@ export default function TravelPage() {
                             </label>
                         </div>
 
+                        <div className="flex items-center gap-2.5 p-3 bg-gray-50 dark:bg-slate-900/50 rounded-xl border border-gray-200 dark:border-white/10">
+                            <input
+                                id="isManualKm"
+                                type="checkbox"
+                                checked={isManualKm}
+                                onChange={e => {
+                                    const checked = e.target.checked;
+                                    setIsManualKm(checked);
+                                    if (!checked && lastCalculatedOneWayKm !== null) {
+                                        const multiplier = form.isRoundTrip ? 2 : 1;
+                                        setForm(prev => ({ ...prev, kmEnd: prev.kmStart + (lastCalculatedOneWayKm * multiplier) }));
+                                    }
+                                }}
+                                className="w-4 h-4 text-sky-600 focus:ring-sky-500 border-gray-300 rounded dark:bg-slate-900 dark:border-white/10"
+                            />
+                            <label htmlFor="isManualKm" className="text-sm font-medium text-gray-700 dark:text-slate-300 cursor-pointer">
+                                Kilometerstand manuell eingeben
+                            </label>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Kilometerstand Start</label>
@@ -557,9 +600,20 @@ export default function TravelPage() {
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500/20" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Kilometerstand Ende (Auto-Berechnung)</label>
-                                <input type="number" min="0" required value={form.kmEnd} readOnly
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none cursor-not-allowed text-gray-500" />
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    {isManualKm ? "Kilometerstand Ende (Manuell)" : "Kilometerstand Ende (Auto-Berechnung)"}
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    required
+                                    value={form.kmEnd}
+                                    readOnly={!isManualKm}
+                                    onChange={isManualKm ? (e => setForm({ ...form, kmEnd: parseInt(e.target.value) || 0 })) : undefined}
+                                    className={`w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500/20 ${
+                                        !isManualKm ? "focus:outline-none cursor-not-allowed text-gray-500" : ""
+                                    }`}
+                                />
                             </div>
                         </div>
 
@@ -588,6 +642,14 @@ export default function TravelPage() {
                                 {form.kmEnd > form.kmStart ? "Neu berechnen" : "Distanz berechnen"}
                             </Button>
                         </div>
+
+                        {submitError && (
+                            <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-xl text-red-800 dark:text-red-300 text-sm flex items-center gap-2">
+                                <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+                                <span>{submitError}</span>
+                            </div>
+                        )}
+
                         <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                             <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} disabled={isSaving}>Abbrechen</Button>
                             <Button type="submit" variant="primary" disabled={isSaving}>

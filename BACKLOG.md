@@ -30,15 +30,6 @@ Jeder Eintrag folgt diesem Schema:
 
 
 
-### [P0] Fehlerbehebung bei Odometer-Eingabe und Fehlerbehandlung im Fahrtkosten-Modul
-- **Status:** pending
-- **Beschreibung:** Im Fahrtkosten-Modul blockiert eine Fehlfunktion der automatischen Distanzberechnung den gesamten Erfassungsprozess, da der Kilometerstand Ende (`kmEnd`) schreibgeschützt ist. Zudem fehlen clientseitige Plausibilitätsprüfungen (z. B. `kmEnd > kmStart`) und Fehlerbehandlungen bei Datenbankfehlern.
-- **Akzeptanzkriterien:**
-  1. Es gibt ein Kontrollkästchen "Kilometerstand manuell eingeben". Wenn aktiviert, wird der Schreibschutz (`readOnly`) von `kmEnd` aufgehoben und der Benutzer kann den Kilometerstand manuell eingeben.
-  2. Beim Absenden wird validiert, dass `kmEnd > kmStart` is. Liegt `kmEnd <= kmStart` vor, wird das Absenden verhindert und eine Fehlermeldung im UI angezeigt (statt stillschweigend 0 km einzureichen).
-  3. `handleSubmit` und `handleStatusChange` fangen Fehler in einem `try-catch`-Block ab und zeigen dem Benutzer eine Fehlermeldung (z. B. per Toast/Notification) statt unhandled promise rejections auszulösen.
-- **Betroffene Dateien:** `src/app/travel/page.tsx`
-- **Hinweise:** Bei der manuellen Eingabe soll die gefahrene Distanz reaktiv im UI auf Basis der Differenz berechnet werden.
 
 ### [P1] Absichern des Calendar Feed API-Endpunkts und der Token-Generierung
 - **Status:** pending
@@ -109,6 +100,15 @@ Jeder Eintrag folgt diesem Schema:
 ## Abgeschlossene Aufgaben
 
 <!-- Der Night Agent verschiebt erledigte Aufgaben hierher mit Datum -->
+
+### Fehlerbehebung bei Odometer-Eingabe und Fehlerbehandlung im Fahrtkosten-Modul – ✅ 2026-06-09
+- **Status:** done
+- **Beschreibung:** Im Fahrtkosten-Modul blockiert eine Fehlfunktion der automatischen Distanzberechnung den gesamten Erfassungsprozess, da der Kilometerstand Ende (`kmEnd`) schreibgeschützt ist. Zudem fehlen clientseitige Plausibilitätsprüfungen (z. B. `kmEnd > kmStart`) und Fehlerbehandlungen bei Datenbankfehlern.
+- **Akzeptanzkriterien:**
+  1. Es gibt ein Kontrollkästchen "Kilometerstand manuell eingeben". Wenn aktiviert, wird der Schreibschutz (`readOnly`) von `kmEnd` aufgehoben und der Benutzer kann den Kilometerstand manuell eingeben.
+  2. Beim Absenden wird validiert, dass `kmEnd > kmStart` ist. Liegt `kmEnd <= kmStart` vor, wird das Absenden verhindert und eine Fehlermeldung im UI angezeigt (statt stillschweigend 0 km einzureichen).
+  3. `handleSubmit` and `handleStatusChange` fangen Fehler in einem `try-catch`-Block ab und zeigen dem Benutzer eine Fehlermeldung (z. B. per Toast/Notification) statt unhandled promise rejections auszulösen.
+- **Betroffene Dateien:** `src/app/travel/page.tsx`
 
 ### Absichern der Fahrtkostenabrechnungen (Travel Expenses) gegen Statusmanipulation – ✅ 2026-06-09
 - **Status:** done
