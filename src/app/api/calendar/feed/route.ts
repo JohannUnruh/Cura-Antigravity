@@ -43,6 +43,11 @@ export async function GET(request: Request) {
         const userDoc = querySnapshot.docs[0];
         const userId = userDoc.id;
         const userData = userDoc.data();
+
+        if (userData.isDeleted === true || userData.deletedAt) {
+            return new NextResponse("User account is deleted or disabled", { status: 403 });
+        }
+
         const advisorName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Berater";
 
         // Fetch Clients to map client names

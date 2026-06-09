@@ -50,7 +50,10 @@ export default function SettingsPage() {
         if (!userProfile) return;
         setIsSaving(true);
         try {
-            const token = (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2)).replace(/-/g, "");
+            const token = (typeof crypto !== "undefined" && crypto.randomUUID
+                ? crypto.randomUUID()
+                : Array.from(crypto.getRandomValues(new Uint32Array(4)), dec => dec.toString(16).padStart(8, "0")).join("")
+            ).replace(/-/g, "");
             const updatedProfile = { ...userProfile, calendarToken: token };
             await userService.saveUserProfile(updatedProfile);
             setMessage({ type: 'success', text: "Kalender-Abonnement-Link wurde erstellt." });
@@ -68,7 +71,10 @@ export default function SettingsPage() {
         if (!userProfile) return;
         setIsSaving(true);
         try {
-            const token = (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2)).replace(/-/g, "");
+            const token = (typeof crypto !== "undefined" && crypto.randomUUID
+                ? crypto.randomUUID()
+                : Array.from(crypto.getRandomValues(new Uint32Array(4)), dec => dec.toString(16).padStart(8, "0")).join("")
+            ).replace(/-/g, "");
             const updatedProfile = { ...userProfile, calendarToken: token };
             await userService.saveUserProfile(updatedProfile);
             setMessage({ type: 'success', text: "Kalender-Abonnement-Link wurde zurückgesetzt." });
