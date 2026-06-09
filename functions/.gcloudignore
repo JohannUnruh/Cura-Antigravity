@@ -1,0 +1,12 @@
+.gcloudignore
+.git
+.gitignore
+
+node_modules/
+lib/
+
+# Secrets and keys
+*.json-key
+*service-account*.json
+service-account-key.json
+.env*

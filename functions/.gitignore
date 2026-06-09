@@ -7,5 +7,6 @@ firebase-debug.*.log
 *.local
 # Service Account Keys - NIEMALS committen!
 *-service-account-key.json
+service-account-key.json
 service-account.json
 secrets/

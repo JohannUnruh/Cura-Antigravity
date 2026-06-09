@@ -1,0 +1,18 @@
+.gcloudignore
+.git
+.gitignore
+
+# Node modules
+node_modules/
+
+# Secrets and keys
+*.json-key
+*service-account*.json
+service-account-key.json
+functions/service-account-key.json
+.env*
+
+# Next.js build outputs
+.next/
+out/
+build/
