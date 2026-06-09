@@ -34,6 +34,18 @@ Jeder Eintrag folgt diesem Schema:
 
 <!-- Der Night Agent verschiebt erledigte Aufgaben hierher mit Datum -->
 
+### Firebase-Berechtigungsfehler beim Laden der App-Einstellungen behoben – ✅ 2026-06-09
+- **Status:** done
+- **Beschreibung:** Beim Laden der App (insb. auf der Login-Seite oder vor der Auth-Initialisierung) trat in der Konsole der Fehler `FirebaseError: Missing or insufficient permissions` beim Abruf der globalen Einstellungen auf. Der `SettingsProvider` fragt die Einstellungen nun nur ab, wenn tatsächlich ein Benutzer eingeloggt ist.
+- **Akzeptanzkriterien:** Kein Berechtigungsfehler mehr in der Konsole beim Aufruf der Login-Seite oder vor der Authentifizierung.
+- **Betroffene Dateien:** `src/contexts/SettingsContext.tsx`
+
+### Notizen-Prefill bei Beratungsgesprächen deaktiviert – ✅ 2026-06-09
+- **Status:** done
+- **Beschreibung:** Beim Anlegen eines neuen Beratungsgesprächs oder einer SKB-Beratung für einen bestehenden Klienten wurden die Notizen und Fotos aus dem vorherigen Gespräch mitgenommen. Dies wurde deaktiviert.
+- **Akzeptanzkriterien:** Das Notizen-Feld und die Foto-Liste sind bei der Neuanlage standardmäßig leer.
+- **Betroffene Dateien:** `src/app/clients/[id]/page.tsx`
+
 ### Dashboard-Schnellfilter für überfällige Zieltermine – ✅ 2026-06-08
 - **Status:** done
 - **Beschreibung:** Ein Widget oder Warn-Badge auf dem Dashboard, das dem Berater sofort anzeigt, welche Klienten vereinbarte Zieltermine überschritten haben, ohne dass ein neues Gespräch erfasst wurde.

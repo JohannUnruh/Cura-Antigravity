@@ -473,7 +473,15 @@ export default function ClientDetailPage() {
                             if (consultations.length > 0) {
                                 // Assuming consultations are sorted descending by date
                                 const last = consultations[0];
-                                init = { ...last, id: undefined, createdAt: undefined, authorId: undefined, clientId: undefined };
+                                init = { 
+                                    ...last, 
+                                    id: undefined, 
+                                    createdAt: undefined, 
+                                    authorId: undefined, 
+                                    clientId: undefined,
+                                    notes: "",
+                                    photoUrls: []
+                                };
                                 init.dateFrom = new Date();
                                 init.dateTo = new Date();
                             }
@@ -494,7 +502,15 @@ export default function ClientDetailPage() {
                                 let init: Partial<SkbConsultation> | undefined = undefined;
                                 if (skbConsultations.length > 0) {
                                     const last = skbConsultations[0];
-                                    init = { ...last, id: undefined, createdAt: undefined, authorId: undefined, clientId: undefined };
+                                    init = { 
+                                        ...last, 
+                                        id: undefined, 
+                                        createdAt: undefined, 
+                                        authorId: undefined, 
+                                        clientId: undefined,
+                                        notes: "",
+                                        photoUrls: []
+                                    };
                                     init.dateFrom = new Date();
                                     init.dateTo = new Date();
                                 }

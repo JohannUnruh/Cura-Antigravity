@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { AppSettings } from "@/types";
 import { settingsService } from "@/lib/firebase/services/settingsService";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SettingsContextType {
     settings: AppSettings | null;
@@ -13,6 +14,7 @@ interface SettingsContextType {
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
+    const { user } = useAuth();
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -28,13 +30,19 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     };
 
     const refreshSettings = async () => {
+        if (!user) return;
         setLoading(true);
         await loadSettings();
     };
 
     useEffect(() => {
-        loadSettings();
-    }, []);
+        if (user) {
+            loadSettings();
+        } else {
+            setSettings(null);
+            setLoading(false);
+        }
+    }, [user]);
 
     return (
         <SettingsContext.Provider value={{ settings, loading, refreshSettings }}>
