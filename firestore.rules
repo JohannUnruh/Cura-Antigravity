@@ -81,10 +81,10 @@ service cloud.firestore {
 
     // 5. travel_expenses (Fahrtkostenabrechnungen)
     match /travel_expenses/{expenseId} {
-      allow create: if isOwner(request.resource.data.authorId) || isAdmin();
+      allow create: if isOwner(request.resource.data.authorId) && (isKassenwart() || isAdmin() || request.resource.data.status == 'pending');
       allow read: if isOwner(resource.data.authorId) || isKassenwart() || isAdmin();
-      allow update: if isOwner(resource.data.authorId) || isKassenwart() || isAdmin();
-      allow delete: if isOwner(resource.data.authorId) || isAdmin();
+      allow update: if (isOwner(resource.data.authorId) && resource.data.status != 'approved' && resource.data.status != 'paid' && request.resource.data.status == resource.data.status) || isKassenwart() || isAdmin();
+      allow delete: if (isOwner(resource.data.authorId) && resource.data.status != 'approved' && resource.data.status != 'paid') || isAdmin();
     }
 
     // 6. time_entries (Zeiterfassung)

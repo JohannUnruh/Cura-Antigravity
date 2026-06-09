@@ -29,15 +29,6 @@ Jeder Eintrag folgt diesem Schema:
 ## Backlog
 
 
-### [P0] Absichern der Fahrtkostenabrechnungen (Travel Expenses) gegen Statusmanipulation
-- **Status:** pending
-- **Beschreibung:** Die Firestore-Sicherheitsregeln für `travel_expenses` erlauben dem Ersteller (`authorId`), Dokumente beliebig zu erstellen und zu aktualisieren. Es gibt keine Einschränkung bezüglich des Status-Felds, wodurch Benutzer Abrechnungen direkt als `'approved'` oder `'paid'` markieren und genehmigte/ausgezahlte Abrechnungen nachträglich weitreichend manipulieren können.
-- **Akzeptanzkriterien:**
-  1. Beim Erstellen (`create`) einer Fahrtkostenabrechnung durch einen Nicht-Admin/Nicht-Kassenwart muss der Status zwingend `'pending'` sein.
-  2. Beim Aktualisieren (`update`) darf ein normaler Benutzer den Status nicht ändern (nur Kassenwart und Admin dürfen den Status ändern).
-  3. Sobald eine Abrechnung den Status `'approved'` oder `'paid'` hat, darf sie von normalen Benutzern weder geändert (`update`) noch gelöscht (`delete`) werden.
-- **Betroffene Dateien:** `firestore.rules`
-- **Hinweise:** Die Regeln müssen prüfen, ob `request.resource.data.status == 'pending'` (bei create) und unbefugtes Ändern des Status bei updates verhindern, sowie Schreibrechte entziehen, sobald der Alt-Status (`resource.data.status`) `'approved'` oder `'paid'` ist.
 
 ### [P0] Fehlerbehebung bei Odometer-Eingabe und Fehlerbehandlung im Fahrtkosten-Modul
 - **Status:** pending
@@ -118,6 +109,15 @@ Jeder Eintrag folgt diesem Schema:
 ## Abgeschlossene Aufgaben
 
 <!-- Der Night Agent verschiebt erledigte Aufgaben hierher mit Datum -->
+
+### Absichern der Fahrtkostenabrechnungen (Travel Expenses) gegen Statusmanipulation – ✅ 2026-06-09
+- **Status:** done
+- **Beschreibung:** Die Firestore-Sicherheitsregeln für `travel_expenses` erlauben dem Ersteller (`authorId`), Dokumente beliebig zu erstellen und zu aktualisieren. Es gibt keine Einschränkung bezüglich des Status-Felds, wodurch Benutzer Abrechnungen direkt als `'approved'` oder `'paid'` markieren und genehmigte/ausgezahlte Abrechnungen nachträglich weitreichend manipulieren können.
+- **Akzeptanzkriterien:**
+  1. Beim Erstellen (`create`) einer Fahrtkostenabrechnung durch einen Nicht-Admin/Nicht-Kassenwart muss der Status zwingend `'pending'` sein.
+  2. Beim Aktualisieren (`update`) darf ein normaler Benutzer den Status nicht ändern (nur Kassenwart und Admin dürfen den Status ändern).
+  3. Sobald eine Abrechnung den Status `'approved'` oder `'paid'` hat, darf sie von normalen Benutzern weder geändert (`update`) noch gelöscht (`delete`) werden.
+- **Betroffene Dateien:** `firestore.rules`
 
 ### Beheben der Berechtigungs-Eskalation in den Firestore-Regeln für Benutzerprofile – ✅ 2026-06-09
 - **Status:** done
