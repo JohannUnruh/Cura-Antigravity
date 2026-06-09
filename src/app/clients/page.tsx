@@ -253,8 +253,15 @@ export default function ClientsPage() {
                                         {filteredClients.map((client) => (
                                             <tr
                                                 key={client.id}
+                                                tabIndex={0}
+                                                role="link"
                                                 onClick={() => router.push(`/clients/${client.id}`)}
-                                                className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors group cursor-pointer"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        router.push(`/clients/${client.id}`);
+                                                    }
+                                                }}
+                                                className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors group cursor-pointer focus:outline-none focus:bg-blue-50/50 dark:focus:bg-blue-900/20"
                                             >
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-3">
@@ -276,14 +283,14 @@ export default function ClientsPage() {
                                                     {client.isChurchMember ? (
                                                         <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-lg border border-green-100">Ja</span>
                                                     ) : (
-                                                        <span className="text-xs font-medium text-gray-400">Nein</span>
+                                                        <span className="text-xs font-medium text-gray-600 dark:text-slate-400">Nein</span>
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4 text-sm text-gray-500 dark:text-slate-400">
                                                     {client.createdAt.toLocaleDateString('de-DE')}
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
-                                                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();

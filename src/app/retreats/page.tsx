@@ -43,9 +43,25 @@ export default function RetreatsPage() {
     const [timeOfDay, setTimeOfDay] = useState<'morning' | 'afternoon' | 'evening'>('morning');
     const [retreatTypes, setRetreatTypes] = useState<string[]>([]);
     const [distributionType, setDistributionType] = useState<'equal' | 'custom'>('equal');
-    const [customHoursMap, setCustomHoursMap] = useState<Record<string, number>>({});
-
     const [form, setForm] = useState(() => getEmptyForm());
+    const [customHoursMap, setCustomHoursMap] = useState<Record<string, number>>({});
+    const [customHoursStrMap, setCustomHoursStrMap] = useState<Record<string, string>>({});
+    const [durationStr, setDurationStr] = useState("1");
+    const [prepStr, setPrepStr] = useState("0");
+
+    useEffect(() => {
+        if (form.durationInHours !== undefined && parseFloat(durationStr) !== form.durationInHours) {
+            setDurationStr(form.durationInHours.toString());
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [form.durationInHours]);
+
+    useEffect(() => {
+        if (form.prepTimeInHours !== undefined && parseFloat(prepStr) !== form.prepTimeInHours) {
+            setPrepStr(form.prepTimeInHours.toString());
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [form.prepTimeInHours]);
 
     const dates = useMemo(() => {
         if (!form.dateFrom || !form.dateTo) return [];
@@ -61,17 +77,26 @@ export default function RetreatsPage() {
             if (count > 0) {
                 const hoursPerDay = Math.round((totalHours / count) * 100) / 100;
                 const newMap: Record<string, number> = {};
+                const newStrMap: Record<string, string> = {};
                 dates.forEach((d) => {
                     const key = d.toISOString().split('T')[0];
                     newMap[key] = hoursPerDay;
+                    newStrMap[key] = hoursPerDay.toString();
                 });
                 setCustomHoursMap(newMap);
+                setCustomHoursStrMap(newStrMap);
             }
         }
     }, [dates, totalHours, distributionType]);
 
-    const handleCustomHourChange = (dateKey: string, val: number) => {
-        const newMap = { ...customHoursMap, [dateKey]: val };
+    const handleCustomHourChange = (dateKey: string, valStr: string) => {
+        const normalizedStr = valStr.replace(',', '.');
+        setCustomHoursStrMap(prev => ({ ...prev, [dateKey]: normalizedStr }));
+
+        const parsed = parseFloat(normalizedStr);
+        const valNum = !isNaN(parsed) ? parsed : 0;
+
+        const newMap = { ...customHoursMap, [dateKey]: valNum };
         setCustomHoursMap(newMap);
         
         const sum = Object.values(newMap).reduce((acc, curr) => acc + curr, 0);
@@ -124,10 +149,13 @@ export default function RetreatsPage() {
         setSelected(null);
         setErrorMessage(null);
         setForm(getEmptyForm());
+        setDurationStr("1");
+        setPrepStr("0");
         setTrackHours(false);
         setTimeOfDay('morning');
         setDistributionType('equal');
         setCustomHoursMap({});
+        setCustomHoursStrMap({});
         setIsModalOpen(true);
     };
 
@@ -148,10 +176,13 @@ export default function RetreatsPage() {
             authorId: item.authorId || "",
             photoUrls: item.photoUrls || [],
         });
+        setDurationStr(item.durationInHours.toString());
+        setPrepStr(item.prepTimeInHours.toString());
         setTrackHours(false);
         setTimeOfDay('morning');
         setDistributionType('equal');
         setCustomHoursMap({});
+        setCustomHoursStrMap({});
         setIsModalOpen(true);
     };
 
@@ -298,7 +329,18 @@ export default function RetreatsPage() {
                         </Card>
                     ) : (
                         retreats.map(item => (
-                            <Card key={item.id} className="border-white/50 dark:border-white/10 shadow-sm bg-white/40 dark:bg-slate-900/40 hover:shadow-md transition-shadow group cursor-pointer" onClick={() => openEdit(item)}>
+                            <Card 
+                                key={item.id} 
+                                tabIndex={0}
+                                role="button"
+                                onClick={() => openEdit(item)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                        openEdit(item);
+                                    }
+                                }}
+                                className="border-white/50 dark:border-white/10 shadow-sm bg-white/40 dark:bg-slate-900/40 hover:shadow-md transition-shadow group cursor-pointer focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                            >
                                 <CardContent className="p-5 flex flex-col md:flex-row gap-4 justify-between md:items-center">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-3 mb-1">
@@ -332,13 +374,23 @@ export default function RetreatsPage() {
                                             )}
                                         </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <div className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer" onClick={(e) => { e.stopPropagation(); openEdit(item); }}>
+                                    <div className="flex gap-2 relative z-10">
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); openEdit(item); }}
+                                            className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                                            title="Bearbeiten"
+                                        >
                                             <Pencil className="w-4 h-4 text-gray-400 hover:text-teal-500" />
-                                        </div>
-                                        <div className="p-2 hover:bg-red-50 rounded-full transition-colors cursor-pointer" onClick={(e) => { e.stopPropagation(); setIsDeleteModalOpen(item.id); }}>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); setIsDeleteModalOpen(item.id); }}
+                                            className="p-2 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                                            title="Löschen"
+                                        >
                                             <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
-                                        </div>
+                                        </button>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -354,15 +406,16 @@ export default function RetreatsPage() {
                             </div>
                         )}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Titel der Freizeit</label>
-                            <input type="text" required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
+                            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">Titel der Freizeit</label>
+                            <input id="title" type="text" required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
                                 className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500/20"
                                 placeholder="z.B. Männerfreizeit Schwarzwald" />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Art der Freizeit</label>
+                                <label htmlFor="retreatType" className="block text-sm font-bold text-gray-700 mb-1">Art der Freizeit</label>
                                 <select
+                                    id="retreatType"
                                     title="Art der Freizeit"
                                     value={form.retreatType}
                                     onChange={e => setForm({ ...form, retreatType: e.target.value })}
@@ -375,8 +428,8 @@ export default function RetreatsPage() {
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Ort</label>
-                                <input type="text" name="retreatLocation" autoComplete="off" required value={form.location} onChange={e => setForm({ ...form, location: e.target.value })}
+                                <label htmlFor="location" className="block text-sm font-bold text-gray-700 mb-1">Ort</label>
+                                <input id="location" type="text" name="retreatLocation" autoComplete="off" required value={form.location} onChange={e => setForm({ ...form, location: e.target.value })}
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500/20"
                                     placeholder="z.B. Freizeitheim Alpenblick" />
                             </div>
@@ -384,41 +437,50 @@ export default function RetreatsPage() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Gemeinde</label>
-                                <input type="text" name="retreatChurch" autoComplete="off" value={form.church} onChange={e => setForm({ ...form, church: e.target.value })}
+                                <label htmlFor="church" className="block text-sm font-bold text-gray-700 mb-1">Gemeinde</label>
+                                <input id="church" type="text" name="retreatChurch" autoComplete="off" value={form.church} onChange={e => setForm({ ...form, church: e.target.value })}
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500/20"
                                     placeholder="z.B. EFG Musterstadt" />
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Anzahl Teilnehmer</label>
-                                <input type="number" min="0" value={form.participantCount} onChange={e => setForm({ ...form, participantCount: parseInt(e.target.value) || 0 })}
+                                <label htmlFor="participantCount" className="block text-sm font-bold text-gray-700 mb-1">Anzahl Teilnehmer</label>
+                                <input id="participantCount" type="number" min="0" value={form.participantCount} onChange={e => setForm({ ...form, participantCount: parseInt(e.target.value) || 0 })}
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500/20" />
                             </div>
                         </div>
 
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-1">Notizen</label>
-                            <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
+                            <label htmlFor="notes" className="block text-sm font-bold text-gray-700 mb-1">Notizen</label>
+                            <textarea id="notes" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
                                 className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500/20 h-20"
                                 placeholder="Weitere Details zur Freizeit..." />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Datum Von</label>
-                                <input type="date" required value={form.dateFrom} onChange={e => handleDateFromChange(e.target.value)}
+                                <label htmlFor="dateFrom" className="block text-sm font-medium text-gray-700 mb-1">Datum Von</label>
+                                <input id="dateFrom" type="date" required value={form.dateFrom} onChange={e => handleDateFromChange(e.target.value)}
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500/20" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Datum Bis</label>
-                                <input type="date" required value={form.dateTo} onChange={e => handleDateToChange(e.target.value)}
+                                <label htmlFor="dateTo" className="block text-sm font-medium text-gray-700 mb-1">Datum Bis</label>
+                                <input id="dateTo" type="date" required value={form.dateTo} onChange={e => handleDateToChange(e.target.value)}
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500/20" />
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Durchführung (Std.)</label>
-                                <input type="number" step="0.25" min="0" required value={form.durationInHours}
-                                    onChange={e => setForm({ ...form, durationInHours: parseFloat(e.target.value) || 0 })}
+                                <label htmlFor="durationInHours" className="block text-sm font-medium text-gray-700 mb-1">Durchführung (Std.)</label>
+                                <input id="durationInHours" type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" required value={durationStr}
+                                    onChange={e => {
+                                        const val = e.target.value.replace(',', '.');
+                                        setDurationStr(val);
+                                        const parsed = parseFloat(val);
+                                        if (!isNaN(parsed)) {
+                                            setForm(prev => ({ ...prev, durationInHours: parsed }));
+                                        } else if (val === '') {
+                                            setForm(prev => ({ ...prev, durationInHours: 0 }));
+                                        }
+                                    }}
                                     readOnly={distributionType === 'custom' && trackHours && isMultiDay && !selected}
                                     className={`w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500/20 ${
                                         distributionType === 'custom' && trackHours && isMultiDay && !selected
@@ -427,9 +489,18 @@ export default function RetreatsPage() {
                                     }`} />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Vorbereitungszeit (Std.)</label>
-                                <input type="number" step="0.25" min="0" value={form.prepTimeInHours}
-                                    onChange={e => setForm({ ...form, prepTimeInHours: parseFloat(e.target.value) || 0 })}
+                                <label htmlFor="prepTimeInHours" className="block text-sm font-medium text-gray-700 mb-1">Vorbereitungszeit (Std.)</label>
+                                <input id="prepTimeInHours" type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" value={prepStr}
+                                    onChange={e => {
+                                        const val = e.target.value.replace(',', '.');
+                                        setPrepStr(val);
+                                        const parsed = parseFloat(val);
+                                        if (!isNaN(parsed)) {
+                                            setForm(prev => ({ ...prev, prepTimeInHours: parsed }));
+                                        } else if (val === '') {
+                                            setForm(prev => ({ ...prev, prepTimeInHours: 0 }));
+                                        }
+                                    }}
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500/20" />
                             </div>
                         </div>
@@ -437,8 +508,9 @@ export default function RetreatsPage() {
                         {/* Time Tracking Checkbox */}
                         {!selected && (
                             <div className="flex flex-col gap-3 px-4 py-3 bg-teal-50/30 rounded-xl border border-teal-200/50">
-                                <label className="flex items-center gap-3 cursor-pointer hover:bg-teal-50/50 transition-colors">
+                                <label htmlFor="trackHours" className="flex items-center gap-3 cursor-pointer hover:bg-teal-50/50 transition-colors">
                                     <input
+                                        id="trackHours"
                                         type="checkbox"
                                         checked={trackHours}
                                         onChange={(e) => setTrackHours(e.target.checked)}
@@ -451,8 +523,9 @@ export default function RetreatsPage() {
                                 {trackHours && (
                                     <>
                                         <div className="pl-7 flex items-center gap-4 mt-2">
-                                            <span className="text-sm text-gray-600">Tagesabschnitt:</span>
+                                            <label htmlFor="timeOfDay" className="text-sm text-gray-600">Tagesabschnitt:</label>
                                             <select
+                                                id="timeOfDay"
                                                 value={timeOfDay}
                                                 title="Tagesabschnitt"
                                                 onChange={(e) => setTimeOfDay(e.target.value as 'morning' | 'afternoon' | 'evening')}
@@ -508,11 +581,11 @@ export default function RetreatsPage() {
                                                                     <span className="text-sm text-gray-600 font-medium">{formattedDate}</span>
                                                                     <div className="flex items-center gap-1.5">
                                                                         <input
-                                                                            type="number"
-                                                                            step="0.25"
-                                                                            min="0"
-                                                                            value={customHoursMap[key] || 0}
-                                                                            onChange={(e) => handleCustomHourChange(key, parseFloat(e.target.value) || 0)}
+                                                                            type="text"
+                                                                            inputMode="decimal"
+                                                                            pattern="[0-9]*[.,]?[0-9]*"
+                                                                            value={customHoursStrMap[key] ?? (customHoursMap[key]?.toString() ?? '0')}
+                                                                            onChange={(e) => handleCustomHourChange(key, e.target.value)}
                                                                             className="w-20 px-2 py-1 text-right border border-gray-200 rounded focus:ring-2 focus:ring-teal-500/20"
                                                                         />
                                                                         <span className="text-xs text-gray-500">Std.</span>

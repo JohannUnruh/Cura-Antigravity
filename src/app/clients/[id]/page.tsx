@@ -621,12 +621,22 @@ export default function ClientDetailPage() {
                                                     )}
                                                 </div>
                                                 <div className="flex gap-2 justify-end sm:flex-col sm:justify-start">
-                                                    <div className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer" onClick={() => { setSelectedConsultation(item); setIsConsultationModalOpen(true); }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { setSelectedConsultation(item); setIsConsultationModalOpen(true); }}
+                                                        className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                        title="Bearbeiten"
+                                                    >
                                                         <Pencil className="w-4 h-4 text-gray-400 hover:text-indigo-500" />
-                                                    </div>
-                                                    <div className="p-2 hover:bg-red-50 rounded-full transition-colors cursor-pointer" onClick={() => { setSelectedConsultation(item); setIsDeleteConsModalOpen(true); }}>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { setSelectedConsultation(item); setIsDeleteConsModalOpen(true); }}
+                                                        className="p-2 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                                                        title="Löschen"
+                                                    >
                                                         <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
-                                                    </div>
+                                                    </button>
                                                 </div>
                                             </CardContent>
                                         </Card>
@@ -671,12 +681,22 @@ export default function ClientDetailPage() {
                                                     </p>
                                                 </div>
                                                 <div className="flex gap-2 justify-end sm:flex-col sm:justify-start">
-                                                    <div className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer" onClick={() => { setSelectedSkb(item); setIsSkbModalOpen(true); }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { setSelectedSkb(item); setIsSkbModalOpen(true); }}
+                                                        className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                                        title="Bearbeiten"
+                                                    >
                                                         <Pencil className="w-4 h-4 text-gray-400 hover:text-emerald-500" />
-                                                    </div>
-                                                    <div className="p-2 hover:bg-red-50 rounded-full transition-colors cursor-pointer" onClick={() => { setSelectedSkb(item); setIsDeleteSkbModalOpen(true); }}>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { setSelectedSkb(item); setIsDeleteSkbModalOpen(true); }}
+                                                        className="p-2 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                                                        title="Löschen"
+                                                    >
                                                         <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
-                                                    </div>
+                                                    </button>
                                                 </div>
                                             </CardContent>
                                         </Card>

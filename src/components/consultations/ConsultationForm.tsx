@@ -84,6 +84,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
     const [trackHours, setTrackHours] = useState(true);
     const [distributionType, setDistributionType] = useState<'equal' | 'custom'>('equal');
     const [customHoursMap, setCustomHoursMap] = useState<Record<string, number>>({});
+    const [customHoursStrMap, setCustomHoursStrMap] = useState<Record<string, string>>({});
 
     const dates = React.useMemo(() => {
         if (!formData.dateFrom || !formData.dateTo) return [];
@@ -99,17 +100,26 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
             if (count > 0) {
                 const hoursPerDay = Math.round((totalHours / count) * 100) / 100;
                 const newMap: Record<string, number> = {};
+                const newStrMap: Record<string, string> = {};
                 dates.forEach((d) => {
                     const key = d.toISOString().split('T')[0];
                     newMap[key] = hoursPerDay;
+                    newStrMap[key] = hoursPerDay.toString();
                 });
                 setCustomHoursMap(newMap);
+                setCustomHoursStrMap(newStrMap);
             }
         }
     }, [dates, totalHours, distributionType]);
 
-    const handleCustomHourChange = (dateKey: string, val: number) => {
-        const newMap = { ...customHoursMap, [dateKey]: val };
+    const handleCustomHourChange = (dateKey: string, valStr: string) => {
+        const normalizedStr = valStr.replace(',', '.');
+        setCustomHoursStrMap(prev => ({ ...prev, [dateKey]: normalizedStr }));
+
+        const parsed = parseFloat(normalizedStr);
+        const valNum = !isNaN(parsed) ? parsed : 0;
+
+        const newMap = { ...customHoursMap, [dateKey]: valNum };
         setCustomHoursMap(newMap);
         
         const sum = Object.values(newMap).reduce((acc, curr) => acc + curr, 0);
@@ -216,9 +226,10 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Dates */}
                 <div>
-                    <label className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Datum Von</label>
+                    <label htmlFor="dateFrom" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Datum Von</label>
                     <input
                         type="date"
+                        id="dateFrom"
                         required
                         value={formData.dateFrom ? formatDate(new Date(formData.dateFrom)) : ''}
                         onChange={(e) => {
@@ -235,9 +246,10 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                     />
                 </div>
                 <div>
-                    <label className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Datum Bis</label>
+                    <label htmlFor="dateTo" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Datum Bis</label>
                     <input
                         type="date"
+                        id="dateTo"
                         required
                         value={formData.dateTo ? formatDate(new Date(formData.dateTo)) : ''}
                         onChange={(e) => {
@@ -254,8 +266,9 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                     />
                 </div>
                 <div>
-                    <label className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Tagesabschnitt</label>
+                    <label htmlFor="timeOfDay" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Tagesabschnitt</label>
                     <select
+                        id="timeOfDay"
                         title="Tagesabschnitt"
                         value={timeOfDay}
                         onChange={(e) => setTimeOfDay(e.target.value as 'morning' | 'afternoon' | 'evening' | 'allday')}
@@ -270,8 +283,9 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
 
                 {/* Dropdowns */}
                 <div>
-                    <label className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Gesprächsart</label>
+                    <label htmlFor="consultationType" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Gesprächsart</label>
                     <select
+                        id="consultationType"
                         required
                         value={formData.type}
                         onChange={(e) => handleChange('type', e.target.value as ConsultationType)}
@@ -285,9 +299,10 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
             {/* Durations */}
             <div className="grid grid-cols-2 gap-4 border-t border-gray-100 dark:border-white/10 pt-4">
                 <div>
-                    <label className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Einheiten in Std.</label>
+                    <label htmlFor="unitsInHours" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Einheiten in Std.</label>
                     <input
                         type="text"
+                        id="unitsInHours"
                         inputMode="decimal"
                         pattern="[0-9]*[.,]?[0-9]*"
                         required
@@ -311,9 +326,10 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                     />
                 </div>
                 <div>
-                    <label className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Vorbereitung in Std.</label>
+                    <label htmlFor="prepTimeInHours" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Vorbereitung in Std.</label>
                     <input
                         type="text"
+                        id="prepTimeInHours"
                         inputMode="decimal"
                         pattern="[0-9]*[.,]?[0-9]*"
                         value={prepStr}
@@ -395,11 +411,11 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                                                 <span className="text-sm text-gray-600 dark:text-slate-300 font-medium">{formattedDate}</span>
                                                 <div className="flex items-center gap-1.5">
                                                     <input
-                                                        type="number"
-                                                        step="0.25"
-                                                        min="0"
-                                                        value={customHoursMap[key] || 0}
-                                                        onChange={(e) => handleCustomHourChange(key, parseFloat(e.target.value) || 0)}
+                                                        type="text"
+                                                        inputMode="decimal"
+                                                        pattern="[0-9]*[.,]?[0-9]*"
+                                                        value={customHoursStrMap[key] ?? (customHoursMap[key]?.toString() ?? '0')}
+                                                        onChange={(e) => handleCustomHourChange(key, e.target.value)}
                                                         className="w-20 px-2 py-1 text-right border border-gray-200 dark:border-white/10 dark:text-white bg-gray-50 dark:bg-slate-900 rounded focus:ring-2 focus:ring-indigo-500/20"
                                                     />
                                                     <span className="text-xs text-gray-500 dark:text-slate-400">Std.</span>
@@ -437,8 +453,9 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                     <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Lebensabschnitt (Problem Herkunft)</label>
+                                <label htmlFor="lifeStage" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Lebensabschnitt (Problem Herkunft)</label>
                                 <select
+                                    id="lifeStage"
                                     required
                                     value={formData.lifeStage}
                                     onChange={(e) => handleChange('lifeStage', e.target.value as LifeStage)}
@@ -448,8 +465,9 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Problem-Herkunft</label>
+                                <label htmlFor="problemOrigin" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Problem-Herkunft</label>
                                 <select
+                                    id="problemOrigin"
                                     value={formData.problemOriginId}
                                     onChange={(e) => handleChange('problemOriginId', e.target.value)}
                                     className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500/20"
@@ -458,8 +476,9 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Zieltyp</label>
+                                <label htmlFor="goalType" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Zieltyp</label>
                                 <select
+                                    id="goalType"
                                     value={formData.goalTypeId}
                                     onChange={(e) => handleChange('goalTypeId', e.target.value)}
                                     className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500/20"
@@ -468,9 +487,10 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Zieltermin</label>
+                                <label htmlFor="targetDate" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Zieltermin</label>
                                 <input
                                     type="date"
+                                    id="targetDate"
                                     value={(() => {
                                         if (!smartCheck.timeBound) return '';
                                         try {
@@ -524,10 +544,11 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                         {/* Zielvereinbarung */}
                         <div>
                             <div className="flex justify-between mb-1">
-                                <label className="block text-base font-semibold text-gray-900 dark:text-white">Zielvereinbarung</label>
+                                <label htmlFor="goalAgreement" className="block text-base font-semibold text-gray-900 dark:text-white">Zielvereinbarung</label>
                                 <VoiceInput onResult={(text) => handleVoiceInput('goalAgreement', text)} />
                             </div>
                             <textarea
+                                id="goalAgreement"
                                 rows={3}
                                 value={formData.goalAgreement}
                                 onChange={(e) => handleChange('goalAgreement', e.target.value)}
@@ -543,10 +564,11 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
             <div className="space-y-4 border-t border-gray-100 dark:border-white/10 pt-4">
                 <div>
                     <div className="flex justify-between mb-1">
-                        <label className="block text-base font-semibold text-gray-900 dark:text-white">Ursache aus Seelsorger-Sicht</label>
+                        <label htmlFor="causeFromCounselor" className="block text-base font-semibold text-gray-900 dark:text-white">Ursache aus Seelsorger-Sicht</label>
                         <VoiceInput onResult={(text) => handleVoiceInput('causeFromCounselor', text)} />
                     </div>
                     <textarea
+                        id="causeFromCounselor"
                         rows={3}
                         value={formData.causeFromCounselor}
                         onChange={(e) => handleChange('causeFromCounselor', e.target.value)}
@@ -556,10 +578,11 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
 
                 <div>
                     <div className="flex justify-between mb-1">
-                        <label className="block text-base font-semibold text-gray-900 dark:text-white">Notizen</label>
+                        <label htmlFor="notes" className="block text-base font-semibold text-gray-900 dark:text-white">Notizen</label>
                         <VoiceInput onResult={(text) => handleVoiceInput('notes', text)} />
                     </div>
                     <textarea
+                        id="notes"
                         rows={4}
                         value={formData.notes}
                         onChange={(e) => handleChange('notes', e.target.value)}

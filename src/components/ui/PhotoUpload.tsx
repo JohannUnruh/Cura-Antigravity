@@ -116,7 +116,7 @@ export function PhotoUpload({ existingPhotos = [], onPhotosChange, folder, itemI
                                 className="object-cover cursor-pointer"
                                 onClick={() => handleViewPhoto(url)}
                             />
-                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex items-center justify-center gap-2">
                                 <button
                                     type="button"
                                     onClick={() => handleViewPhoto(url)}
@@ -142,7 +142,15 @@ export function PhotoUpload({ existingPhotos = [], onPhotosChange, folder, itemI
             {existingPhotos.length === 0 && (
                 <div 
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-gray-300 dark:border-white/10 rounded-lg p-8 text-center cursor-pointer hover:border-indigo-500 transition-colors"
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            fileInputRef.current?.click();
+                        }
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    className="border-2 border-dashed border-gray-300 dark:border-white/10 rounded-lg p-8 text-center cursor-pointer hover:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
                 >
                     <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
                     <p className="text-sm text-gray-500 dark:text-slate-400">

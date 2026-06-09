@@ -318,7 +318,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-1">Beratungsstunden</p>
                 <p className="text-3xl font-black text-gray-900 dark:text-white">{stats.totalConsHours}h</p>
-                <p className="text-xs text-gray-400 mt-1 font-medium italic">Inkl. Vorbereitung</p>
+                <p className="text-xs text-gray-600 dark:text-slate-400 mt-1 font-medium italic">Inkl. Vorbereitung</p>
               </div>
             </CardContent>
           </Card>
@@ -331,7 +331,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">Vortrag-Teilnehmer</p>
                 <p className="text-3xl font-black text-gray-900 dark:text-white">{stats.totalLectureParticipants}</p>
-                <p className="text-xs text-gray-400 dark:text-slate-400 mt-1 font-medium">Bei {stats.lectureCount} Vorträgen</p>
+                <p className="text-xs text-gray-600 dark:text-slate-400 mt-1 font-medium">Bei {stats.lectureCount} Vorträgen</p>
               </div>
             </CardContent>
           </Card>
@@ -344,7 +344,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider mb-1">Freizeit-Teilnehmer</p>
                 <p className="text-3xl font-black text-gray-900 dark:text-white">{stats.totalRetreatParticipants}</p>
-                <p className="text-xs text-gray-400 dark:text-slate-400 mt-1 font-medium">Bei {stats.retreatCount} Freizeiten</p>
+                <p className="text-xs text-gray-600 dark:text-slate-400 mt-1 font-medium">Bei {stats.retreatCount} Freizeiten</p>
               </div>
             </CardContent>
           </Card>
@@ -359,7 +359,7 @@ export default function Dashboard() {
                   {viewMode === 'all' ? 'Aktive Klienten gesamt' : 'Eigene Klienten'}
                 </p>
                 <p className="text-3xl font-black text-gray-900 dark:text-white">{data.clients.length}</p>
-                <p className="text-xs text-gray-400 dark:text-slate-400 mt-1 font-medium">Aktiv in Betreuung</p>
+                <p className="text-xs text-gray-600 dark:text-slate-400 mt-1 font-medium">Aktiv in Betreuung</p>
               </div>
             </CardContent>
           </Card>

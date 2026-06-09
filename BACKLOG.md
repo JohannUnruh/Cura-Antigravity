@@ -34,18 +34,14 @@ Jeder Eintrag folgt diesem Schema:
 
 
 
-### [P1] Behebung von Tastatursteuerungs- und ARIA-Mängeln bei Klick-Elementen und Formularen
-- **Status:** pending
-- **Beschreibung:** Behebung von Tastatursteuerungs- und Screenreader-Mängeln im gesamten Projekt. Klickbare `div`- und `tr`-Elemente (wie Tabellenzeilen in der Klientenliste und Bearbeiten/Löschen-Icons in Klienten-Details, Vorträgen, Freizeiten und Zeiterfassung) müssen durch barrierefreie `<button>`-Tags oder Fokus-Strukturen mit Tastatur-Listenern (Enter/Space) und Rollen (`role="button"`) ersetzt werden. Formular-Labels müssen über `htmlFor` korrekt mit den entsprechenden Eingabefeldern (über `id`) verknüpft werden.
-- **Akzeptanzkriterien:**
-  1. Alle Editier- und Lösch-Buttons in den Listen (Klienten-Historie, Vorträge, Freizeiten, Zeiterfassung) sind per `Tab`-Taste fokussierbar und reagieren auf Tastendruck (Enter/Space).
-  2. Tabellenzeilen in der Klientenliste sind fokussierbar (`tabIndex={0}`, `role="link"`) und navigieren bei Tastendruck zur Detailseite.
-  3. Alle `<label>`-Elemente in `ClientForm`, `ConsultationForm` und `SkbConsultationForm` haben ein `htmlFor`-Attribut, das auf die `id` des zugehörigen `<input>`- oder `<select>`-Feldes verweist.
-  4. Die Dropzone in `PhotoUpload` ist fokussierbar und per Tastatur auslösbar.
-- **Betroffene Dateien:** `src/app/clients/page.tsx`, `src/app/clients/[id]/page.tsx`, `src/app/lectures/page.tsx`, `src/app/retreats/page.tsx`, `src/app/time-tracking/page.tsx`, `src/components/clients/ClientForm.tsx`, `src/components/consultations/ConsultationForm.tsx`, `src/components/consultations/SkbConsultationForm.tsx`, `src/components/ui/PhotoUpload.tsx`
+---
 
-### [P1] Behebung von Farbkontrast- und Darkmode-Mängeln (Ghost-Buttons & Modals)
-- **Status:** pending
+## Abgeschlossene Aufgaben
+
+<!-- Der Night Agent verschiebt erledigte Aufgaben hierher mit Datum -->
+
+### [P1] Behebung von Farbkontrast- und Darkmode-Mängeln (Ghost-Buttons & Modals) – ✅ 2026-06-09
+- **Status:** done
 - **Beschreibung:** Behebung kritischer Kontrastprobleme im Lightmode und Darkmode. Ghost-Buttons ("Abbrechen") müssen im Darkmode lesbar sein (Farbe anpassen). Das allgemeine Modal-Fenster benötigt Unterstützung für das dunkle Farbschema, um blendende weiße Overlays im Darkmode zu vermeiden. Sekundäre Labels im Dashboard müssen kontraststärker dargestellt werden.
 - **Akzeptanzkriterien:**
   1. Der Ghost-Button-Variant in `Button.tsx` erhält ein `dark:text-slate-300` (und passende Hover-Klassen), sodass der Kontrast im Darkmode mindestens 4.5:1 beträgt.
@@ -54,8 +50,8 @@ Jeder Eintrag folgt diesem Schema:
   4. Die sekundären Labels auf den KPI-Cards im Dashboard und die "Nein"-Labels im Tabellenlayout erhalten kontraststärkere Farben im Lightmode (mindestens `text-gray-600` statt `text-gray-400`).
 - **Betroffene Dateien:** `src/components/ui/Button.tsx`, `src/components/ui/Modal.tsx`, `src/app/page.tsx`, `src/app/clients/page.tsx`, `src/app/travel/page.tsx`, `src/app/settings/page.tsx`
 
-### [P2] Beseitigung der React-Eingabebugs für Dezimal- und Zahlenfelder
-- **Status:** pending
+### [P2] Beseitigung der React-Eingabebugs für Dezimal- und Zahlenfelder – ✅ 2026-06-09
+- **Status:** done
 - **Beschreibung:** Die Stunden- und Vorbereitungsfelder in den Vortrags-, Freizeit- und Beratungsformularen (insbesondere in der individuellen Stundenverteilung per Wochentagsliste) leiden unter dem React-Eingabebug, bei dem der Dezimalpunkt bei der Eingabe (z. B. "1.") gelöscht wird. Auch setzen sich leere Zahlenfelder sofort auf "0" zurück.
 - **Akzeptanzkriterien:**
   1. Lokale temporäre String-States (wie bereits für die Hauptstundenfelder implementiert) werden auch für alle individuellen Stundenfelder in der Verteilungsliste und für die Zahleneingaben auf den Vortrags- und Freizeitseiten verwendet.
@@ -63,8 +59,8 @@ Jeder Eintrag folgt diesem Schema:
   3. Leere Eingaben setzen sich während der Eingabe nicht sofort reaktiv auf "0" zurück.
 - **Betroffene Dateien:** `src/components/consultations/ConsultationForm.tsx`, `src/components/consultations/SkbConsultationForm.tsx`, `src/app/lectures/page.tsx`, `src/app/retreats/page.tsx`
 
-### [P2] Verbesserung der Barrierefreiheit auf Mobilgeräten (Hover-Bedingungen & Fokus-Fallen)
-- **Status:** pending
+### [P2] Verbesserung der Barrierefreiheit auf Mobilgeräten (Hover-Bedingungen & Fokus-Fallen) – ✅ 2026-06-09
+- **Status:** done
 - **Beschreibung:** Optimierung der Benutzeroberfläche für mobile Geräte und Screenreader durch Behebung von Hover-Abhängigkeiten und fehlenden Fokus-Fallen. Aktionssymbole in Tabellenzeilen dürfen nicht ausschließlich bei Hover sichtbar sein, da dies auf Touchscreens nicht möglich ist. Modals und das mobile Menü müssen den Fokus einfangen (Focus Trap).
 - **Akzeptanzkriterien:**
   1. Aktionsbuttons in der Klientenliste (`page.tsx`) sind entweder immer sichtbar oder werden durch ein fokussierbares Aktionsmenü (z. B. Drei-Punkt-Menü) ersetzt, das per Klick/Tap aufgerufen werden kann und im Tastaturfokus sichtbar bleibt (`focus-within:opacity-100`).
@@ -72,11 +68,15 @@ Jeder Eintrag folgt diesem Schema:
   3. Das mobile Sidebar-Menü fängt den Fokus ein und schließt sich sauber beim Drücken der `Escape`-Taste.
 - **Betroffene Dateien:** `src/app/clients/page.tsx`, `src/components/ui/Modal.tsx`, `src/components/layout/Sidebar.tsx`
 
----
-
-## Abgeschlossene Aufgaben
-
-<!-- Der Night Agent verschiebt erledigte Aufgaben hierher mit Datum -->
+### Behebung von Tastatursteuerungs- und ARIA-Mängeln bei Klick-Elementen und Formularen – ✅ 2026-06-09
+- **Status:** done
+- **Beschreibung:** Behebung von Tastatursteuerungs- und Screenreader-Mängeln im gesamten Projekt. Klickbare `div`- und `tr`-Elemente (wie Tabellenzeilen in der Klientenliste und Bearbeiten/Löschen-Icons in Klienten-Details, Vorträgen, Freizeiten und Zeiterfassung) müssen durch barrierefreie `<button>`-Tags oder Fokus-Strukturen mit Tastatur-Listenern (Enter/Space) und Rollen (`role="button"`) ersetzt werden. Formular-Labels müssen über `htmlFor` korrekt mit den entsprechenden Eingabefeldern (über `id`) verknüpft werden.
+- **Akzeptanzkriterien:**
+  1. Alle Editier- und Lösch-Buttons in den Listen (Klienten-Historie, Vorträge, Freizeiten, Zeiterfassung) sind per `Tab`-Taste fokussierbar und reagieren auf Tastendruck (Enter/Space).
+  2. Tabellenzeilen in der Klientenliste sind fokussierbar (`tabIndex={0}`, `role="link"`) und navigieren bei Tastendruck zur Detailseite.
+  3. Alle `<label>`-Elemente in `ClientForm`, `ConsultationForm` und `SkbConsultationForm` haben ein `htmlFor`-Attribut, das auf die `id` des zugehörigen `<input>`- oder `<select>`-Feldes verweist.
+  4. Die Dropzone in `PhotoUpload` ist fokussierbar und per Tastatur auslösbar.
+- **Betroffene Dateien:** `src/app/clients/page.tsx`, `src/app/clients/[id]/page.tsx`, `src/app/lectures/page.tsx`, `src/app/retreats/page.tsx`, `src/app/time-tracking/page.tsx`, `src/components/clients/ClientForm.tsx`, `src/components/consultations/ConsultationForm.tsx`, `src/components/consultations/SkbConsultationForm.tsx`, `src/components/ui/PhotoUpload.tsx`
 
 ### Absicherung gegen Invalid Date, NaN und Fehlerbehandlung in Vorträgen, Freizeiten und Beratungen – ✅ 2026-06-09
 - **Status:** done

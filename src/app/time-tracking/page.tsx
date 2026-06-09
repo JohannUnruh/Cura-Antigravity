@@ -1028,13 +1028,23 @@ export default function TimeTrackingPage() {
                                             {item.description && <span className="text-gray-400 dark:text-slate-500 max-w-sm truncate whitespace-nowrap" title={getUIDescription(item.description, item.referenceId)}>| {getUIDescription(item.description, item.referenceId)}</span>}
                                         </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <div className="p-2 hover:bg-gray-100 rounded-full transition-colors" onClick={(e) => { e.stopPropagation(); openEdit(item); }}>
-                                            <Pencil className="w-4 h-4 text-gray-400 group-hover:text-rose-500" />
-                                        </div>
-                                        <div className="p-2 hover:bg-red-50 rounded-full transition-colors" onClick={(e) => handleDelete(item, e)}>
+                                    <div className="flex gap-2 relative z-10">
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); openEdit(item); }}
+                                            className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                                            title="Bearbeiten"
+                                        >
+                                            <Pencil className="w-4 h-4 text-gray-400 hover:text-rose-500" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => handleDelete(item, e)}
+                                            className="p-2 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                                            title="Löschen"
+                                        >
                                             <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
-                                        </div>
+                                        </button>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -1045,57 +1055,57 @@ export default function TimeTrackingPage() {
                 <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={selected ? "Zeit bearbeiten" : "Neue Zeit erfassen"}>
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
-                                <input type="date" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Tageszeit</label>
-                                <select required title="Tageszeit auswählen" value={form.timeOfDay} onChange={e => setForm({ ...form, timeOfDay: e.target.value as "Vormittags" | "Nachmittags" | "Abends" | "Ganztägig" })}
-                                    disabled={form.type === "Urlaub"}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 disabled:opacity-60 disabled:cursor-not-allowed">
-                                    <option value="Ganztägig">Ganztägig</option>
-                                    <option value="Vormittags">Vormittags</option>
-                                    <option value="Nachmittags">Nachmittags</option>
-                                    <option value="Abends">Abends</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Dauer (Std.)</label>
-                                <input type="number" step="0.25" min="0" required value={form.durationInHours}
-                                    onChange={e => setForm({ ...form, durationInHours: parseFloat(e.target.value) })}
-                                    disabled={form.type === "Urlaub"}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 disabled:opacity-60 disabled:cursor-not-allowed" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Kategorie</label>
-                                <select required value={form.type} onChange={e => {
-                                    const val = e.target.value as TimeEntryType;
-                                    setForm(prev => {
-                                        if (val === "Urlaub") {
-                                            return { ...prev, type: val, timeOfDay: "Ganztägig", durationInHours: hoursPerVacationDay };
-                                        }
-                                        return { ...prev, type: val };
-                                    });
-                                }}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20">
-                                    <option value="Büro">Büro / Administration</option>
-                                    <option value="Beratung">Beratung</option>
-                                    <option value="Vortrag">Vortrag</option>
-                                    <option value="Freizeit">Freizeit / Event</option>
-                                    <option value="Urlaub">Urlaub</option>
-                                    <option value="Fahrt">Fahrtzeit</option>
-                                    <option value="Sonstiges">Sonstiges</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Beschreibung / Notiz</label>
-                            <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
-                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 min-h-[100px]"
-                                placeholder="Details zur erbrachten Leistung..." />
-                        </div>
+                                                            <div>
+                                                                <label htmlFor="timeEntryDate" className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+                                                                <input id="timeEntryDate" type="date" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
+                                                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20" />
+                                                            </div>
+                                                            <div>
+                                                                <label htmlFor="timeEntryTimeOfDay" className="block text-sm font-medium text-gray-700 mb-1">Tageszeit</label>
+                                                                <select id="timeEntryTimeOfDay" required title="Tageszeit auswählen" value={form.timeOfDay} onChange={e => setForm({ ...form, timeOfDay: e.target.value as "Vormittags" | "Nachmittags" | "Abends" | "Ganztägig" })}
+                                                                    disabled={form.type === "Urlaub"}
+                                                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 disabled:opacity-60 disabled:cursor-not-allowed">
+                                                                    <option value="Ganztägig">Ganztägig</option>
+                                                                    <option value="Vormittags">Vormittags</option>
+                                                                    <option value="Nachmittags">Nachmittags</option>
+                                                                    <option value="Abends">Abends</option>
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <label htmlFor="timeEntryDuration" className="block text-sm font-medium text-gray-700 mb-1">Dauer (Std.)</label>
+                                                                <input id="timeEntryDuration" type="number" step="0.25" min="0" required value={form.durationInHours}
+                                                                    onChange={e => setForm({ ...form, durationInHours: parseFloat(e.target.value) })}
+                                                                    disabled={form.type === "Urlaub"}
+                                                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 disabled:opacity-60 disabled:cursor-not-allowed" />
+                                                            </div>
+                                                            <div>
+                                                                <label htmlFor="timeEntryType" className="block text-sm font-medium text-gray-700 mb-1">Kategorie</label>
+                                                                <select id="timeEntryType" required value={form.type} onChange={e => {
+                                                                    const val = e.target.value as TimeEntryType;
+                                                                    setForm(prev => {
+                                                                        if (val === "Urlaub") {
+                                                                            return { ...prev, type: val, timeOfDay: "Ganztägig", durationInHours: hoursPerVacationDay };
+                                                                        }
+                                                                        return { ...prev, type: val };
+                                                                    });
+                                                                }}
+                                                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20">
+                                                                    <option value="Büro">Büro / Administration</option>
+                                                                    <option value="Beratung">Beratung</option>
+                                                                    <option value="Vortrag">Vortrag</option>
+                                                                    <option value="Freizeit">Freizeit / Event</option>
+                                                                    <option value="Urlaub">Urlaub</option>
+                                                                    <option value="Fahrt">Fahrtzeit</option>
+                                                                    <option value="Sonstiges">Sonstiges</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <label htmlFor="timeEntryDescription" className="block text-sm font-medium text-gray-700 mb-1">Beschreibung / Notiz</label>
+                                                            <textarea id="timeEntryDescription" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
+                                                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 min-h-[100px]"
+                                                                placeholder="Details zur erbrachten Leistung..." />
+                                                        </div>
                         <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                             <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} disabled={isSaving}>Abbrechen</Button>
                             <Button type="submit" variant="primary" disabled={isSaving}>
@@ -1256,8 +1266,9 @@ export default function TimeTrackingPage() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Zielmonat</label>
+                                <label htmlFor="distributeTargetMonth" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Zielmonat</label>
                                 <select
+                                    id="distributeTargetMonth"
                                     value={targetMonth}
                                     onChange={(e) => {
                                         setTargetMonth(parseInt(e.target.value));
@@ -1271,8 +1282,9 @@ export default function TimeTrackingPage() {
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Jahr</label>
+                                <label htmlFor="distributeTargetYear" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Jahr</label>
                                 <select
+                                    id="distributeTargetYear"
                                     value={targetYear}
                                     onChange={(e) => setTargetYear(parseInt(e.target.value))}
                                     className="w-full px-3 py-2 bg-white dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-amber-500/20 text-gray-900 dark:text-white"
@@ -1428,8 +1440,9 @@ export default function TimeTrackingPage() {
                     <form onSubmit={handleEditPoolEntry} className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Datum</label>
+                                <label htmlFor="editPoolDate" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Datum</label>
                                 <input
+                                    id="editPoolDate"
                                     type="date"
                                     required
                                     value={editPoolForm.date}
@@ -1438,8 +1451,9 @@ export default function TimeTrackingPage() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Dauer (h)</label>
+                                <label htmlFor="editPoolDuration" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Dauer (h)</label>
                                 <input
+                                    id="editPoolDuration"
                                     type="number"
                                     step="0.25"
                                     min="0"
@@ -1451,8 +1465,9 @@ export default function TimeTrackingPage() {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tageszeit</label>
+                            <label htmlFor="editPoolTimeOfDay" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tageszeit</label>
                             <select
+                                id="editPoolTimeOfDay"
                                 value={editPoolForm.timeOfDay}
                                 onChange={(e) => setEditPoolForm({ ...editPoolForm, timeOfDay: e.target.value })}
                                 className="w-full px-3 py-2 bg-white dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-amber-500/20"
@@ -1464,8 +1479,9 @@ export default function TimeTrackingPage() {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Kategorie</label>
+                            <label htmlFor="editPoolType" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Kategorie</label>
                             <select
+                                id="editPoolType"
                                 value={editPoolForm.type}
                                 onChange={(e) => setEditPoolForm({ ...editPoolForm, type: e.target.value })}
                                 className="w-full px-3 py-2 bg-white dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-amber-500/20"
@@ -1480,8 +1496,9 @@ export default function TimeTrackingPage() {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Beschreibung</label>
+                            <label htmlFor="editPoolDescription" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Beschreibung</label>
                             <textarea
+                                id="editPoolDescription"
                                 value={editPoolForm.description}
                                 onChange={(e) => setEditPoolForm({ ...editPoolForm, description: e.target.value })}
                                 className="w-full px-3 py-2 bg-white dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-amber-500/20 min-h-[80px]"

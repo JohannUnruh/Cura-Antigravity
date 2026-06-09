@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { LayoutDashboard, Users, Presentation, Tent, Car, Settings, MessagesSquare, Clock, LogOut, Coffee, X, Star } from "lucide-react";
@@ -33,6 +33,62 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     const router = useRouter();
     const { user } = useAuth();
     const [favorites, setFavorites] = useState<{ clientId: string; name: string }[]>([]);
+    const sidebarRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!isOpen || !onClose) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                onClose();
+                return;
+            }
+
+            if (e.key === "Tab" && sidebarRef.current) {
+                const focusableElements = sidebarRef.current.querySelectorAll(
+                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                );
+                if (focusableElements.length === 0) return;
+
+                const firstElement = focusableElements[0] as HTMLElement;
+                const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+                if (e.shiftKey) {
+                    if (document.activeElement === firstElement) {
+                        lastElement.focus();
+                        e.preventDefault();
+                    }
+                } else {
+                    if (document.activeElement === lastElement) {
+                        firstElement.focus();
+                        e.preventDefault();
+                    }
+                }
+            }
+        };
+
+        const previouslyActiveElement = document.activeElement as HTMLElement;
+        document.addEventListener("keydown", handleKeyDown);
+
+        // Auto-focus the close button or first element inside mobile sidebar
+        setTimeout(() => {
+            if (sidebarRef.current) {
+                const focusableElements = sidebarRef.current.querySelectorAll(
+                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                );
+                if (focusableElements.length > 0) {
+                    (focusableElements[0] as HTMLElement).focus();
+                }
+            }
+        }, 50);
+
+        return () => {
+            document.removeEventListener("keydown", handleKeyDown);
+            if (previouslyActiveElement && typeof previouslyActiveElement.focus === "function") {
+                previouslyActiveElement.focus();
+            }
+        };
+    }, [isOpen, onClose]);
 
     useEffect(() => {
         if (!user?.uid) return;
@@ -162,10 +218,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </aside>
 
             {/* Mobile Sidebar Overlay */}
-            <aside className={cn(
-                "bg-white dark:bg-slate-950 w-64 h-full flex flex-col p-6 z-50 transition-transform duration-300 fixed inset-y-0 left-0 md:hidden",
-                isOpen ? "translate-x-0 shadow-2xl border-r border-gray-200 dark:border-slate-800" : "-translate-x-full"
-            )}>
+            <aside 
+                ref={sidebarRef}
+                className={cn(
+                    "bg-white dark:bg-slate-950 w-64 h-full flex flex-col p-6 z-50 transition-transform duration-300 fixed inset-y-0 left-0 md:hidden",
+                    isOpen ? "translate-x-0 shadow-2xl border-r border-gray-200 dark:border-slate-800" : "-translate-x-full"
+                )}
+            >
                 {navContent}
             </aside>
         </>

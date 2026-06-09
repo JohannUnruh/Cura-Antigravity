@@ -538,23 +538,23 @@ export default function TravelPage() {
                 <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={selected ? "Fahrt bearbeiten" : "Neue Fahrt erfassen"}>
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Datum</label>
                             <input type="date" required value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })}
-                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500/20" />
+                                className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-sky-500/20" />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Startort</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Startort</label>
                                 <input type="text" required value={form.startLocation}
                                     onChange={e => setForm({ ...form, startLocation: e.target.value })}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500/20"
+                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-sky-500/20"
                                     placeholder="z.B. Musterstr. 1, 70173 Stuttgart" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Zielort</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Zielort</label>
                                 <input type="text" required value={form.endLocation}
                                     onChange={e => setForm({ ...form, endLocation: e.target.value })}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500/20"
+                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-sky-500/20"
                                     placeholder="z.B. Zielstr. 42, 80331 München" />
                             </div>
                         </div>
@@ -594,13 +594,13 @@ export default function TravelPage() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Kilometerstand Start</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Kilometerstand Start</label>
                                 <input type="number" min="0" required value={form.kmStart}
                                     onChange={e => setForm({ ...form, kmStart: parseInt(e.target.value) || 0 })}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500/20" />
+                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-sky-500/20" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                                     {isManualKm ? "Kilometerstand Ende (Manuell)" : "Kilometerstand Ende (Auto-Berechnung)"}
                                 </label>
                                 <input
@@ -610,8 +610,8 @@ export default function TravelPage() {
                                     value={form.kmEnd}
                                     readOnly={!isManualKm}
                                     onChange={isManualKm ? (e => setForm({ ...form, kmEnd: parseInt(e.target.value) || 0 })) : undefined}
-                                    className={`w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500/20 ${
-                                        !isManualKm ? "focus:outline-none cursor-not-allowed text-gray-500" : ""
+                                    className={`w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-sky-500/20 ${
+                                        !isManualKm ? "focus:outline-none cursor-not-allowed text-gray-500 dark:text-slate-400" : ""
                                     }`}
                                 />
                             </div>

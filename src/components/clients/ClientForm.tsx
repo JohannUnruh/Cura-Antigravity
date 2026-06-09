@@ -92,9 +92,10 @@ export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientF
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Name / Haushaltsname</label>
+                <label htmlFor="clientName" className="text-sm font-medium text-gray-700 dark:text-slate-300">Name / Haushaltsname</label>
                 <input
                     type="text"
+                    id="clientName"
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -105,8 +106,9 @@ export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientF
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Personengruppe</label>
+                    <label htmlFor="personGroup" className="text-sm font-medium text-gray-700 dark:text-slate-300">Personengruppe</label>
                     <select
+                        id="personGroup"
                         value={formData.personGroup}
                         onChange={(e) => {
                             const group = e.target.value as PersonGroup;
@@ -127,7 +129,7 @@ export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientF
 
                 {!['Ehepaar', 'Familie', 'Paar'].includes(formData.personGroup) && (
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Geschlecht (Hauptperson)</label>
+                        <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Geschlecht (Hauptperson)</label>
                         <div className="flex gap-4 p-1 bg-gray-100 rounded-xl">
                             {(['Männlich', 'Weiblich'] as const).map((g) => (
                                 <button
@@ -155,7 +157,7 @@ export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientF
                     onChange={(e) => setFormData({ ...formData, isChurchMember: e.target.checked })}
                     className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <label htmlFor="isChurchMember" className="text-sm font-medium text-gray-700 cursor-pointer">
+                <label htmlFor="isChurchMember" className="text-sm font-medium text-gray-700 dark:text-slate-300 cursor-pointer">
                     Ist Gemeindeglied / Zugehörig
                 </label>
             </div>
@@ -194,24 +196,26 @@ export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientF
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label className="text-xs font-medium text-gray-600 dark:text-slate-400 flex items-center gap-1">
+                                <label htmlFor="calendarDate" className="text-xs font-medium text-gray-600 dark:text-slate-400 flex items-center gap-1">
                                     <Calendar className="w-3.5 h-3.5" />
                                     Datum
                                 </label>
                                 <input
                                     type="date"
+                                    id="calendarDate"
                                     value={calendarData.date}
                                     onChange={(e) => setCalendarData({ ...calendarData, date: e.target.value })}
                                     className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-xs font-medium text-gray-600 dark:text-slate-400 flex items-center gap-1">
+                                <label htmlFor="calendarEndDate" className="text-xs font-medium text-gray-600 dark:text-slate-400 flex items-center gap-1">
                                     <Calendar className="w-3.5 h-3.5" />
                                     Enddatum (optional)
                                 </label>
                                 <input
                                     type="date"
+                                    id="calendarEndDate"
                                     value={calendarData.endDate}
                                     onChange={(e) => setCalendarData({ ...calendarData, endDate: e.target.value })}
                                     min={calendarData.date}
@@ -219,24 +223,26 @@ export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientF
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-xs font-medium text-gray-600 dark:text-slate-400 flex items-center gap-1">
+                                <label htmlFor="calendarStartTime" className="text-xs font-medium text-gray-600 dark:text-slate-400 flex items-center gap-1">
                                     <Clock className="w-3.5 h-3.5" />
                                     Von
                                 </label>
                                 <input
                                     type="time"
+                                    id="calendarStartTime"
                                     value={calendarData.startTime}
                                     onChange={(e) => setCalendarData({ ...calendarData, startTime: e.target.value })}
                                     className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-xs font-medium text-gray-600 dark:text-slate-400 flex items-center gap-1">
+                                <label htmlFor="calendarEndTime" className="text-xs font-medium text-gray-600 dark:text-slate-400 flex items-center gap-1">
                                     <Clock className="w-3.5 h-3.5" />
                                     Bis
                                 </label>
                                 <input
                                     type="time"
+                                    id="calendarEndTime"
                                     value={calendarData.endTime}
                                     onChange={(e) => setCalendarData({ ...calendarData, endTime: e.target.value })}
                                     className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
