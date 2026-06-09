@@ -115,6 +115,18 @@ firebase functions:log --project cura-ant
 # Google Cloud Console: Cloud Build → Verlauf → Region: europe-west4
 ```
 
+## Lokales Troubleshooting
+
+### OneDrive & Git-Schreibfehler
+Wenn das Projekt in einem OneDrive-Ordner unter Windows liegt, kann `git commit` oder `git push` mit folgendem Fehler fehlschlagen:
+`fatal: cannot update the ref 'refs/heads/main': unable to append to '.git/logs/refs/heads/main': Invalid argument`
+
+**Lösung:**
+Führe folgenden Befehl im Projektordner aus, um das atomare Schreiben unter Windows für OneDrive-Ordner zu deaktivieren:
+```bash
+git config windows.appendAtomically false
+```
+
 ## Wichtige Hinweise
 
 - `.env.local` wird **nicht** committet – Secrets über App Hosting Secrets verwalten
