@@ -24,3 +24,8 @@
 - `src/components/`: Common UI components and form controllers
 - `src/lib/`: Common business logic, Firebase utilities, and client services
 - `BACKLOG.md`: Target file for documenting the audit proposals
+
+## Implementation Status
+- **Security Audit & Fixes**: Firestore Security Rules for Users and Travel Expenses are fully secured against privilege escalation and status manipulation. API calendar endpoints and secure token generation have been hardened. Local secrets and service account keys are excluded from git deployments.
+- **Usability & Accessibility (A11y)**: Focus traps are active on all modals and the mobile sidebar. Decimal and number input React bugs are solved globally using temporary string state mappings. Hover-dependent actions on mobile touch screens are replaced/expanded for direct touch usage. Keyboard navigation and ARIA tags are standard-compliant.
+- **Verification**: Local verification via ESLint (`npm run lint`) and TypeScript compiler (`tsc --noEmit`) passes cleanly. The project is deployed via Firebase App Hosting.

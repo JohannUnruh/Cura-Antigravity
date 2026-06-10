@@ -94,3 +94,16 @@ Die App bietet einen geschützten iCal-Live-Feed, den Berater in ihren persönli
   - Schwangerschaftskonfliktberatungen
   - Vorträgen
   - Freizeiten
+
+## Barrierefreiheit & Usability (A11y/UX)
+
+Die Anwendung wurde umfassend nach modernen Web- und Barrierefreiheits-Standards optimiert:
+
+- **Fokus-Steuerung (Focus Trap)**: 
+  - Sowohl allgemeine Modals (`Modal.tsx`) als auch die mobile Navigations-Sidebar (`Sidebar.tsx`) sperren den Tastatur-Fokus (`Tab` / `Shift + Tab`) sauber innerhalb des Overlays ein, damit dieser nicht auf den Hintergrund entweichen kann.
+  - Beim Schließen von Overlays wird der Fokus automatisch wieder auf das zuvor fokussierte Element zurückgesetzt.
+  - Das mobile Menü und Modals schließen sich sauber bei Druck der `Escape`-Taste.
+- **Touch-Bedienung auf Mobilgeräten**:
+  - Aktionssymbole (Bearbeiten, Löschen, Kalender) in Tabellen wie der Klientenliste sind auf Mobilgeräten standardmäßig immer sichtbar, um eine bequeme Touch-Bedienung ohne Hover-Möglichkeit auf Touchscreens zu garantieren.
+- **React Number-Input-Bugs behoben**:
+  - Stundenverteilungen und Vorbereitungsstunden in Beratungs-, Vortrags- und Freizeit-Masken nutzen temporäre String-States, um das intuitive und fehlerfreie Eintippen von Dezimalzahlen (z. B. "1.5" bzw. "1,5") ohne reaktive State-Resets oder das Verschwinden des Kommas beim Tippen zu ermöglichen.
