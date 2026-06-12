@@ -13,7 +13,10 @@ interface ModalProps {
 export function Modal({ isOpen, onClose, title, children }: ModalProps) {
     const modalRef = useRef<HTMLDivElement>(null);
 
+    // Keyboard listener (Escape & Focus Trap Tab Navigation)
     useEffect(() => {
+        if (!isOpen) return;
+
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
                 onClose();
@@ -43,21 +46,26 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
             }
         };
 
-        const previouslyActiveElement = document.activeElement as HTMLElement;
+        document.addEventListener("keydown", handleKeyDown);
+        return () => {
+            document.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [isOpen, onClose]);
 
-        if (isOpen) {
-            document.body.style.overflow = "hidden";
-            document.addEventListener("keydown", handleKeyDown);
-        }
+    // Save and restore page scroll/focus when modal opens/closes
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const previouslyActiveElement = document.activeElement as HTMLElement;
+        document.body.style.overflow = "hidden";
 
         return () => {
             document.body.style.overflow = "unset";
-            document.removeEventListener("keydown", handleKeyDown);
             if (previouslyActiveElement && typeof previouslyActiveElement.focus === "function") {
                 previouslyActiveElement.focus();
             }
         };
-    }, [isOpen, onClose]);
+    }, [isOpen]);
 
     // Initial focus when opening the modal
     useEffect(() => {
