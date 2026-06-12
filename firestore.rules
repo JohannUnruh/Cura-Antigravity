@@ -179,12 +179,19 @@ service cloud.firestore {
       allow read, write: if hasFamilyHelperAccess();
     }
 
-    // 12. foster_families & foster_children (Pflegefamilien)
+    // 12. foster_families, foster_children, foster_placements & foster_journal (Pflegefamilien)
     match /foster_families/{document=**} {
       allow read, write: if hasFosterCareAccess();
     }
     match /foster_children/{document=**} {
       allow read, write: if hasFosterCareAccess();
     }
+    match /foster_placements/{document=**} {
+      allow read, write: if hasFosterCareAccess();
+    }
+    match /foster_journal/{document=**} {
+      allow read, write: if hasFosterCareAccess();
+    }
   }
 }
+

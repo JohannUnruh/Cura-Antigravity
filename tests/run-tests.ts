@@ -16,6 +16,8 @@ async function main() {
         await import("./spfh/feature5.test");
         await import("./spfh/feature6.test");
         await import("./spfh/scenarios.test");
+        await import("./fosterCare.test");
+
 
         const { runAllSuites } = await import("./test-framework");
         const results = await runAllSuites();
