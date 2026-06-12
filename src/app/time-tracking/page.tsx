@@ -643,7 +643,7 @@ export default function TimeTrackingPage() {
     };
 
     return (
-        <ProtectedRoute>
+        <ProtectedRoute requiredPermission="hasTimeTrackingAccess">
             <div className="animate-in fade-in duration-500 flex flex-col h-full space-y-6 max-w-5xl mx-auto w-full pb-10">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/40 dark:bg-slate-900/40 p-6 rounded-2xl backdrop-blur-xl border border-white/60 dark:border-white/10 shadow-sm">
                     <div>

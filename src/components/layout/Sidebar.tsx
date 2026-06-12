@@ -141,13 +141,36 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </div>
 
             <nav className="flex-1 space-y-2 overflow-y-auto pr-2 custom-scrollbar">
-                {navItems
+                 {navItems
                     .filter((item) => {
+                        const role = userProfile?.role;
+                        const isAdmin = role === 'Admin';
                         if (item.href === "/family-helper") {
-                            return userProfile?.hasFamilyHelperAccess === true || userProfile?.role === 'Admin';
+                            return userProfile?.hasFamilyHelperAccess === true || isAdmin;
                         }
                         if (item.href === "/foster-care") {
-                            return userProfile?.hasFosterCareAccess === true || userProfile?.role === 'Admin';
+                            return userProfile?.hasFosterCareAccess === true || isAdmin;
+                        }
+                        if (item.href === "/clients") {
+                            return userProfile?.hasClientAccess !== false || isAdmin;
+                        }
+                        if (item.href === "/consultations") {
+                            return userProfile?.hasConsultationAccess !== false || isAdmin;
+                        }
+                        if (item.href === "/short-consultations") {
+                            return userProfile?.hasShortConsultationAccess !== false || isAdmin;
+                        }
+                        if (item.href === "/lectures") {
+                            return userProfile?.hasLectureAccess !== false || isAdmin;
+                        }
+                        if (item.href === "/retreats") {
+                            return userProfile?.hasRetreatAccess !== false || isAdmin;
+                        }
+                        if (item.href === "/travel") {
+                            return userProfile?.hasTravelAccess !== false || isAdmin;
+                        }
+                        if (item.href === "/time-tracking" || item.href === "/overtime-pool") {
+                            return userProfile?.hasTimeTrackingAccess !== false || isAdmin;
                         }
                         return true;
                     })

@@ -18,7 +18,6 @@ import {
     Users, 
     User, 
     FolderOpen, 
-    ShieldAlert, 
     Trash2, 
     Calendar,
     SearchX
@@ -245,12 +244,6 @@ export default function FamilyHelperDashboard() {
             });
     }, [cases, searchTerm, statusFilter, workerFilter, sortBy, userProfile?.role]);
 
-    // Handle access check (if loaded)
-    const hasAccess = useMemo(() => {
-        if (!userProfile) return false;
-        return userProfile.hasFamilyHelperAccess === true || userProfile.role === "Admin";
-    }, [userProfile]);
-
     if (authLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
@@ -259,30 +252,8 @@ export default function FamilyHelperDashboard() {
         );
     }
 
-    if (userProfile && !hasAccess) {
-        return (
-            <ProtectedRoute>
-                <div className="max-w-md mx-auto my-12 p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-xl text-center border border-red-100 dark:border-red-950/30">
-                    <div className="w-16 h-16 bg-red-100 dark:bg-red-950/50 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <ShieldAlert className="w-8 h-8 text-red-600 dark:text-red-400" />
-                    </div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">Zugriff verweigert</h1>
-                    <p className="text-gray-600 dark:text-slate-400 mb-8 text-sm">
-                        Sie haben keine Berechtigung, auf den Bereich Familienhilfe (SPFH) zuzugreifen. Bitte wenden Sie sich an einen Administrator.
-                    </p>
-                    <Link
-                        href="/"
-                        className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 transition-colors w-full"
-                    >
-                        Zurück zur Startseite
-                    </Link>
-                </div>
-            </ProtectedRoute>
-        );
-    }
-
     return (
-        <ProtectedRoute>
+        <ProtectedRoute requiredPermission="hasFamilyHelperAccess">
             <div className="animate-in fade-in duration-500 h-full flex flex-col space-y-6">
                 
                 {/* Header & Stats Section */}

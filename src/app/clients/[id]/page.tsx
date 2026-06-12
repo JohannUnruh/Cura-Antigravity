@@ -389,7 +389,7 @@ export default function ClientDetailPage() {
 
     if (loading) {
         return (
-            <ProtectedRoute>
+            <ProtectedRoute requiredPermission="hasClientAccess">
                 <div className="flex h-full items-center justify-center">
                     <div className="w-8 h-8 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
                 </div>
@@ -399,7 +399,7 @@ export default function ClientDetailPage() {
 
     if (!client) {
         return (
-            <ProtectedRoute>
+            <ProtectedRoute requiredPermission="hasClientAccess">
                 <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
                     <h2 className="text-2xl font-bold text-gray-900">Klient nicht gefunden</h2>
                     <p className="text-gray-500">Diese Akte existiert nicht oder wurde gelöscht.</p>
@@ -410,7 +410,7 @@ export default function ClientDetailPage() {
     }
 
     return (
-        <ProtectedRoute>
+        <ProtectedRoute requiredPermission="hasClientAccess">
             <div className="animate-in fade-in duration-500 flex flex-col h-full space-y-6 max-w-5xl mx-auto w-full pb-10">
 
                 {/* Back Button & Header */}

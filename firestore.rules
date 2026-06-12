@@ -36,13 +36,48 @@ service cloud.firestore {
       return isAuthenticated() && data != null && (data.hasFosterCareAccess == true || data.role == 'Admin');
     }
 
+    function hasClientAccess() {
+      let data = getUserData();
+      return isAuthenticated() && data != null && (data.hasClientAccess != false || data.role == 'Admin');
+    }
+
+    function hasConsultationAccess() {
+      let data = getUserData();
+      return isAuthenticated() && data != null && (data.hasConsultationAccess != false || data.role == 'Admin');
+    }
+
+    function hasShortConsultationAccess() {
+      let data = getUserData();
+      return isAuthenticated() && data != null && (data.hasShortConsultationAccess != false || data.role == 'Admin');
+    }
+
+    function hasLectureAccess() {
+      let data = getUserData();
+      return isAuthenticated() && data != null && (data.hasLectureAccess != false || data.role == 'Admin');
+    }
+
+    function hasRetreatAccess() {
+      let data = getUserData();
+      return isAuthenticated() && data != null && (data.hasRetreatAccess != false || data.role == 'Admin');
+    }
+
+    function hasTravelAccess() {
+      let data = getUserData();
+      return isAuthenticated() && data != null && (data.hasTravelAccess != false || data.role == 'Admin');
+    }
+
+    function hasTimeTrackingAccess() {
+      let data = getUserData();
+      return isAuthenticated() && data != null && (data.hasTimeTrackingAccess != false || data.role == 'Admin');
+    }
+
     // 1. users Collection
     match /users/{userId} {
       // Jeder sieht sein eigenes Profil, Kassenwart und Admin sehen alle
       allow read: if isOwner(userId) || isKassenwart() || isAdmin();
       allow delete: if isAdmin();
       allow create: if (isOwner(userId) && request.resource.data.role == 'Mitarbeiter') || isAdmin();
-      allow update: if (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'contractType', 'vacationDaysPerYear', 'contractDocumentUrl', 'entryDate', 'hasFamilyHelperAccess', 'hasFosterCareAccess'])) || isAdmin();
+      allow update: if (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'contractType', 'vacationDaysPerYear', 'contractDocumentUrl', 'entryDate', 'hasFamilyHelperAccess', 'hasFosterCareAccess', 'hasClientAccess', 'hasConsultationAccess', 'hasShortConsultationAccess', 'hasLectureAccess', 'hasRetreatAccess', 'hasTravelAccess', 'hasTimeTrackingAccess'])) || isAdmin();
 
       // Favoriten-Subcollection
       match /favorites/{favoriteId} {
@@ -52,69 +87,69 @@ service cloud.firestore {
 
     // 2. clients Collection
     match /clients/{clientId} {
-      // Admin sieht alle Klienten, andere nur ihre eigenen
-      allow read: if isOwner(resource.data.authorId) || isAdmin();
-      allow update, delete: if isOwner(resource.data.authorId) || isAdmin();
-      allow create: if isOwner(request.resource.data.authorId);
+      // Admin sieht alle Klienten, andere nur ihre eigenen (falls Berechtigung vorhanden)
+      allow read: if (isOwner(resource.data.authorId) && hasClientAccess()) || isAdmin();
+      allow update, delete: if (isOwner(resource.data.authorId) && hasClientAccess()) || isAdmin();
+      allow create: if isOwner(request.resource.data.authorId) && hasClientAccess();
     }
 
     // 3. consultations Collection (Standard & SKB)
     match /consultations/{consultationId} {
-      allow read: if isOwner(resource.data.authorId) || isAdmin();
-      allow update, delete: if isOwner(resource.data.authorId) || isAdmin();
-      allow create: if isOwner(request.resource.data.authorId);
+      allow read: if (isOwner(resource.data.authorId) && hasConsultationAccess()) || isAdmin();
+      allow update, delete: if (isOwner(resource.data.authorId) && hasConsultationAccess()) || isAdmin();
+      allow create: if isOwner(request.resource.data.authorId) && hasConsultationAccess();
     }
     match /skb_consultations/{skbId} {
-      allow read: if isOwner(resource.data.authorId) || isAdmin();
-      allow update, delete: if isOwner(resource.data.authorId) || isAdmin();
-      allow create: if isOwner(request.resource.data.authorId);
+      allow read: if (isOwner(resource.data.authorId) && hasConsultationAccess()) || isAdmin();
+      allow update, delete: if (isOwner(resource.data.authorId) && hasConsultationAccess()) || isAdmin();
+      allow create: if isOwner(request.resource.data.authorId) && hasConsultationAccess();
     }
     
     // 3b. Legacy Consultations
     match /legacy_consultations/{legacyId} {
-      allow read: if isOwner(resource.data.authorId) || isAdmin();
-      allow update, delete: if isOwner(resource.data.authorId) || isAdmin();
-      allow create: if isOwner(request.resource.data.authorId);
+      allow read: if (isOwner(resource.data.authorId) && hasConsultationAccess()) || isAdmin();
+      allow update, delete: if (isOwner(resource.data.authorId) && hasConsultationAccess()) || isAdmin();
+      allow create: if isOwner(request.resource.data.authorId) && hasConsultationAccess();
     }
 
     // 4. lectures (Vorträge) & retreats (Freizeiten)
     match /lectures/{lectureId} {
-      allow read: if isOwner(resource.data.authorId) || isAdmin();
-      allow update, delete: if isOwner(resource.data.authorId) || isAdmin();
-      allow create: if isOwner(request.resource.data.authorId);
+      allow read: if (isOwner(resource.data.authorId) && hasLectureAccess()) || isAdmin();
+      allow update, delete: if (isOwner(resource.data.authorId) && hasLectureAccess()) || isAdmin();
+      allow create: if isOwner(request.resource.data.authorId) && hasLectureAccess();
     }
     match /retreats/{retreatId} {
-      allow read: if isOwner(resource.data.authorId) || isAdmin();
-      allow update, delete: if isOwner(resource.data.authorId) || isAdmin();
-      allow create: if isOwner(request.resource.data.authorId);
+      allow read: if (isOwner(resource.data.authorId) && hasRetreatAccess()) || isAdmin();
+      allow update, delete: if (isOwner(resource.data.authorId) && hasRetreatAccess()) || isAdmin();
+      allow create: if isOwner(request.resource.data.authorId) && hasRetreatAccess();
     }
 
     // 5. travel_expenses (Fahrtkostenabrechnungen)
     match /travel_expenses/{expenseId} {
-      allow create: if isOwner(request.resource.data.authorId) && (isKassenwart() || isAdmin() || request.resource.data.status == 'pending');
-      allow read: if isOwner(resource.data.authorId) || isKassenwart() || isAdmin();
-      allow update: if (isOwner(resource.data.authorId) && resource.data.status != 'approved' && resource.data.status != 'paid' && request.resource.data.status == resource.data.status) || isKassenwart() || isAdmin();
-      allow delete: if (isOwner(resource.data.authorId) && resource.data.status != 'approved' && resource.data.status != 'paid') || isAdmin();
+      allow create: if isOwner(request.resource.data.authorId) && hasTravelAccess() && (isKassenwart() || isAdmin() || request.resource.data.status == 'pending');
+      allow read: if (isOwner(resource.data.authorId) && hasTravelAccess()) || isKassenwart() || isAdmin();
+      allow update: if (isOwner(resource.data.authorId) && hasTravelAccess() && resource.data.status != 'approved' && resource.data.status != 'paid' && request.resource.data.status == resource.data.status) || isKassenwart() || isAdmin();
+      allow delete: if (isOwner(resource.data.authorId) && hasTravelAccess() && resource.data.status != 'approved' && resource.data.status != 'paid') || isAdmin();
     }
 
     // 6. time_entries (Zeiterfassung)
     match /time_entries/{entryId} {
-      allow read: if isOwner(resource.data.authorId) || isAdmin();
-      allow update, delete: if isOwner(resource.data.authorId) || isAdmin();
-      allow create: if isOwner(request.resource.data.authorId);
+      allow read: if (isOwner(resource.data.authorId) && hasTimeTrackingAccess()) || isAdmin();
+      allow update, delete: if (isOwner(resource.data.authorId) && hasTimeTrackingAccess()) || isAdmin();
+      allow create: if isOwner(request.resource.data.authorId) && hasTimeTrackingAccess();
     }
 
     // 6b. overtime_transfers (Überstunden-Transfers)
     match /overtime_transfers/{transferId} {
-      allow read: if isOwner(resource.data.authorId) || isAdmin();
-      allow create: if isOwner(request.resource.data.authorId);
+      allow read: if (isOwner(resource.data.authorId) && hasTimeTrackingAccess()) || isAdmin();
+      allow create: if isOwner(request.resource.data.authorId) && hasTimeTrackingAccess();
     }
 
     // 7. short_consultations (Kurzgespräche)
     match /short_consultations/{consultationId} {
-      allow read: if isOwner(resource.data.authorId) || isAdmin();
-      allow update, delete: if isOwner(resource.data.authorId) || isAdmin();
-      allow create: if isOwner(request.resource.data.authorId);
+      allow read: if (isOwner(resource.data.authorId) && hasShortConsultationAccess()) || isAdmin();
+      allow update, delete: if (isOwner(resource.data.authorId) && hasShortConsultationAccess()) || isAdmin();
+      allow create: if isOwner(request.resource.data.authorId) && hasShortConsultationAccess();
     }
 
     // 8. settings (Globale Einstellungen z.B. Dropdown-Felder)

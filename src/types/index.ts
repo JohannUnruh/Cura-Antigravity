@@ -37,6 +37,13 @@ export interface UserProfile {
     // Access Control
     hasFamilyHelperAccess?: boolean;
     hasFosterCareAccess?: boolean;
+    hasClientAccess?: boolean;
+    hasConsultationAccess?: boolean;
+    hasShortConsultationAccess?: boolean;
+    hasLectureAccess?: boolean;
+    hasRetreatAccess?: boolean;
+    hasTravelAccess?: boolean;
+    hasTimeTrackingAccess?: boolean;
 }
 
 export interface AppSettings {

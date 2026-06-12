@@ -194,7 +194,7 @@ export default function ClientsPage() {
     };
 
     return (
-        <ProtectedRoute>
+        <ProtectedRoute requiredPermission="hasClientAccess">
             <div className="animate-in fade-in duration-500 h-full flex flex-col space-y-6">
 
                 {/* Header Section */}

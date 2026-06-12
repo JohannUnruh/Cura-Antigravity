@@ -139,7 +139,7 @@ export default function NotesPage() {
 
     if (loading) {
         return (
-            <ProtectedRoute>
+            <ProtectedRoute requiredPermission="hasClientAccess">
                 <div className="flex h-full items-center justify-center">
                     <div className="w-8 h-8 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
                 </div>
@@ -148,7 +148,7 @@ export default function NotesPage() {
     }
 
     return (
-        <ProtectedRoute>
+        <ProtectedRoute requiredPermission="hasClientAccess">
             <div className="animate-in fade-in duration-500 flex flex-col h-full max-w-4xl mx-auto w-full pb-10">
                 {/* Header */}
                 <div className="flex items-center gap-4 mb-6">
