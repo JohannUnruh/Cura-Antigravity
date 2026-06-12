@@ -117,7 +117,12 @@ export default function FamilyHelperDashboard() {
 
     const handleOpenNewModal = () => {
         setFamilyName("");
-        setCaseNumber("");
+        
+        // Automated case number generation (e.g., SPFH-2026-004)
+        const currentYear = new Date().getFullYear();
+        const nextNumber = String(cases.length + 1).padStart(3, "0");
+        setCaseNumber(`SPFH-${currentYear}-${nextNumber}`);
+        
         setStatus("aktiv");
         setAssignedWorkerId(user?.uid || "");
         setMandate("");
