@@ -28,11 +28,53 @@ Jeder Eintrag folgt diesem Schema:
 
 ## Backlog
 
+### [P1] Pflegefamilien Modul 2 - Teil 1: Datenmodelle, Firestore-Services & Security Rules
+- **Status:** pending
+- **Beschreibung:** Definiere die TypeScript-Schnittstellen für Pflegefamilien, Pflegekinder, Platzierungen und Begleitjournale in `types/index.ts`. Implementiere den `fosterCareService.ts` mit CRUD-Operationen für diese Entitäten. Sichere die neuen Collections in `firestore.rules` ab (Zugriff nur für Admins und Benutzer mit `hasFosterCareAccess === true`).
+- **Akzeptanzkriterien:**
+  1. Typendefinitionen für `FosterFamily`, `FosterChild`, `Placement` und `FosterJournalEntry` sind in `src/types/index.ts` vorhanden.
+  2. `fosterCareService.ts` implementiert alle CRUD-Funktionen für Familien, Kinder, Platzierungen und Journale.
+  3. `firestore.rules` sichert die Collections `/foster_families`, `/foster_children`, `/foster_placements` und `/foster_journal` ab.
+  4. Neue Integrationstests verifizieren die CRUD-Operationen und Validierungsregeln des neuen Services.
+- **Betroffene Dateien:** `src/types/index.ts`, `src/lib/firebase/services/fosterCareService.ts` (neu), `firestore.rules`, `tests/run-tests.ts`.
 
+### [P1] Pflegefamilien Modul 2 - Teil 2: Hauptseite & Listenansichten (Dashboard)
+- **Status:** pending
+- **Beschreibung:** Erstelle die Hauptseite für Pflegefamilien unter `/foster-care` mit zwei Haupt-Tabs: "Pflegefamilien" und "Pflegekinder". Verwende ein erstklassiges, responsive Design mit Such-, Filter- und Sortierfunktionen. Zeige bei den Familien Kapazitäten (z. B. 1/2 Plätze belegt) und Status-Badges. Zeige bei den Kindern den Platzierungsstatus.
+- **Akzeptanzkriterien:**
+  1. Seite `src/app/foster-care/page.tsx` ist implementiert und durch `<ProtectedRoute requiredPermission="hasFosterCareAccess">` geschützt.
+  2. Tab-Navigation zwischen "Pflegefamilien" und "Pflegekinder" ist flüssig und ansprechend gestaltet.
+  3. Grid/List-Ansichten für Familien und Kinder zeigen alle relevanten Metadaten (Status, Kapazitäten, Alter, etc.).
+  4. Filterung nach Status, Name, Alter und Kapazitäten funktioniert reaktiv.
+- **Betroffene Dateien:** `src/app/foster-care/page.tsx` (neu).
 
+### [P1] Pflegefamilien Modul 2 - Teil 3: Erfassungs- & Bearbeitungsmasken (Modals)
+- **Status:** pending
+- **Beschreibung:** Erstelle die Modals zum Anlegen und Bearbeiten von Pflegefamilien (inklusive Präferenzen, Stammdaten der Eltern) und Pflegekinder (inklusive rechtlichem Status, Herkunftsfamilie) auf der Hauptseite.
+- **Akzeptanzkriterien:**
+  1. Modal für neue Pflegefamilie erfasst Eltern 1, Eltern 2 (optional), Adresse, Status, Kapazität und Alters-/Bereitschaftspräferenzen.
+  2. Modal für neues Pflegekind erfasst Name, Geburtsdatum, Geschlecht, Sorgerechtsstatus, Vormund und Angaben zur Herkunftsfamilie.
+  3. Formulare nutzen lokale String-States für Zahlenfelder, um React-Number-Bugs zu vermeiden.
+- **Betroffene Dateien:** `src/app/foster-care/page.tsx`.
 
+### [P1] Pflegefamilien Modul 2 - Teil 4: Detailseiten (Digitale Akte & Matching)
+- **Status:** pending
+- **Beschreibung:** Erstelle die Detailseiten `/foster-care/families/[id]` und `/foster-care/children/[id]` zur tieferen Fallführung. Implementiere auf der Familienseite die Möglichkeit, Kinder in der Familie zu platzieren (Matching) und die Platzierungshistorie einzusehen.
+- **Akzeptanzkriterien:**
+  1. Detailseiten sind unter `src/app/foster-care/families/[id]/page.tsx` und `src/app/foster-care/children/[id]/page.tsx` implementiert.
+  2. Platzierungs-Funktionalität ermöglicht es, unplatzierte Kinder einer Familie mit freien Kapazitäten zuzuordnen (erzeugt ein `Placement`-Dokument).
+  3. Platzierungshistorie zeigt lückenlos alle historischen und aktiven Belegungen.
+  4. Beendigung einer Platzierung (mit Enddatum und Grund) gibt die Kapazität der Familie wieder frei.
+- **Betroffene Dateien:** `src/app/foster-care/families/[id]/page.tsx` (neu), `src/app/foster-care/children/[id]/page.tsx` (neu).
 
-
+### [P1] Pflegefamilien Modul 2 - Teil 5: Fachdienst-Begleitung & Journale
+- **Status:** pending
+- **Beschreibung:** Integriere das Begleitjournal (Fachdienst-Begleitung) in den Detailseiten von Pflegefamilien und Pflegekindern. Berater sollen Gespräche, Hausbesuche und Telefonate dokumentieren können.
+- **Akzeptanzkriterien:**
+  1. Tab "Fachdienst-Begleitung" zeigt chronologisches Kontaktjournal.
+  2. Neue Einträge können erfasst werden (Typ, Datum, Dauer, Notizen).
+  3. Möglichkeit zur automatischen Koppelung mit der allgemeinen Zeiterfassung (`time_tracking`), falls gewünscht.
+- **Betroffene Dateien:** `src/app/foster-care/families/[id]/page.tsx`, `src/app/foster-care/children/[id]/page.tsx`.
 
 ---
 
