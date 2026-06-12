@@ -49,10 +49,31 @@ const defaultSettings: AppSettings = {
         'Männerfreizeit',
         'KjE'
     ],
+    familyMemberRelations: ['Mutter', 'Vater', 'Kind', 'Großeltern', 'Pflegeeltern', 'Sonstige'],
+    familyJournalTypes: ['Hausbesuch', 'Telefonat', 'Bürogespräch', 'ASD-Kontakt', 'Krisenintervention', 'Sonstiges'],
+    familyGoalCategories: ['Erziehungskompetenz', 'Alltagsstrukturierung', 'Krisenbewältigung', 'Schule & Beruf', 'Gesundheit', 'Soziale Integration', 'Sonstiges'],
 };
+
+let isMockMode = false;
+let mockSettings: AppSettings | null = null;
+
+export function setSettingsMockMode(mock: boolean) {
+    isMockMode = mock;
+    mockSettings = null;
+}
+
+export function setMockSettings(settings: AppSettings) {
+    mockSettings = settings;
+}
 
 export const settingsService = {
     async getSettings(): Promise<AppSettings> {
+        if (isMockMode) {
+            return {
+                ...defaultSettings,
+                ...(mockSettings || {})
+            };
+        }
         try {
             const docRef = doc(db, "settings", "global");
             const docSnap = await getDoc(docRef);
@@ -73,6 +94,13 @@ export const settingsService = {
     },
 
     async saveSettings(settings: AppSettings): Promise<void> {
+        if (isMockMode) {
+            mockSettings = {
+                ...defaultSettings,
+                ...settings
+            };
+            return;
+        }
         try {
             const docRef = doc(db, "settings", "global");
             await setDoc(docRef, { ...settings, updatedAt: new Date() }, { merge: true });

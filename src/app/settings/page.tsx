@@ -103,11 +103,11 @@ export default function SettingsPage() {
     // -- Users Tab State --
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-    const [newUserForm, setNewUserForm] = useState({ email: "", password: "", firstName: "", lastName: "", role: "Mitarbeiter" as Role, contractType: "Ehrenamtlich" as ContractType, vacationDaysPerYear: 24 });
+    const [newUserForm, setNewUserForm] = useState({ email: "", password: "", firstName: "", lastName: "", role: "Mitarbeiter" as Role, contractType: "Ehrenamtlich" as ContractType, vacationDaysPerYear: 24, hasFamilyHelperAccess: false, hasFosterCareAccess: false });
     const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
     const [isDeleteUserModalOpen, setIsDeleteUserModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-    const [editUserForm, setEditUserForm] = useState({ firstName: "", lastName: "", role: "Mitarbeiter" as Role, contractType: "Ehrenamtlich" as ContractType, vacationDaysPerYear: 24 });
+    const [editUserForm, setEditUserForm] = useState({ firstName: "", lastName: "", role: "Mitarbeiter" as Role, contractType: "Ehrenamtlich" as ContractType, vacationDaysPerYear: 24, hasFamilyHelperAccess: false, hasFosterCareAccess: false });
     const [isContractModalOpen, setIsContractModalOpen] = useState(false);
     const [contractForm, setContractForm] = useState({
         startDate: new Date().toISOString().slice(0, 10),
@@ -130,6 +130,9 @@ export default function SettingsPage() {
         subProblems: [],
         goalTypes: [],
         hoursPerVacationDay: 8,
+        familyMemberRelations: [],
+        familyJournalTypes: [],
+        familyGoalCategories: [],
     });
     
     // -- Cloud Billing --
@@ -242,6 +245,8 @@ export default function SettingsPage() {
                 address: { street: "", zipCode: "", city: "" },
                 bankDetails: { iban: "", bic: "", accountHolder: "" },
                 createdAt: new Date(),
+                hasFamilyHelperAccess: newUserForm.hasFamilyHelperAccess,
+                hasFosterCareAccess: newUserForm.hasFosterCareAccess,
             };
 
             // Save direct to db to avoid auth confusion
@@ -259,7 +264,7 @@ export default function SettingsPage() {
 
             setUsers(updatedUsers);
             setIsUserModalOpen(false);
-            setNewUserForm({ email: "", password: "", firstName: "", lastName: "", role: "Mitarbeiter", contractType: "Ehrenamtlich", vacationDaysPerYear: 24 });
+            setNewUserForm({ email: "", password: "", firstName: "", lastName: "", role: "Mitarbeiter", contractType: "Ehrenamtlich", vacationDaysPerYear: 24, hasFamilyHelperAccess: false, hasFosterCareAccess: false });
             showMessage('success', 'Benutzer erfolgreich angelegt.');
         } catch (err: unknown) {
             const error = err as { code?: string };
@@ -281,7 +286,7 @@ export default function SettingsPage() {
         if (!selectedUser) return;
         setIsSaving(true);
         try {
-            const profileToSave: UserProfile = { ...selectedUser, firstName: editUserForm.firstName, lastName: editUserForm.lastName, role: editUserForm.role, contractType: editUserForm.contractType, vacationDaysPerYear: editUserForm.contractType === 'Minijob' ? editUserForm.vacationDaysPerYear : null };
+            const profileToSave: UserProfile = { ...selectedUser, firstName: editUserForm.firstName, lastName: editUserForm.lastName, role: editUserForm.role, contractType: editUserForm.contractType, vacationDaysPerYear: editUserForm.contractType === 'Minijob' ? editUserForm.vacationDaysPerYear : null, hasFamilyHelperAccess: editUserForm.hasFamilyHelperAccess, hasFosterCareAccess: editUserForm.hasFosterCareAccess };
             await setDoc(doc(db, "users", selectedUser.id), { ...profileToSave, updatedAt: new Date() }, { merge: true });
             setUsers(users.map(u => u.id === selectedUser.id ? profileToSave : u));
             setIsEditUserModalOpen(false);
@@ -695,7 +700,7 @@ export default function SettingsPage() {
                                                 </button>
                                                 <div className="flex-1"></div>
                                                 <button
-                                                    onClick={() => { setSelectedUser(u); setEditUserForm({ firstName: u.firstName, lastName: u.lastName, role: u.role, contractType: u.contractType || 'Ehrenamtlich', vacationDaysPerYear: u.vacationDaysPerYear || 24 }); setIsEditUserModalOpen(true); }}
+                                                    onClick={() => { setSelectedUser(u); setEditUserForm({ firstName: u.firstName, lastName: u.lastName, role: u.role, contractType: u.contractType || 'Ehrenamtlich', vacationDaysPerYear: u.vacationDaysPerYear || 24, hasFamilyHelperAccess: u.hasFamilyHelperAccess || false, hasFosterCareAccess: u.hasFosterCareAccess || false }); setIsEditUserModalOpen(true); }}
                                                     className="p-1.5 text-gray-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
                                                     title="Bearbeiten"
                                                 >
@@ -761,6 +766,21 @@ export default function SettingsPage() {
                                                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20" />
                                         </div>
                                     )}
+                                    <div className="space-y-2 pt-2">
+                                        <label className="block text-sm font-medium text-gray-700">Berechtigungen</label>
+                                        <div className="flex flex-col gap-2">
+                                            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                                                <input type="checkbox" checked={newUserForm.hasFamilyHelperAccess} onChange={e => setNewUserForm({ ...newUserForm, hasFamilyHelperAccess: e.target.checked })}
+                                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                                Zugriff auf Familienhilfe
+                                            </label>
+                                            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                                                <input type="checkbox" checked={newUserForm.hasFosterCareAccess} onChange={e => setNewUserForm({ ...newUserForm, hasFosterCareAccess: e.target.checked })}
+                                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                                Zugriff auf Pflegefamilien
+                                            </label>
+                                        </div>
+                                    </div>
                                     <div className="border-t border-gray-100 pt-4 mt-4">
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Login E-Mail</label>
                                         <input type="email" title="Login E-Mail" required value={newUserForm.email} onChange={e => setNewUserForm({ ...newUserForm, email: e.target.value })}
@@ -821,6 +841,21 @@ export default function SettingsPage() {
                                                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20" />
                                         </div>
                                     )}
+                                    <div className="space-y-2 pt-2 border-t border-gray-100">
+                                        <label className="block text-sm font-medium text-gray-700">Berechtigungen</label>
+                                        <div className="flex flex-col gap-2">
+                                            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                                                <input type="checkbox" checked={editUserForm.hasFamilyHelperAccess} onChange={e => setEditUserForm({ ...editUserForm, hasFamilyHelperAccess: e.target.checked })}
+                                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                                Zugriff auf Familienhilfe
+                                            </label>
+                                            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                                                <input type="checkbox" checked={editUserForm.hasFosterCareAccess} onChange={e => setEditUserForm({ ...editUserForm, hasFosterCareAccess: e.target.checked })}
+                                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                                Zugriff auf Pflegefamilien
+                                            </label>
+                                        </div>
+                                    </div>
                                     <div className="flex justify-end gap-3 pt-4">
                                         <Button type="button" variant="ghost" onClick={() => setIsEditUserModalOpen(false)}>Abbrechen</Button>
                                         <Button type="submit" variant="primary" disabled={isSaving}>Speichern</Button>
@@ -1078,6 +1113,18 @@ export default function SettingsPage() {
                                         <div className="md:col-span-2">
                                             <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 mb-1">SKB - Intervention & Hilfsangebote</label>
                                             <TagInput value={getListString(appForm.skbInterventions)} onChange={(val) => setListString('skbInterventions', val)} />
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 mb-1">Familienhilfe - Beziehungsrollen</label>
+                                            <TagInput value={getListString(appForm.familyMemberRelations)} onChange={(val) => setListString('familyMemberRelations', val)} />
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 mb-1">Familienhilfe - Terminarten</label>
+                                            <TagInput value={getListString(appForm.familyJournalTypes)} onChange={(val) => setListString('familyJournalTypes', val)} />
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 mb-1">Familienhilfe - Zielkategorien</label>
+                                            <TagInput value={getListString(appForm.familyGoalCategories)} onChange={(val) => setListString('familyGoalCategories', val)} />
                                         </div>
                                     </div>
                                 </div>

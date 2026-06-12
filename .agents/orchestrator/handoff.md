@@ -1,26 +1,49 @@
-# Handoff Report: Security & Usability Audit Orchestrator
+# Handoff Report - Access Control Implementation
 
 ## Milestone State
-| Milestone | Name | Status | Summary |
-|---|---|---|---|
-| M1 | Decompose & Setup | DONE | Setup workspace state, BRIEFING.md, progress.md, and PROJECT.md. |
-| M2 | Security & Usability Audit | DONE | Dispatched 3 Explorer subagents to audit the codebase for security, usability, and accessibility. Audits successfully completed. |
-| M3 | Backlog Documentation | DONE | Compiled 10 high-quality proposals and dispatched a Worker subagent to update root `BACKLOG.md` and verify project compilation/linting. |
-| M4 | Final Verification & Handoff | DONE | Verified the formatting and changes in `BACKLOG.md`, killed active timers, and generated handoff report. |
+- **Milestone 1**: R1: UserProfile Extension [DONE]
+- **Milestone 2**: R2: Admin User Management [DONE]
+- **Milestone 3**: R3: Sidebar Navigation [DONE]
+- **Milestone 4**: R4: Firestore Security Rules [DONE]
+- **Milestone 5**: R5: E2E Verification & Audit [DONE]
 
 ## Active Subagents
-- None (All subagents completed successfully and are now permanently retired).
+- None (all completed their runs and were retired).
 
 ## Pending Decisions
-- None. All audit requirements have been met and verified.
+- None.
 
 ## Remaining Work
-- The 10 documented issues are now in `pending` status under `## Backlog` in `BACKLOG.md`. The Night Agent or an implementer can pick them up for implementation.
+- Deploying the changes to production (Firebase App Hosting) via CI/CD.
 
 ## Key Artifacts
-- **Verbatim Request**: `C:\Users\xjunr\OneDrive\web-apps\Cura-Antigravity\.agents\orchestrator\ORIGINAL_REQUEST.md`
-- **Orchestrator Briefing**: `C:\Users\xjunr\OneDrive\web-apps\Cura-Antigravity\.agents\orchestrator\BRIEFING.md`
-- **Progress Log**: `C:\Users\xjunr\OneDrive\web-apps\Cura-Antigravity\.agents\orchestrator\progress.md`
-- **Project Structure & Milestones**: `C:\Users\xjunr\OneDrive\web-apps\Cura-Antigravity\PROJECT.md`
-- **Auditor Proposals List**: `C:\Users\xjunr\OneDrive\web-apps\Cura-Antigravity\.agents\orchestrator\backlog_proposals.md`
-- **Target Backlog**: `C:\Users\xjunr\OneDrive\web-apps\Cura-Antigravity\BACKLOG.md`
+- `progress.md`: `C:\Users\xjunr\OneDrive\web-apps\Cura-Antigravity\.agents\orchestrator\progress.md`
+- `BRIEFING.md`: `C:\Users\xjunr\OneDrive\web-apps\Cura-Antigravity\.agents\orchestrator\BRIEFING.md`
+- `PROJECT.md`: `C:\Users\xjunr\OneDrive\web-apps\Cura-Antigravity\.agents\orchestrator\PROJECT.md`
+- `ORIGINAL_REQUEST.md`: `C:\Users\xjunr\OneDrive\web-apps\Cura-Antigravity\.agents\orchestrator\ORIGINAL_REQUEST.md`
+
+## Detailed Technical Summary
+
+### 1. Observation
+All four primary requirements from the follow-up request have been successfully implemented:
+- **`src/types/index.ts`**: Added optional permission flags `hasFamilyHelperAccess` and `hasFosterCareAccess` to the `UserProfile` interface.
+- **`src/app/settings/page.tsx`**: Integrated fields into settings page form states (`newUserForm`, `editUserForm`) and Admin user modals (checkbox forms). Modified user document load and save handlers to save flags correctly in the `/users` Firestore collection.
+- **`src/components/layout/Sidebar.tsx`**: Filtered the navigation items array conditionally based on user profile permission flags or the Admin role, and added the routes `/family-helper` (using `HeartHandshake` icon) and `/foster-care` (using `Baby` icon).
+- **`firestore.rules`**: Restricted read and write access to `/family_cases/{document=**}`, `/foster_families/{document=**}`, and `/foster_children/{document=**}` collections and subcollections based on user flags.
+- **Hardening (`firestore.rules`)**: Prevented user document owners from self-modifying `hasFamilyHelperAccess` and `hasFosterCareAccess` via the Firestore client SDK.
+
+Verification commands run:
+- `npm run lint` - Completed successfully.
+- `npm run build` - Compiled and optimized Next.js pages successfully.
+
+### 2. Logic Chain
+- Adding the fields to `UserProfile` ensures type safety across user forms and database objects.
+- Filtering sidebar items client-side offers a clean user experience by hiding options.
+- Restricting security rules database-side ensures that even if users access the API or client-side SDK directly, Firestore blocks unprivileged operations.
+- Adding the fields to the update check `affectedKeys().hasAny([...])` prevents privilege self-escalation.
+
+### 3. Caveats
+- Ensure the custom route pages `/family-helper` and `/foster-care` are implemented and match these paths exactly.
+
+### 4. Conclusion
+The implementation is complete, secure, robust, and verified.

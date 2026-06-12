@@ -1,10 +1,34 @@
-import { TimeEntry, OvertimeTransfer, TimeEntryType } from "@/types";
+import { TimeEntry, OvertimeTransfer, TimeEntryType, UserProfile } from "@/types";
 import { db } from "@/lib/firebase/config";
-import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where } from "firebase/firestore";
+import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where, updateDoc } from "firebase/firestore";
 import { settingsService } from "./settingsService";
 
 const COLLECTION_NAME = "time_entries";
 const OVERTIME_TRANSFER_COLLECTION = "overtime_transfers";
+
+let isMockMode = false;
+const mockTimeEntries = new Map<string, TimeEntry>();
+const mockUsers = new Map<string, Partial<UserProfile>>(); // key: userId, value: UserProfile mock
+
+export function setTimeTrackingMockMode(mock: boolean) {
+    isMockMode = mock;
+    if (!mock) {
+        mockTimeEntries.clear();
+        mockUsers.clear();
+    }
+}
+
+export function setMockUser(userId: string, data: Partial<UserProfile>) {
+    mockUsers.set(userId, data);
+}
+
+export function getMockTimeEntries() {
+    return Array.from(mockTimeEntries.values());
+}
+
+export function clearMockTimeEntries() {
+    mockTimeEntries.clear();
+}
 
 // Type for creating new time entries (status is optional)
 export type NewTimeEntry = Omit<TimeEntry, "id" | "createdAt" | "status"> & { status?: 'active' | 'overtime-pool' };
@@ -14,6 +38,10 @@ export type NewTimeEntry = Omit<TimeEntry, "id" | "createdAt" | "status"> & { st
  * Nur für Minijobber gilt die Kontingent-Berechnung mit Überstundenpool
  */
 export async function isMinijobber(authorId: string): Promise<boolean> {
+    if (isMockMode) {
+        const user = mockUsers.get(authorId);
+        return user?.contractType === 'Minijob';
+    }
     try {
         const userDoc = await getDoc(doc(db, "users", authorId));
         if (userDoc.exists()) {
@@ -47,6 +75,18 @@ export async function getMaxHoursForMonth(): Promise<number> {
  * Nur 'active' Entries werden berücksichtigt (oder Einträge ohne status)
  */
 export async function getHoursByMonth(authorId: string, year: number, month: number): Promise<number> {
+    if (isMockMode) {
+        let total = 0;
+        mockTimeEntries.forEach(entry => {
+            if (entry.authorId === authorId && (entry.status === undefined || entry.status === null || entry.status === 'active')) {
+                const date = entry.date instanceof Date ? entry.date : new Date(entry.date);
+                if (date.getFullYear() === year && date.getMonth() === month) {
+                    total += entry.durationInHours || 0;
+                }
+            }
+        });
+        return total;
+    }
     const q = query(
         collection(db, COLLECTION_NAME),
         where("authorId", "==", authorId)
@@ -82,8 +122,6 @@ export async function getRemainingHours(authorId: string, year: number, month: n
  */
 async function _createTimeEntry(entry: NewTimeEntry): Promise<TimeEntry> {
     const id = `time_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-    const docRef = doc(db, COLLECTION_NAME, id);
-
     const newDoc: TimeEntry = {
         ...entry,
         status: entry.status || 'active',
@@ -91,6 +129,12 @@ async function _createTimeEntry(entry: NewTimeEntry): Promise<TimeEntry> {
         createdAt: new Date(),
     };
 
+    if (isMockMode) {
+        mockTimeEntries.set(id, newDoc);
+        return newDoc;
+    }
+
+    const docRef = doc(db, COLLECTION_NAME, id);
     await setDoc(docRef, newDoc);
     return newDoc;
 }
@@ -308,24 +352,51 @@ export const timeTrackingService = {
     },
 
     async updateTimeEntry(id: string, entry: Partial<TimeEntry>): Promise<TimeEntry> {
+        if (isMockMode) {
+            const existing = mockTimeEntries.get(id);
+            if (!existing) throw new Error("Time entry not found");
+            const updated = {
+                ...existing,
+                ...entry,
+                id
+            } as TimeEntry;
+            mockTimeEntries.set(id, updated);
+            return updated;
+        }
         const docRef = doc(db, COLLECTION_NAME, id);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) {
+            throw new Error("Time entry not found");
+        }
         const cleanData = Object.entries(entry).reduce((acc, [key, value]) => {
             if (value !== undefined) acc[key] = value;
             return acc;
         }, {} as Record<string, unknown>);
 
-        await setDoc(docRef, cleanData, { merge: true });
+        await updateDoc(docRef, cleanData);
 
         const updatedDoc = await getDoc(docRef);
         return updatedDoc.data() as TimeEntry;
     },
 
     async deleteTimeEntry(id: string): Promise<void> {
+        if (isMockMode) {
+            mockTimeEntries.delete(id);
+            return;
+        }
         const docRef = doc(db, COLLECTION_NAME, id);
         await deleteDoc(docRef);
     },
 
     async deleteTimeEntriesByReferenceId(referenceId: string, authorId: string): Promise<void> {
+        if (isMockMode) {
+            mockTimeEntries.forEach((entry, key) => {
+                if (entry.referenceId === referenceId && entry.authorId === authorId) {
+                    mockTimeEntries.delete(key);
+                }
+            });
+            return;
+        }
         const q = query(collection(db, COLLECTION_NAME), where("referenceId", "==", referenceId), where("authorId", "==", authorId));
         const snapshots = await getDocs(q);
         const promises = snapshots.docs.map(d => deleteDoc(d.ref));
@@ -333,6 +404,14 @@ export const timeTrackingService = {
     },
 
     async deleteTimeEntriesByReferenceIdOnly(referenceId: string): Promise<void> {
+        if (isMockMode) {
+            mockTimeEntries.forEach((entry, key) => {
+                if (entry.referenceId === referenceId) {
+                    mockTimeEntries.delete(key);
+                }
+            });
+            return;
+        }
         const q = query(collection(db, COLLECTION_NAME), where("referenceId", "==", referenceId));
         const snapshots = await getDocs(q);
         const promises = snapshots.docs.map(d => deleteDoc(d.ref));

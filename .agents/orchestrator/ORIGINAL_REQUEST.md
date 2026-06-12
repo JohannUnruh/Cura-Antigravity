@@ -12,3 +12,17 @@ Specifically, you must:
 4. Update progress.md regularly to reflect status.
 5. Report completion to me (the Sentinel) once all requirements are met and verified.
 6. When done, write your final handoff.md and send a message declaring completion.
+
+## Follow-up — 2026-06-11T07:48:29Z
+
+Du bist der Project Orchestrator für die Cura-Antigravity-App.
+Bitte implementiere die Anforderungen im Follow-up-Request vom 2026-06-11T09:48:12+02:00 in .agents/ORIGINAL_REQUEST.md:
+1. R1: UserProfile in src/types/index.ts erweitern (hasFamilyHelperAccess, hasFosterCareAccess).
+2. R2: Admin-Benutzerverwaltung in src/app/settings/page.tsx anpassen, um diese Berechtigungen zu verwalten (speichern/laden in Firestore Collection `users`).
+3. R3: Dynamische Sidebar-Navigation in src/components/layout/Sidebar.tsx.
+4. R4: Firestore Security Rules in firestore.rules für /family_cases, /foster_families und /foster_children absichern.
+5. Verifikation mit `npm run build` und `npm run lint`.
+
+Deine Working Directory ist: C:\Users\xjunr\OneDrive\web-apps\Cura-Antigravity\.agents\orchestrator
+Du schreibst/aktualisierst deine Pläne in plan.md und den Fortschritt in progress.md.
+Erstelle und delegiere die Aufgaben an die entsprechenden Spezialisten-Subagents (Workers, Explorer, Reviewers).

@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Presentation, Tent, Car, Settings, MessagesSquare, Clock, LogOut, Coffee, X, Star } from "lucide-react";
+import { LayoutDashboard, Users, Presentation, Tent, Car, Settings, MessagesSquare, Clock, LogOut, Coffee, X, Star, HeartHandshake, Baby } from "lucide-react";
 import { cn } from "../ui/Card";
 import { auth } from "@/lib/firebase/config";
 import { signOut } from "firebase/auth";
@@ -13,6 +13,8 @@ import { clientService } from "@/lib/firebase/services/clientService";
 const navItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Klienten", href: "/clients", icon: Users },
+    { name: "Familienhilfe", href: "/family-helper", icon: HeartHandshake },
+    { name: "Pflegefamilien", href: "/foster-care", icon: Baby },
     { name: "Beratungen", href: "/consultations", icon: MessagesSquare },
     { name: "Kurzgespräche", href: "/short-consultations", icon: Coffee },
     { name: "Vorträge", href: "/lectures", icon: Presentation },
@@ -31,7 +33,7 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
     const pathname = usePathname();
     const router = useRouter();
-    const { user } = useAuth();
+    const { user, userProfile } = useAuth();
     const [favorites, setFavorites] = useState<{ clientId: string; name: string }[]>([]);
     const sidebarRef = useRef<HTMLDivElement>(null);
 
@@ -139,7 +141,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </div>
 
             <nav className="flex-1 space-y-2 overflow-y-auto pr-2 custom-scrollbar">
-                {navItems.map((item) => {
+                {navItems
+                    .filter((item) => {
+                        if (item.href === "/family-helper") {
+                            return userProfile?.hasFamilyHelperAccess === true || userProfile?.role === 'Admin';
+                        }
+                        if (item.href === "/foster-care") {
+                            return userProfile?.hasFosterCareAccess === true || userProfile?.role === 'Admin';
+                        }
+                        return true;
+                    })
+                    .map((item) => {
                     const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
                     const iconActiveColor = "text-indigo-600 dark:text-white";
                     return (

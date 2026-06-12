@@ -1,20 +1,18 @@
-# Plan - Security and Usability Audit
+# Plan - Family Helper & Foster Care Access Implementation
 
-## Phase 1: Decompose and Analyze
-- Initialize configuration and scope files (`plan.md`, `context.md`, `progress.md`, `PROJECT.md`).
-- Decompose request into logical milestones.
-- Spawn Explorer agent(s) to analyze:
-  - Security: `firestore.rules`, API routes in `src/app/api/`, and token handling.
-  - Usability: Form validations, accessibility/color contrast (dark mode), and error handling in forms.
+## Phase 1: Planning and Decomposing
+- Update `ORIGINAL_REQUEST.md`, `BRIEFING.md`, `progress.md` and `PROJECT.md` to reflect the new follow-up requirements.
+- Initialize recurring heartbeat cron task.
 
-## Phase 2: Document Findings
-- Evaluate results from Explorer agent(s).
-- Refine and select at least 3 distinct, high-quality proposals (covering security and/or usability).
-- Structure proposals in the exact backlog format.
-- Append proposals to `BACKLOG.md` under the `## Backlog` section.
+## Phase 2: Implementation (UserProfile & Settings Page UI)
+- Dispatch a Worker to add `hasFamilyHelperAccess?: boolean` and `hasFosterCareAccess?: boolean` to `src/types/index.ts`.
+- Dispatch a Worker to add settings UI checkboxes for "Familienhilfe" and "Pflegefamilien" to the new-user and edit-user modals in `src/app/settings/page.tsx`, ensuring proper Firestore state load/save logic.
 
-## Phase 3: Verification
-- Verify that `BACKLOG.md` conforms to the rules.
-- Review and verify changes.
-- Write final handoff.
-- Report completion to Sentinel.
+## Phase 3: Implementation (Sidebar Navigation & Security Rules)
+- Dispatch a Worker to update `src/components/layout/Sidebar.tsx` to conditionally render the `/family-helper` and `/foster-care` navigation items based on user profile access flags (or Admin role).
+- Dispatch a Worker to update `firestore.rules` to secure `/family_cases`, `/foster_families`, `/foster_children` collections.
+
+## Phase 4: E2E Verification & Audit
+- Dispatch a Worker to run `npm run build` and `npm run lint` on the codebase.
+- Dispatch a Forensic Auditor to ensure no cheating, hardcoded checks, or bypasses exist in the implementation or security rules.
+- Review reports and write final handoff.

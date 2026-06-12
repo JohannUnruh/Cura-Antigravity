@@ -1,31 +1,68 @@
-# Project: Cura-App Security & Usability Audit
+# Project: Cura SPFH (Familienhilfe) Module
 
 ## Architecture
-- Firebase-backed Next.js application using Tailwind v4, Firestore, and Firebase App Hosting.
-- Frontend app router structure in `src/app/`.
-- Firebase rules defined in `firestore.rules`.
-- Services in `src/lib/firebase/services/`.
+- Next.js 16 (App Router) client application with Firebase backend (Firestore, Auth).
+- Core types defined in `src/types/index.ts` and `src/types/familyHelper.ts`.
+- Firestore CRUD services in `src/lib/firebase/services/familyHelperService.ts` and `settingsService.ts`.
+- User profiles and access control flags (`hasFamilyHelperAccess`) stored in `/users`.
+- View routes in `src/app/family-helper/` and settings integration in `src/app/settings/page.tsx`.
+- PDF generation utilizing `jsPDF` and `jspdf-autotable`.
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| 1 | Decompose & Setup | Initialize metadata, plan, context, and PROJECT.md | none | DONE |
-| 2 | Security & Usability Audit | Scan codebase for security gaps (firestore.rules, API endpoints, token management) and usability bottlenecks (validations, accessibility, error handling) using Explorer subagents | M1 | DONE |
-| 3 | Backlog Documentation | Document at least 3 high-quality issues/proposals in `BACKLOG.md` following the standard format | M2 | DONE |
-| 4 | Final Verification & Handoff | Verify the backlog file format, compile the handoff report, and complete the task | M3 | DONE |
+| M1 | Datatypes & AppSettings | Create `src/types/familyHelper.ts` and extend `AppSettings` in `src/types/index.ts` | none | DONE |
+| M2 | Administrative Settings | Modify `src/app/settings/page.tsx` and `settingsService.ts` for TagInput configuration | M1 | DONE |
+| M3 | familyHelperService | Implement Firestore CRUD for SPFH cases, journals, templates, and time entry coupling | M1, M2 | DONE |
+| M4 | Case Overview Dashboard | Create dashboard overview at `src/app/family-helper/page.tsx` with filtering and case creation | M3 | DONE |
+| M5 | Digital Case File View | Create detail view at `src/app/family-helper/[caseId]/page.tsx` with tabbed navigation | M4 | PLANNED |
+| M6 | PDF-Export | Implement Entwicklungsbericht and Leistungsnachweis export using jsPDF | M5 | PLANNED |
+| M7 | E2E Testing Track | Design and execute E2E test suite validating all functionality | M1, M2, M3, M4, M5, M6 | PLANNED |
 
 ## Interface Contracts
-- Standard `BACKLOG.md` entry format must be strictly adhered to.
+### `src/types/familyHelper.ts`
+- `FamilyMember`: `{ firstName: string; lastName: string; birthDate?: string; relation: string; }`
+- `AsdContact`: `{ name: string; email?: string; phone?: string; institution?: string; }`
+- `FundingCommitment`: `{ hoursGranted: number; startDate: string; endDate: string; hourlyRate?: number; }`
+- `FamilyGoal`: `{ id: string; category: string; description: string; targetValue: number; currentValue: number; createdAt: any; updatedAt?: any; }`
+- `FamilyJournalEntry`: `{ id: string; date: any; durationInHours: number; type: string; notes: string; hasTimeEntry: boolean; timeEntryId?: string; }`
+- `HazardAssessment8a`: `{ id: string; date: any; assessorName: string; indicators: { [key: string]: 'ja' | 'nein' | 'unklar' }; actionsTaken: string; result: 'akut' | 'latent' | 'keine'; nextReviewDate?: string; }`
+- `FamilyCase`:
+  - `id?: string`
+  - `familyName: string`
+  - `caseNumber: string`
+  - `assignedWorkerId: string` (UserProfile ID)
+  - `status: 'aktiv' | 'inaktiv' | 'beendet'`
+  - `members: FamilyMember[]`
+  - `asdContact?: AsdContact`
+  - `fundingCommitment?: FundingCommitment`
+  - `createdAt: any`
+  - `updatedAt?: any`
+
+### AppSettings Extension in `src/types/index.ts`
+- `familyMemberRelations?: string[];`
+- `familyJournalTypes?: string[];`
+- `familyGoalCategories?: string[];`
+
+### familyHelperService Interface (`src/lib/firebase/services/familyHelperService.ts`)
+- `getCases(userId?: string): Promise<FamilyCase[]>`
+- `getCaseById(id: string): Promise<FamilyCase | null>`
+- `createCase(caseData: Omit<FamilyCase, 'id'>): Promise<string>`
+- `updateCase(id: string, caseData: Partial<FamilyCase>): Promise<void>`
+- `deleteCase(id: string): Promise<void>`
+- `getJournalEntries(caseId: string): Promise<FamilyJournalEntry[]>`
+- `addJournalEntry(caseId: string, entry: Omit<FamilyJournalEntry, 'id'>, createTimeEntry?: boolean, userId?: string): Promise<string>`
+- `updateJournalEntry(caseId: string, entryId: string, entry: Partial<FamilyJournalEntry>): Promise<void>`
+- `deleteJournalEntry(caseId: string, entryId: string): Promise<void>`
+- `getHazardAssessments(caseId: string): Promise<HazardAssessment8a[]>`
+- `addHazardAssessment(caseId: string, assessment: Omit<HazardAssessment8a, 'id'>): Promise<string>`
+- `updateHazardAssessment(caseId: string, assessmentId: string, assessment: Partial<HazardAssessment8a>): Promise<void>`
 
 ## Code Layout
-- `firestore.rules`: Security Rules for Firestore
-- `src/app/api/`: Backend API routes
-- `src/contexts/`: React contexts (including AuthContext.tsx, SettingsContext.tsx)
-- `src/components/`: Common UI components and form controllers
-- `src/lib/`: Common business logic, Firebase utilities, and client services
-- `BACKLOG.md`: Target file for documenting the audit proposals
-
-## Implementation Status
-- **Security Audit & Fixes**: Firestore Security Rules for Users and Travel Expenses are fully secured against privilege escalation and status manipulation. API calendar endpoints and secure token generation have been hardened. Local secrets and service account keys are excluded from git deployments.
-- **Usability & Accessibility (A11y)**: Focus traps are active on all modals and the mobile sidebar. Decimal and number input React bugs are solved globally using temporary string state mappings. Hover-dependent actions on mobile touch screens are replaced/expanded for direct touch usage. Keyboard navigation and ARIA tags are standard-compliant.
-- **Verification**: Local verification via ESLint (`npm run lint`) and TypeScript compiler (`tsc --noEmit`) passes cleanly. The project is deployed via Firebase App Hosting.
+- `src/types/familyHelper.ts` — SPFH-specific type definitions
+- `src/types/index.ts` — Central types
+- `src/lib/firebase/services/familyHelperService.ts` — Firestore Service
+- `src/app/settings/page.tsx` — Settings page
+- `src/app/family-helper/page.tsx` — Dashboard view
+- `src/app/family-helper/[caseId]/page.tsx` — Detail view
+- `src/lib/firebase/services/settingsService.ts` — Dropdown configuration service

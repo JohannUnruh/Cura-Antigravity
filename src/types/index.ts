@@ -33,6 +33,10 @@ export interface UserProfile {
 
     // Kalender-Abonnement
     calendarToken?: string;
+
+    // Access Control
+    hasFamilyHelperAccess?: boolean;
+    hasFosterCareAccess?: boolean;
 }
 
 export interface AppSettings {
@@ -58,6 +62,9 @@ export interface AppSettings {
     skbCertificateOptions?: string[];
     lectureTypes?: string[];
     retreatTypes?: string[];
+    familyMemberRelations?: string[];
+    familyJournalTypes?: string[];
+    familyGoalCategories?: string[];
 }
 
 
@@ -289,3 +296,5 @@ export interface FcmToken {
     createdAt: Date;
     lastUsedAt?: Date;
 }
+
+export * from "./familyHelper";
