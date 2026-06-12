@@ -40,6 +40,18 @@ Jeder Eintrag folgt diesem Schema:
 
 <!-- Der Night Agent verschiebt erledigte Aufgaben hierher mit Datum -->
 
+### [P1] Detaillierte Zugriffsberechtigungen per Häkchen verteilen – ✅ 2026-06-12
+- **Status:** done
+- **Beschreibung:** Implementierung flexibler Berechtigungen für alle Standard-Module (Klienten, Beratungen, Kurzgespräche, Vorträge, Freizeiten, Fahrtkosten, Zeiterfassung) per Checkbox in den Einstellungen für Benutzer.
+- **Akzeptanzkriterien:**
+  1. Benutzerverwaltung (Anlegen & Bearbeiten) zeigt Checkboxen für alle Standardmodule.
+  2. Bestehende Benutzer behalten standardmäßig Zugriff (backward-compatible).
+  3. `firestore.rules` verhindert, dass Nicht-Admins diese Berechtigungen selbst ändern.
+  4. Sidebar blendet Menüpunkte reaktiv aus, wenn Berechtigung fehlt.
+  5. Route Protection verweigert Zugriff auf die Seiten und API Routes.
+  6. Codebereinigung in Family Helper Seiten.
+- **Betroffene Dateien:** `firestore.rules`, `src/types/index.ts`, `src/components/auth/ProtectedRoute.tsx`, `src/components/layout/Sidebar.tsx`, `src/app/settings/page.tsx`, `src/app/family-helper/page.tsx`, `src/app/family-helper/[caseId]/page.tsx`, diverse Page-Wrapper.
+
 ### [P1] Behebung von Farbkontrast- und Darkmode-Mängeln (Ghost-Buttons & Modals) – ✅ 2026-06-09
 - **Status:** done
 - **Beschreibung:** Behebung kritischer Kontrastprobleme im Lightmode und Darkmode. Ghost-Buttons ("Abbrechen") müssen im Darkmode lesbar sein (Farbe anpassen). Das allgemeine Modal-Fenster benötigt Unterstützung für das dunkle Farbschema, um blendende weiße Overlays im Darkmode zu vermeiden. Sekundäre Labels im Dashboard müssen kontraststärker dargestellt werden.

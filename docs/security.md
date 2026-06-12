@@ -13,7 +13,7 @@ Definiert in `firestore.rules`:
 
 - **Authentifizierte Nutzer** lesen/schreiben nur eigene Dokumente
 - **Admin-Rollen** haben erweiterte Zugriffsrechte
-- **Absicherung gegen Berechtigungs-Eskalation (`users/{userId}`)**: Normale Benutzer können ihre Profil-Rolle (`role`) sowie vertragliche Felder (`contractType`, `vacationDaysPerYear`, `contractDocumentUrl`, `entryDate`) nicht selbst erstellen oder ändern. Dies schützt das System davor, dass normale Benutzer sich selbst Admin-Rechte zuweisen.
+- **Absicherung gegen Berechtigungs-Eskalation (`users/{userId}`)**: Normale Benutzer können ihre Profil-Rolle (`role`), vertragliche Felder (`contractType`, `vacationDaysPerYear`, `contractDocumentUrl`, `entryDate`) sowie alle Berechtigungs-Flags (`hasClientAccess`, `hasConsultationAccess`, `hasShortConsultationAccess`, `hasLectureAccess`, `hasRetreatAccess`, `hasTravelAccess`, `hasTimeTrackingAccess`, `hasFamilyHelperAccess`, `hasFosterCareAccess`) nicht selbst erstellen oder ändern. Dies schützt das System davor, dass Benutzer sich selbst Admin-Rechte oder unautorisierte Modul-Zugriffe zuweisen.
 - **Absicherung der Fahrtkosten (`travel_expenses/{expenseId}`)**: Normale Benutzer müssen Abrechnungen standardmäßig im Status `'pending'` einreichen. Normale Benutzer können den Status nicht manipulieren (nur Admins und Kassenwarte dürfen den Status ändern). Sobald eine Abrechnung genehmigt (`'approved'`) oder ausgezahlt (`'paid'`) wurde, ist sie für normale Benutzer komplett gesperrt und kann weder bearbeitet noch gelöscht werden.
 - Rules müssen vor Deployment geprüft werden:
   ```bash
