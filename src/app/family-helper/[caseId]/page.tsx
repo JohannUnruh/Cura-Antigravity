@@ -91,6 +91,7 @@ export default function CaseDetailPage() {
     const [editMembers, setEditMembers] = useState<FamilyMember[]>([]);
     const [editAsd, setEditAsd] = useState<AsdContact>({ name: "" });
     const [editFunding, setEditFunding] = useState<FundingCommitment | null>(null);
+    const [editMandate, setEditMandate] = useState("");
 
     // Journal form
     const [isJournalModalOpen, setIsJournalModalOpen] = useState(false);
@@ -106,6 +107,7 @@ export default function CaseDetailPage() {
     const [goalCategory, setGoalCategory] = useState("");
     const [goalDescription, setGoalDescription] = useState("");
     const [goalTarget, setGoalTarget] = useState(8);
+    const [goalStatus, setGoalStatus] = useState<'Offen' | 'In Arbeit' | 'Erreicht'>('Offen');
 
     // Hazard assessment form
     const [hazardIndicators, setHazardIndicators] = useState<Record<string, "ja" | "nein" | "unklar">>({});
@@ -152,6 +154,7 @@ export default function CaseDetailPage() {
             setEditMembers(caseData.members || []);
             setEditAsd(caseData.asdContact || { name: "" });
             setEditFunding(caseData.fundingCommitment || null);
+            setEditMandate(caseData.mandate || "");
         } catch (error) {
             console.error("Fehler beim Laden der Fallakte:", error);
         } finally {
@@ -175,6 +178,7 @@ export default function CaseDetailPage() {
                 members: editMembers,
                 asdContact: editAsd.name ? editAsd : undefined,
                 fundingCommitment: editFunding || undefined,
+                mandate: editMandate.trim() || undefined,
             });
             await loadData();
             setToast("Stammdaten gespeichert");
@@ -202,6 +206,7 @@ export default function CaseDetailPage() {
                 description: goalDescription.trim(),
                 targetValue: goalTarget,
                 currentValue: 1,
+                status: goalStatus,
                 createdAt: new Date(),
             };
             const updatedGoals = [...(familyCase.goals || []), newGoal];
@@ -209,6 +214,7 @@ export default function CaseDetailPage() {
             setIsGoalModalOpen(false);
             setGoalDescription("");
             setGoalTarget(8);
+            setGoalStatus("Offen");
             await loadData();
             setToast("Ziel hinzugefügt");
         } catch (error) {
@@ -228,6 +234,20 @@ export default function CaseDetailPage() {
             setFamilyCase(prev => prev ? { ...prev, goals: updatedGoals } : null);
         } catch (error) {
             console.error("Fehler beim Aktualisieren des Skalenwerts:", error);
+        }
+    };
+
+    const updateGoalStatus = async (goalId: string, status: 'Offen' | 'In Arbeit' | 'Erreicht') => {
+        if (!caseId || !familyCase) return;
+        const updatedGoals = (familyCase.goals || []).map(g =>
+            g.id === goalId ? { ...g, status, updatedAt: new Date() } : g
+        );
+        try {
+            await familyHelperService.updateCase(caseId, { goals: updatedGoals });
+            setFamilyCase(prev => prev ? { ...prev, goals: updatedGoals } : null);
+            setToast("Ziel-Status aktualisiert");
+        } catch (error) {
+            console.error("Fehler beim Aktualisieren des Ziel-Status:", error);
         }
     };
 
@@ -440,6 +460,18 @@ export default function CaseDetailPage() {
                     </div>
                 </div>
 
+                {/* Jugendamt-Auftrag / Hilfebedarf */}
+                <Card className="bg-indigo-50/40 dark:bg-indigo-950/10 border-indigo-100/50 dark:border-indigo-950/30 shadow-none">
+                    <CardContent className="p-5">
+                        <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 block mb-2">
+                            Jugendamt-Auftrag / Hilfebedarf
+                        </span>
+                        <p className="text-sm text-gray-700 dark:text-slate-300 leading-relaxed font-medium">
+                            {familyCase.mandate || <em className="text-gray-400 font-normal">Kein offizieller Auftragstext hinterlegt. Sie können diesen im Tab &quot;Stammdaten&quot; eintragen.</em>}
+                        </p>
+                    </CardContent>
+                </Card>
+
                 {/* Tab Navigation */}
                 <div className="flex gap-1 overflow-x-auto bg-white/40 dark:bg-slate-900/40 p-1.5 rounded-2xl border border-white/50 dark:border-white/10 shadow-sm">
                     {TABS.map(tab => (
@@ -484,6 +516,16 @@ export default function CaseDetailPage() {
                                             <option value="beendet">Beendet</option>
                                         </select>
                                     </div>
+                                </div>
+                                <div className="mt-4">
+                                    <label className={labelCls}>Jugendamt-Auftrag / Hilfebedarf</label>
+                                    <textarea
+                                        className={textareaCls}
+                                        value={editMandate}
+                                        onChange={e => setEditMandate(e.target.value)}
+                                        placeholder="Beschreibung des offiziellen Auftrags durch das Jugendamt..."
+                                        rows={3}
+                                    />
                                 </div>
                             </CardContent>
                         </Card>
@@ -596,42 +638,68 @@ export default function CaseDetailPage() {
                             </Card>
                         )}
 
-                        {(familyCase.goals || []).map(goal => (
-                            <Card key={goal.id} className="shadow-sm border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40">
-                                <CardContent className="p-6 pt-6">
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div>
-                                            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 mb-1.5">
-                                                {goal.category}
-                                            </span>
-                                            <p className="text-gray-900 dark:text-white font-medium">{goal.description}</p>
+                        {(familyCase.goals || []).map(goal => {
+                            const statusColors = {
+                                'Offen': 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900/50',
+                                'In Arbeit': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/50',
+                                'Erreicht': 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/50',
+                            };
+                            const currentStatus = goal.status || 'In Arbeit';
+
+                            return (
+                                <Card key={goal.id} className="shadow-sm border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40">
+                                    <CardContent className="p-6 pt-6">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div>
+                                                <div className="flex flex-wrap gap-1.5 mb-1.5">
+                                                    <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+                                                        {goal.category}
+                                                    </span>
+                                                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border ${statusColors[currentStatus]}`}>
+                                                        {currentStatus}
+                                                    </span>
+                                                </div>
+                                                <p className="text-gray-900 dark:text-white font-medium">{goal.description}</p>
+                                            </div>
+                                            <button onClick={() => removeGoal(goal.id)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
                                         </div>
-                                        <button onClick={() => removeGoal(goal.id)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                    <div className="mt-4">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="text-sm text-gray-500 dark:text-slate-400">Aktuelle Skalierung</span>
-                                            <span className="text-lg font-bold text-gray-900 dark:text-white">{goal.currentValue} <span className="text-sm font-normal text-gray-400">/ {goal.targetValue}</span></span>
+                                        <div className="mt-4">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-sm text-gray-500 dark:text-slate-400">Aktuelle Skalierung</span>
+                                                <span className="text-lg font-bold text-gray-900 dark:text-white">{goal.currentValue} <span className="text-sm font-normal text-gray-400">/ {goal.targetValue}</span></span>
+                                            </div>
+                                            <div className="relative h-3 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden mb-2">
+                                                <div className={`h-full rounded-full transition-all duration-300 ${getScaleColor(goal.currentValue)}`} style={{ width: `${(goal.currentValue / 10) * 100}%` }} />
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min={1} max={10} step={1}
+                                                value={goal.currentValue}
+                                                onChange={e => updateGoalScale(goal.id, Number(e.target.value))}
+                                                className="w-full accent-indigo-600"
+                                            />
+                                            <div className="flex justify-between text-xs text-gray-400 mt-1">
+                                                <span>1</span><span>5</span><span>10</span>
+                                            </div>
                                         </div>
-                                        <div className="relative h-3 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden mb-2">
-                                            <div className={`h-full rounded-full transition-all duration-300 ${getScaleColor(goal.currentValue)}`} style={{ width: `${(goal.currentValue / 10) * 100}%` }} />
+                                        <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-100 dark:border-white/5">
+                                            <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">Status ändern:</label>
+                                            <select
+                                                value={currentStatus}
+                                                onChange={e => updateGoalStatus(goal.id, e.target.value as 'Offen' | 'In Arbeit' | 'Erreicht')}
+                                                className="px-2.5 py-1 bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/30"
+                                            >
+                                                <option value="Offen">Offen</option>
+                                                <option value="In Arbeit">In Arbeit</option>
+                                                <option value="Erreicht">Erreicht</option>
+                                            </select>
                                         </div>
-                                        <input
-                                            type="range"
-                                            min={1} max={10} step={1}
-                                            value={goal.currentValue}
-                                            onChange={e => updateGoalScale(goal.id, Number(e.target.value))}
-                                            className="w-full accent-indigo-600"
-                                        />
-                                        <div className="flex justify-between text-xs text-gray-400 mt-1">
-                                            <span>1</span><span>5</span><span>10</span>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
 
                         {/* Goal Modal */}
                         <Modal isOpen={isGoalModalOpen} onClose={() => setIsGoalModalOpen(false)} title="Neues Ziel hinzufügen">
@@ -650,6 +718,14 @@ export default function CaseDetailPage() {
                                     <label className={labelCls}>Zielwert (1-10)</label>
                                     <input type="range" min={1} max={10} value={goalTarget} onChange={e => setGoalTarget(Number(e.target.value))} className="w-full accent-indigo-600" />
                                     <p className="text-center text-sm font-medium text-gray-700 dark:text-slate-300 mt-1">{goalTarget}</p>
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Status</label>
+                                    <select className={inputCls} value={goalStatus} onChange={e => setGoalStatus(e.target.value as 'Offen' | 'In Arbeit' | 'Erreicht')}>
+                                        <option value="Offen">Offen</option>
+                                        <option value="In Arbeit">In Arbeit</option>
+                                        <option value="Erreicht">Erreicht</option>
+                                    </select>
                                 </div>
                                 <div className="flex justify-end gap-3 pt-2">
                                     <Button variant="ghost" onClick={() => setIsGoalModalOpen(false)}>Abbrechen</Button>

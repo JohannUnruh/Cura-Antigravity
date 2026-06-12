@@ -25,6 +25,7 @@ export interface FamilyGoal {
     description: string;
     targetValue: number;
     currentValue: number;
+    status?: 'Offen' | 'In Arbeit' | 'Erreicht';
     createdAt: Date;
     updatedAt?: Date;
 }
@@ -59,6 +60,7 @@ export interface FamilyCase {
     asdContact?: AsdContact;
     fundingCommitment?: FundingCommitment;
     goals?: FamilyGoal[];
+    mandate?: string;
     createdAt: Date;
     updatedAt?: Date;
 }

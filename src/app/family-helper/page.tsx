@@ -52,6 +52,7 @@ export default function FamilyHelperDashboard() {
     const [caseNumber, setCaseNumber] = useState("");
     const [status, setStatus] = useState<'aktiv' | 'inaktiv' | 'beendet'>('aktiv');
     const [assignedWorkerId, setAssignedWorkerId] = useState("");
+    const [mandate, setMandate] = useState("");
     const [members, setMembers] = useState<FamilyMemberInput[]>([]);
     const [hasFunding, setHasFunding] = useState(false);
     const [hoursGranted, setHoursGranted] = useState<string>("");
@@ -96,9 +97,11 @@ export default function FamilyHelperDashboard() {
             );
             setCases(casesWithHoursData);
 
-            // Fetch users list
-            const allUsers = await userService.getAllUsers();
-            setUsers(allUsers);
+            // Fetch users list (only for Admins)
+            if (userProfile.role === 'Admin') {
+                const allUsers = await userService.getAllUsers();
+                setUsers(allUsers);
+            }
         } catch (error) {
             console.error("Error loading SPFH dashboard data:", error);
         } finally {
@@ -117,6 +120,7 @@ export default function FamilyHelperDashboard() {
         setCaseNumber("");
         setStatus("aktiv");
         setAssignedWorkerId(user?.uid || "");
+        setMandate("");
         setMembers([]);
         setHasFunding(false);
         setHoursGranted("");
@@ -161,6 +165,7 @@ export default function FamilyHelperDashboard() {
                 caseNumber: caseNumber.trim(),
                 assignedWorkerId: workerId,
                 status,
+                mandate: mandate.trim() || undefined,
                 members: members.map((m) => ({
                     firstName: m.firstName.trim(),
                     lastName: m.lastName.trim(),
@@ -169,10 +174,10 @@ export default function FamilyHelperDashboard() {
                 fundingCommitment:
                     hasFunding && hoursGranted && startDate && endDate
                         ? {
-                              hoursGranted: Number(hoursGranted),
-                              startDate,
-                              endDate,
-                          }
+                               hoursGranted: Number(hoursGranted),
+                               startDate,
+                               endDate,
+                           }
                         : undefined,
                 createdAt: new Date(),
                 updatedAt: new Date(),
@@ -562,6 +567,20 @@ export default function FamilyHelperDashboard() {
                                     />
                                 )}
                             </div>
+                        </div>
+
+                        {/* Jugendamt-Auftrag / Hilfebedarf */}
+                        <div>
+                            <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-slate-300">
+                                Jugendamt-Auftrag / Hilfebedarf
+                            </label>
+                            <textarea
+                                value={mandate}
+                                onChange={(e) => setMandate(e.target.value)}
+                                placeholder="Beschreibung des offiziellen Auftrags durch das Jugendamt..."
+                                rows={3}
+                                className="w-full px-4 py-3 bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-gray-900 dark:text-white text-sm resize-y"
+                            />
                         </div>
 
                         {/* Familienmitglieder Inline Builder */}

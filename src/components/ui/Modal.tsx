@@ -48,18 +48,6 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
         if (isOpen) {
             document.body.style.overflow = "hidden";
             document.addEventListener("keydown", handleKeyDown);
-            
-            // Focus trap: auto focus the first element inside the modal
-            setTimeout(() => {
-                if (modalRef.current) {
-                    const focusableElements = modalRef.current.querySelectorAll(
-                        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-                    );
-                    if (focusableElements.length > 0) {
-                        (focusableElements[0] as HTMLElement).focus();
-                    }
-                }
-            }, 50);
         }
 
         return () => {
@@ -70,6 +58,26 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
             }
         };
     }, [isOpen, onClose]);
+
+    // Initial focus when opening the modal
+    useEffect(() => {
+        if (isOpen) {
+            const t = setTimeout(() => {
+                if (modalRef.current) {
+                    const focusableElements = modalRef.current.querySelectorAll(
+                        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                    );
+                    if (focusableElements.length > 0) {
+                        // Only focus the first element if focus is not already inside the modal
+                        if (!modalRef.current.contains(document.activeElement)) {
+                            (focusableElements[0] as HTMLElement).focus();
+                        }
+                    }
+                }
+            }, 50);
+            return () => clearTimeout(t);
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
