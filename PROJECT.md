@@ -15,9 +15,9 @@
 | M2 | Administrative Settings | Modify `src/app/settings/page.tsx` and `settingsService.ts` for TagInput configuration | M1 | DONE |
 | M3 | familyHelperService | Implement Firestore CRUD for SPFH cases, journals, templates, and time entry coupling | M1, M2 | DONE |
 | M4 | Case Overview Dashboard | Create dashboard overview at `src/app/family-helper/page.tsx` with filtering and case creation | M3 | DONE |
-| M5 | Digital Case File View | Create detail view at `src/app/family-helper/[caseId]/page.tsx` with tabbed navigation | M4 | PLANNED |
-| M6 | PDF-Export | Implement Entwicklungsbericht and Leistungsnachweis export using jsPDF | M5 | PLANNED |
-| M7 | E2E Testing Track | Design and execute E2E test suite validating all functionality | M1, M2, M3, M4, M5, M6 | PLANNED |
+| M5 | Digital Case File View | Create detail view at `src/app/family-helper/[caseId]/page.tsx` with tabbed navigation | M4 | DONE |
+| M6 | PDF-Export | Implement Entwicklungsbericht und Leistungsnachweis export using jsPDF | M5 | DONE |
+| M7 | E2E Testing Track | Design and execute E2E test suite validating all functionality | M1, M2, M3, M4, M5, M6 | DONE |
 
 ## Interface Contracts
 ### `src/types/familyHelper.ts`

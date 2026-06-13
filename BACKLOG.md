@@ -34,6 +34,24 @@ Jeder Eintrag folgt diesem Schema:
 
 <!-- Der Night Agent verschiebt erledigte Aufgaben hierher mit Datum -->
 
+### [P1] Behebung von Firebase-Speicherfehlern (Pflegefamilien ohne Partner) – ✅ 2026-06-13
+- **Status:** done
+- **Beschreibung:** Behebung des FirebaseErrors (`Unsupported field value: undefined found in field parent2`) beim Speichern von Pflegefamilien ohne zweiten Partner.
+- **Akzeptanzkriterien:**
+  1. Die Hilfsfunktion `removeUndefinedFields` in `fosterCareService.ts` wurde so umgeschrieben, dass sie die Prototyp-Erkennung verwendet (`isPlainObject`), um Plain Objects und Arrays rekursiv sicher von anderen Instanzen (z. B. Dates, Firebase-Typen) zu unterscheiden.
+  2. Daten ohne optionalen Partner `parent2` werden ohne JS-Fehler erfolgreich in Firestore gespeichert.
+  3. Keine ESLint-Fehler bezüglich explizitem `any` (behoben durch Typisierung auf `Record<string, unknown>`).
+- **Betroffene Dateien:** `src/lib/firebase/services/fosterCareService.ts`.
+
+### [P1] Passwort-Zurücksetzung auf der Login-Seite implementieren – ✅ 2026-06-13
+- **Status:** done
+- **Beschreibung:** Implementierung der Funktion "Passwort vergessen?" im Login-Formular, die den offiziellen Firebase-E-Mail-Reset-Link (Weg B) nutzt.
+- **Akzeptanzkriterien:**
+  1. Ein Link "Passwort vergessen?" öffnet ein Modul/Modal zur Eingabe der E-Mail-Adresse.
+  2. Firebase Auth `sendPasswordResetEmail` wird aufgerufen, um den offiziellen Wiederherstellungslink zu versenden.
+  3. Erfolgs- und Fehlermeldungen werden dem Nutzer sauber angezeigt.
+- **Betroffene Dateien:** `src/app/(auth)/login/page.tsx`.
+
 ### [P1] Pflegefamilien Modul 2 - Teil 4: Detailseiten (Digitale Akte & Matching) – ✅ 2026-06-12
 - **Status:** done
 - **Beschreibung:** Erstelle die Detailseiten `/foster-care/families/[id]` und `/foster-care/children/[id]` zur tieferen Fallführung. Implementiere auf der Familienseite die Möglichkeit, Kinder in der Familie zu platzieren (Matching) und die Platzierungshistorie einzusehen.

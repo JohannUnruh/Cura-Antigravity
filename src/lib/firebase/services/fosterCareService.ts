@@ -47,6 +47,31 @@ function parseDate(val: unknown): Date {
     return d;
 }
 
+function isPlainObject(value: unknown): boolean {
+    if (typeof value !== 'object' || value === null) {
+        return false;
+    }
+    const proto = Object.getPrototypeOf(value);
+    return proto === null || proto === Object.prototype;
+}
+
+function removeUndefinedFields<T>(obj: T): T {
+    if (Array.isArray(obj)) {
+        return obj.map(item => removeUndefinedFields(item)) as unknown as T;
+    }
+    if (isPlainObject(obj)) {
+        const newObj = {} as Record<string, unknown>;
+        for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+            if (value !== undefined) {
+                newObj[key] = removeUndefinedFields(value);
+            }
+        }
+        return newObj as T;
+    }
+    return obj;
+}
+
+
 // Service implementation
 export const fosterCareService = {
     // ─────────────────────────────────────────────────────────────────────────
@@ -69,7 +94,7 @@ export const fosterCareService = {
         }
 
         const docRef = doc(db, "foster_families", id);
-        await setDoc(docRef, newFamily);
+        await setDoc(docRef, removeUndefinedFields(newFamily));
         return id;
     },
 
@@ -138,14 +163,7 @@ export const fosterCareService = {
         }
 
         const docRef = doc(db, "foster_families", id);
-        const cleanUpdates = Object.entries(updated).reduce((acc, [key, value]) => {
-            if (value !== undefined) {
-                acc[key] = value;
-            }
-            return acc;
-        }, {} as Record<string, unknown>);
-
-        await setDoc(docRef, cleanUpdates, { merge: true });
+        await setDoc(docRef, removeUndefinedFields(updated), { merge: true });
     },
 
     async deleteFamily(id: string): Promise<void> {
@@ -179,7 +197,7 @@ export const fosterCareService = {
         }
 
         const docRef = doc(db, "foster_children", id);
-        await setDoc(docRef, newChild);
+        await setDoc(docRef, removeUndefinedFields(newChild));
         return id;
     },
 
@@ -259,14 +277,7 @@ export const fosterCareService = {
         }
 
         const docRef = doc(db, "foster_children", id);
-        const cleanUpdates = Object.entries(updated).reduce((acc, [key, value]) => {
-            if (value !== undefined) {
-                acc[key] = value;
-            }
-            return acc;
-        }, {} as Record<string, unknown>);
-
-        await setDoc(docRef, cleanUpdates, { merge: true });
+        await setDoc(docRef, removeUndefinedFields(updated), { merge: true });
     },
 
     async deleteChild(id: string): Promise<void> {
@@ -332,7 +343,7 @@ export const fosterCareService = {
         // Firestore Transaction / Batch, um Konsistenz zu wahren
         const batch = writeBatch(db);
         const placementRef = doc(db, "foster_placements", id);
-        batch.set(placementRef, newPlacement);
+        batch.set(placementRef, removeUndefinedFields(newPlacement));
 
         const familyRef = doc(db, "foster_families", family.id);
         batch.update(familyRef, {
@@ -441,14 +452,7 @@ export const fosterCareService = {
         }
 
         const docRef = doc(db, "foster_placements", id);
-        const cleanUpdates = Object.entries(updated).reduce((acc, [key, value]) => {
-            if (value !== undefined) {
-                acc[key] = value;
-            }
-            return acc;
-        }, {} as Record<string, unknown>);
-
-        await setDoc(docRef, cleanUpdates, { merge: true });
+        await setDoc(docRef, removeUndefinedFields(updated), { merge: true });
     },
 
     async endPlacement(id: string, endDate: Date, terminationReason?: string, notes?: string): Promise<void> {
@@ -647,7 +651,7 @@ export const fosterCareService = {
         }
 
         const docRef = doc(db, "foster_journal", id);
-        await setDoc(docRef, newEntry);
+        await setDoc(docRef, removeUndefinedFields(newEntry));
         return id;
     },
 
@@ -757,14 +761,7 @@ export const fosterCareService = {
         }
 
         const docRef = doc(db, "foster_journal", id);
-        const cleanUpdates = Object.entries(updated).reduce((acc, [key, value]) => {
-            if (value !== undefined) {
-                acc[key] = value;
-            }
-            return acc;
-        }, {} as Record<string, unknown>);
-
-        await setDoc(docRef, cleanUpdates, { merge: true });
+        await setDoc(docRef, removeUndefinedFields(updated), { merge: true });
     },
 
     async deleteJournalEntry(id: string): Promise<void> {
