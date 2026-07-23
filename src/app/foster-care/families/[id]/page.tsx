@@ -833,7 +833,7 @@ export default function FosterFamilyDetailPage() {
                                                                     Seit {new Date(p.startDate).toLocaleDateString("de-DE")} ({getAge(child.birthDate)} Jahre alt, {child.gender})
                                                                 </p>
                                                                 {p.notes && (
-                                                                    <p className="text-xs text-gray-600 dark:text-slate-400 italic mt-2">
+                                                                    <p className="text-xs text-gray-600 dark:text-slate-400 italic mt-2 whitespace-pre-wrap">
                                                                         Notiz: {p.notes}
                                                                     </p>
                                                                 )}
@@ -898,7 +898,7 @@ export default function FosterFamilyDetailPage() {
                                                                     </p>
                                                             )}
                                                             {p.notes && (
-                                                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 italic">
+                                                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 italic whitespace-pre-wrap">
                                                                     Notizen: {p.notes}
                                                                 </p>
                                                             )}

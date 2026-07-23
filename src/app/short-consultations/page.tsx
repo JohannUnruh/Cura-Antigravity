@@ -187,7 +187,7 @@ export default function ShortConsultationsPage() {
                                             </h3>
                                         </div>
 
-                                        <p className="text-gray-600 dark:text-slate-300 text-sm leading-relaxed mb-3 line-clamp-2">
+                                        <p className="text-gray-600 dark:text-slate-300 text-sm leading-relaxed mb-3 line-clamp-2 whitespace-pre-wrap">
                                             {item.notes || "Keine Notizen hinterlegt."}
                                         </p>
 

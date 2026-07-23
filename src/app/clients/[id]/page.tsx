@@ -598,7 +598,7 @@ export default function ClientDetailPage() {
                                                             Seelsorge
                                                         </span>
                                                     </div>
-                                                    <p className="text-gray-600 dark:text-slate-400 text-sm leading-relaxed border-t border-gray-100 dark:border-white/5 pt-3">
+                                                    <p className="text-gray-600 dark:text-slate-400 text-sm leading-relaxed border-t border-gray-100 dark:border-white/5 pt-3 whitespace-pre-wrap">
                                                         {item.notes || "Keine Notizen hinterlegt."}
                                                     </p>
                                                     {item.smartCheck?.timeBound && (
@@ -676,7 +676,7 @@ export default function ClientDetailPage() {
                                                             SKB
                                                         </span>
                                                     </div>
-                                                    <p className="text-gray-600 dark:text-slate-400 text-sm leading-relaxed border-t border-gray-100 dark:border-white/5 pt-3">
+                                                    <p className="text-gray-600 dark:text-slate-400 text-sm leading-relaxed border-t border-gray-100 dark:border-white/5 pt-3 whitespace-pre-wrap">
                                                         {item.notes || "Keine Notizen hinterlegt."}
                                                     </p>
                                                 </div>

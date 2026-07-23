@@ -208,7 +208,7 @@ export default function UnifiedHistoryPage() {
                                             )}
                                         </div>
 
-                                        <p className="text-gray-600 dark:text-slate-300 text-sm leading-relaxed line-clamp-2">
+                                        <p className="text-gray-600 dark:text-slate-300 text-sm leading-relaxed line-clamp-2 whitespace-pre-wrap">
                                             {item.description || "Keine weiteren Details hinterlegt."}
                                         </p>
 

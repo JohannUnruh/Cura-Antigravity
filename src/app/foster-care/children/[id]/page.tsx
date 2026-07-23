@@ -562,7 +562,7 @@ export default function FosterChildDetailPage() {
                                                                 Eingezogen am {new Date(p.startDate).toLocaleDateString("de-DE")}
                                                             </p>
                                                             {p.notes && (
-                                                                <p className="text-xs text-gray-600 dark:text-slate-400 italic mt-2">
+                                                                <p className="text-xs text-gray-600 dark:text-slate-400 italic mt-2 whitespace-pre-wrap">
                                                                     Vermittlungsnotiz: {p.notes}
                                                                 </p>
                                                             )}
@@ -630,7 +630,7 @@ export default function FosterChildDetailPage() {
                                                             </p>
                                                         )}
                                                         {p.notes && (
-                                                            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 italic">
+                                                            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 italic whitespace-pre-wrap">
                                                                 Notizen: {p.notes}
                                                             </p>
                                                         )}

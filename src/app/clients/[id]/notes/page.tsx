@@ -8,6 +8,7 @@ import { Client } from "@/types";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/Button";
 import { ArrowLeft, Sparkles, Loader2, FileText, HeartHandshake, Baby, Mic, MicOff, Info } from "lucide-react";
+import { processVoiceCommands, capitalizeSentences } from "@/lib/utils/voiceCommands";
 
 type NoteType = "seelsorge" | "skb";
 
@@ -29,32 +30,45 @@ export default function NotesPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const recognitionRef = useRef<any>(null);
     const isListeningRef = useRef(false);
+    const hadFatalErrorRef = useRef(false);
     const notesRef = useRef(notes);
 
     // Keep ref in sync with state
     useEffect(() => { notesRef.current = notes; }, [notes]);
 
+    // ── Build the SpeechRecognition instance exactly once ──
     useEffect(() => {
+        if (typeof window === "undefined") return;
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
         if (!SpeechRecognitionAPI) return;
 
         setSpeechSupported(true);
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const recognition = new (SpeechRecognitionAPI as any)();
         recognition.continuous = true;
-        recognition.interimResults = false; // Only fire on final results for reliability
+        recognition.interimResults = true;
         recognition.lang = "de-DE";
+
+        recognition.onstart = () => {
+            console.debug('[NotesPage] onstart');
+            hadFatalErrorRef.current = false;
+        };
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         recognition.onresult = (event: any) => {
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 if (event.results[i].isFinal) {
-                    const transcript = event.results[i][0].transcript.trim();
-                    if (transcript) {
+                    const raw = event.results[i][0].transcript.trim();
+                    if (raw) {
+                        const { text: transcript } = processVoiceCommands(raw);
                         setNotes(prev => {
-                            const separator = prev && !prev.endsWith("\n") && !prev.endsWith(" ") ? " " : "";
-                            return prev + separator + transcript + " ";
+                            const capitalizedText = capitalizeSentences(transcript, prev);
+                            const isNewline = capitalizedText.startsWith("\n");
+                            const separator = prev && !prev.endsWith("\n") && !prev.endsWith(" ") && !isNewline ? " " : "";
+                            return prev + separator + capitalizedText + " ";
                         });
                     }
                 }
@@ -64,17 +78,46 @@ export default function NotesPage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         recognition.onerror = (event: any) => {
             console.error("Speech recognition error:", event.error);
-            if (event.error !== "no-speech" && event.error !== "aborted") {
+            // no-speech und aborted sind normal bei Pausen → ignorieren
+            if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+                hadFatalErrorRef.current = true;
                 isListeningRef.current = false;
                 setIsListening(false);
             }
         };
 
+        // ── Auto-Restart bei Sprechpausen ──
+        // Chrome beendet die Erkennung bei Stille automatisch.
+        // Wir starten DIESELBE Instanz erneut (keine neue erzeugen,
+        // sonst verlangt Chrome eine User-Gesture).
         recognition.onend = () => {
-            // Use ref (not state) to avoid stale closure
-            if (isListeningRef.current) {
-                try { recognition.start(); } catch { /* already running */ }
+            console.debug('[NotesPage] onend, isListening=', isListeningRef.current, 'hadFatal=', hadFatalErrorRef.current);
+
+            if (!isListeningRef.current || hadFatalErrorRef.current) {
+                setIsListening(false);
+                return;
             }
+
+            let attempts = 0;
+            const maxAttempts = 8;
+            const tryRestart = () => {
+                if (!isListeningRef.current || !recognitionRef.current) return;
+                try {
+                    recognitionRef.current.start();
+                    console.debug('[NotesPage] restart OK nach Versuch', attempts + 1);
+                } catch (e) {
+                    attempts++;
+                    console.debug('[NotesPage] restart fehlgeschlagen, Versuch', attempts, (e as Error)?.message);
+                    if (attempts < maxAttempts && isListeningRef.current) {
+                        setTimeout(tryRestart, Math.min(100 * Math.pow(2, attempts - 1), 2000));
+                    } else {
+                        console.warn('[NotesPage] Konnte Erkennung nicht neu starten');
+                        isListeningRef.current = false;
+                        setIsListening(false);
+                    }
+                }
+            };
+            setTimeout(tryRestart, 120);
         };
 
         recognitionRef.current = recognition;
@@ -87,12 +130,14 @@ export default function NotesPage() {
 
     const toggleListening = () => {
         if (!recognitionRef.current) return;
+
         if (isListeningRef.current) {
             isListeningRef.current = false;
             setIsListening(false);
             try { recognitionRef.current.stop(); } catch { /* */ }
         } else {
             isListeningRef.current = true;
+            hadFatalErrorRef.current = false;
             setIsListening(true);
             try { recognitionRef.current.start(); } catch { /* */ }
         }
@@ -221,6 +266,9 @@ export default function NotesPage() {
                                 <li><strong>Notizen:</strong> Weitere freie Notizen für die Akte.</li>
                             </ul>
                         )}
+                        <p className="mt-3 pt-3 border-t border-indigo-100 text-indigo-700">
+                            <strong>Sprachbefehle beim Diktieren:</strong> Sag &quot;<em>nächster Absatz</em>&quot; oder &quot;<em>neuer Absatz</em>&quot; für eine Leerzeile, &quot;<em>nächste Zeile</em>&quot; oder &quot;<em>neue Zeile</em>&quot; für einen einfachen Zeilenumbruch. Die Aufnahme läuft danach automatisch weiter.
+                        </p>
                     </div>
                 </div>
 

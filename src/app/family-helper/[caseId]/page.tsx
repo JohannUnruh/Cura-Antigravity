@@ -817,7 +817,7 @@ export default function CaseDetailPage() {
                                                                 <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">✓ Zeiterfassung</span>
                                                             )}
                                                         </div>
-                                                        <p className="text-sm text-gray-600 dark:text-slate-300 mt-1">{entry.notes}</p>
+                                                        <p className="text-sm text-gray-600 dark:text-slate-300 mt-1 whitespace-pre-wrap">{entry.notes}</p>
                                                     </div>
                                                     <div className="flex gap-1 ml-3">
                                                         <button onClick={() => openEditJournal(entry)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors" title="Bearbeiten">
