@@ -27,6 +27,8 @@ export function VoiceInput({ onResult, className, onError }: VoiceInputProps) {
     // Tracks whether the last onerror was fatal, so onend knows not to restart.
     const hadFatalErrorRef = useRef(false);
     const instanceIdRef = useRef(0);
+    const processedIndicesRef = useRef<Set<number>>(new Set());
+    const lastTranscriptRef = useRef<string>("");
 
     const onResultRef = useRef(onResult);
     const onErrorRef = useRef(onError);
@@ -60,6 +62,7 @@ export function VoiceInput({ onResult, className, onError }: VoiceInputProps) {
             console.warn(`[VoiceInput #${id}] ✅ onstart – Erkennung läuft`);
             hadFatalErrorRef.current = false;
             setIsListening(true);
+            processedIndicesRef.current.clear();
         };
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -67,6 +70,10 @@ export function VoiceInput({ onResult, className, onError }: VoiceInputProps) {
             let finalTranscript = '';
             for (let i = event.resultIndex; i < event.results.length; ++i) {
                 if (event.results[i].isFinal) {
+                    if (processedIndicesRef.current.has(i)) {
+                        continue;
+                    }
+                    processedIndicesRef.current.add(i);
                     finalTranscript += event.results[i][0].transcript;
                 }
             }
@@ -74,6 +81,11 @@ export function VoiceInput({ onResult, className, onError }: VoiceInputProps) {
                 console.warn(`[VoiceInput #${id}] 📝 onresult (final):`, finalTranscript);
                 const { text } = processVoiceCommands(finalTranscript);
                 if (finalTranscript.trim()) {
+                    if (lastTranscriptRef.current === text) {
+                        console.warn(`[VoiceInput #${id}] Ignoriere doppeltes Transkript:`, text);
+                        return;
+                    }
+                    lastTranscriptRef.current = text;
                     onResultRef.current(text);
                 }
             }

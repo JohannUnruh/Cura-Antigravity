@@ -32,6 +32,8 @@ export default function NotesPage() {
     const isListeningRef = useRef(false);
     const hadFatalErrorRef = useRef(false);
     const notesRef = useRef(notes);
+    const processedIndicesRef = useRef<Set<number>>(new Set());
+    const lastTranscriptRef = useRef<string>("");
 
     // Keep ref in sync with state
     useEffect(() => { notesRef.current = notes; }, [notes]);
@@ -55,15 +57,28 @@ export default function NotesPage() {
         recognition.onstart = () => {
             console.debug('[NotesPage] onstart');
             hadFatalErrorRef.current = false;
+            processedIndicesRef.current.clear();
         };
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         recognition.onresult = (event: any) => {
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 if (event.results[i].isFinal) {
+                    if (processedIndicesRef.current.has(i)) {
+                        continue;
+                    }
+                    processedIndicesRef.current.add(i);
+
                     const raw = event.results[i][0].transcript.trim();
                     if (raw) {
                         const { text: transcript } = processVoiceCommands(raw);
+                        
+                        if (lastTranscriptRef.current === transcript) {
+                            console.warn("[NotesPage] Ignoriere doppeltes Transkript:", transcript);
+                            continue;
+                        }
+                        lastTranscriptRef.current = transcript;
+
                         setNotes(prev => {
                             const capitalizedText = capitalizeSentences(transcript, prev);
                             const isNewline = capitalizedText.startsWith("\n");
