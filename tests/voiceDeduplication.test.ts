@@ -1,6 +1,6 @@
 // @ts-expect-error vitest is provided at runtime
 import { describe, it, expect } from "vitest";
-import { normalizeForDeduplication, combineBaseAndSessionText, processVoiceCommands, removeOverlap } from "../src/lib/utils/voiceCommands";
+import { normalizeForDeduplication, combineBaseAndSessionText, processVoiceCommands, removeOverlap, appendChunk } from "../src/lib/utils/voiceCommands";
 
 describe("Voice Processing & Deduplication", () => {
     it("normalizes text correctly by stripping punctuation, spaces, and casing", () => {
@@ -15,6 +15,15 @@ describe("Voice Processing & Deduplication", () => {
         expect(processVoiceCommands("Abschnitt 1 Punkt nächster Absatz Abschnitt 2").text).toBe("Abschnitt 1.\n\nAbschnitt 2");
     });
 
+    it("appends final chunks correctly with voice command processing", () => {
+        let acc = "";
+        acc = appendChunk(acc, "Ich habe Personen X beraten Punkt");
+        expect(acc).toBe("Ich habe Personen X beraten.");
+
+        acc = appendChunk(acc, "nächste Zeile Wir haben Ziele vereinbart Punkt");
+        expect(acc).toBe("Ich habe Personen X beraten.\nWir haben Ziele vereinbart.");
+    });
+
     it("removes overlap between base text and replayed session text", () => {
         const base = "Ich habe Personen X beraten.";
         const replay = "Ich habe Personen X beraten.";
@@ -26,12 +35,10 @@ describe("Voice Processing & Deduplication", () => {
 
     it("prevents repetition during auto-restart cycles on mobile", () => {
         const baseAfterSession1 = "Ich habe Personen X beraten.";
-        // Mobile Speech Engine restarts and re-sends the last sentence
         const session2Replay = "Ich habe Personen X beraten.";
         const result2 = combineBaseAndSessionText(baseAfterSession1, session2Replay);
         expect(result2).toBe("Ich habe Personen X beraten.");
 
-        // Mobile Speech Engine sends previous sentence + new sentence
         const session2Cumulative = "Ich habe Personen X beraten. Wir haben ein Ziel vereinbart.";
         const result3 = combineBaseAndSessionText(baseAfterSession1, session2Cumulative);
         expect(result3).toBe("Ich habe Personen X beraten. Wir haben ein Ziel vereinbart.");

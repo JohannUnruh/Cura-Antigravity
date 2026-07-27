@@ -186,11 +186,31 @@ export function combineBaseAndSessionText(baseText: string, sessionText: string)
 }
 
 /**
+ * Fügt einen finalisierten Sprachhappen (Chunk) sauber an den bisherigen Gesamttext an.
+ */
+export function appendChunk(accumulated: string, chunk: string): string {
+    const trimmedChunk = chunk.trim();
+    if (!trimmedChunk) return accumulated;
+
+    const { text: processed } = processVoiceCommands(trimmedChunk);
+    if (!processed.trim()) return accumulated;
+
+    const capitalized = capitalizeSentences(processed, accumulated);
+    if (!accumulated) return capitalized;
+
+    const isNewline = capitalized.startsWith("\n");
+    const separator = accumulated.endsWith("\n") || accumulated.endsWith(" ") || isNewline ? "" : " ";
+
+    return accumulated + separator + capitalized;
+}
+
+/**
  * Hilfsfunktion zum Abgleichen und Anfügen von Transkripten.
  */
 export function appendDeduplicatedText(existing: string, incoming: string): string {
     return combineBaseAndSessionText(existing, incoming);
 }
+
 
 
 

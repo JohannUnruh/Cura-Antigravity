@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { cn } from './Card';
-import { combineBaseAndSessionText } from '@/lib/utils/voiceCommands';
+import { appendChunk, normalizeForDeduplication, processVoiceCommands, capitalizeSentences } from '@/lib/utils/voiceCommands';
 
 interface VoiceInputProps {
     onResult: (text: string) => void;
@@ -20,16 +20,21 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
     const [isListening, setIsListening] = useState(false);
     const [supportError, setSupportError] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const recognitionRef = useRef<any>(null);
     const isListeningRef = useRef(false);
     const hadFatalErrorRef = useRef(false);
     const instanceIdRef = useRef(0);
 
-    // Basis-Text vor Beginn der aktuellen Aufnahme-Session
-    const baseTextRef = useRef<string>(value);
-    // Zuletzt berechneter Gesamttext
-    const lastFullTextRef = useRef<string>(value);
+    // Verarbeitete Indizes der AKTUELLEN WebSpeech-Session
+    const processedIndicesRef = useRef<Set<number>>(new Set());
+
+    // Akkumulierter Gesamttext über die gesamte Aufnahmedauer
+    const accumulatedTextRef = useRef<string>(value);
+
+    // Verlauf der normalisierten finalen Phrasen (überlebt Auto-Restarts!)
+    const recentHistoryRef = useRef<Array<{ norm: string; timestamp: number }>>([]);
 
     const onResultRef = useRef(onResult);
     const onErrorRef = useRef(onError);
@@ -73,21 +78,71 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
             console.warn(`[VoiceInput #${id}] ✅ onstart – Erkennung läuft`);
             hadFatalErrorRef.current = false;
             updateListeningState(true);
+            // Pro WebSpeech-Session setzen wir nur die Index-Registrierung zurück
+            processedIndicesRef.current.clear();
         };
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rec.onresult = (event: any) => {
-            let sessionText = '';
-            for (let i = 0; i < event.results.length; ++i) {
-                if (event.results[i] && event.results[i][0]) {
-                    sessionText += event.results[i][0].transcript;
+            let hasNewFinalChunk = false;
+            let currentInterim = '';
+
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                const result = event.results[i];
+                if (!result || !result[0]) continue;
+
+                if (result.isFinal) {
+                    if (processedIndicesRef.current.has(i)) {
+                        continue;
+                    }
+                    processedIndicesRef.current.add(i);
+
+                    const rawChunk = result[0].transcript.trim();
+                    if (rawChunk) {
+                        const norm = normalizeForDeduplication(rawChunk);
+                        const now = Date.now();
+
+                        // Veraltete Historieneinträge (> 15 Sekunden) löschen
+                        recentHistoryRef.current = recentHistoryRef.current.filter(
+                            item => now - item.timestamp < 15000
+                        );
+
+                        // Prüfen, ob norm im Verlauf oder im akkumulierten Text bereits vorhanden ist
+                        const normAccumulated = normalizeForDeduplication(accumulatedTextRef.current);
+                        const isDuplicate = 
+                            normAccumulated.endsWith(norm) ||
+                            recentHistoryRef.current.some(item => 
+                                item.norm === norm || 
+                                (norm.length > 5 && item.norm.endsWith(norm)) || 
+                                (item.norm.length > 5 && norm.endsWith(item.norm))
+                            );
+
+                        if (isDuplicate) {
+                            console.warn(`[VoiceInput #${id}] Ignoriere doppelte finale Phrase:`, rawChunk);
+                            continue;
+                        }
+
+                        recentHistoryRef.current.push({ norm, timestamp: now });
+                        accumulatedTextRef.current = appendChunk(accumulatedTextRef.current, rawChunk);
+                        hasNewFinalChunk = true;
+                    }
+                } else {
+                    // Interim Result für temporäre Vorschau
+                    currentInterim += result[0].transcript;
                 }
             }
 
-            if (sessionText) {
-                const combined = combineBaseAndSessionText(baseTextRef.current, sessionText);
-                lastFullTextRef.current = combined;
-                onResultRef.current(combined);
+            // Ausgeben des Textes an das Eltern-Element
+            if (hasNewFinalChunk || currentInterim) {
+                let textToEmit = accumulatedTextRef.current;
+                if (currentInterim.trim()) {
+                    const { text: processedInterim } = processVoiceCommands(currentInterim.trim());
+                    const capitalizedInterim = capitalizeSentences(processedInterim, accumulatedTextRef.current);
+                    const isNewline = capitalizedInterim.startsWith("\n");
+                    const separator = accumulatedTextRef.current.endsWith("\n") || accumulatedTextRef.current.endsWith(" ") || isNewline ? "" : " ";
+                    textToEmit = accumulatedTextRef.current + separator + capitalizedInterim;
+                }
+                onResultRef.current(textToEmit);
             }
         };
 
@@ -124,9 +179,6 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
                 updateListeningState(false);
                 return;
             }
-
-            // Bei automatischem Neustart Basis-Text auf den bisher erreichten Stand setzen
-            baseTextRef.current = lastFullTextRef.current;
 
             let attempts = 0;
             const maxAttempts = 8;
@@ -171,8 +223,10 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
             try { recognitionRef.current.stop(); } catch { /* not running */ }
         } else {
             console.warn(`[VoiceInput #${id}] ▶️ toggleListening → START`);
-            baseTextRef.current = value;
-            lastFullTextRef.current = value;
+            // Bei manuellem Start des Nutzers wird der aktuelle Wert des Feldes als Basis gesetzt
+            accumulatedTextRef.current = value;
+            const initialNorm = normalizeForDeduplication(value);
+            recentHistoryRef.current = initialNorm ? [{ norm: initialNorm, timestamp: Date.now() }] : [];
             hadFatalErrorRef.current = false;
             updateListeningState(true);
             try {
@@ -233,5 +287,6 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
         </div>
     );
 }
+
 
 
