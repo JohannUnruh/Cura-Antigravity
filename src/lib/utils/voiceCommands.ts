@@ -107,18 +107,78 @@ export function normalizeForDeduplication(text: string): string {
 }
 
 /**
+ * Entfernt Überlappungen zwischen dem Ende von base und dem Anfang von session.
+ * Verhindert Verdopplungen bei Replays durch mobile Sprach-Engines oder Auto-Restarts.
+ */
+export function removeOverlap(base: string, session: string): string {
+    const normBase = normalizeForDeduplication(base);
+    const normSession = normalizeForDeduplication(session);
+
+    if (!normBase || !normSession) return session;
+
+    // 1. Exakter Treffer oder base endet bereits mit der gesamten Session
+    if (normBase.endsWith(normSession)) {
+        return "";
+    }
+
+    // 2. Größte Überlappung (Suffix von normBase = Präfix von normSession) finden
+    let maxOverlapLen = 0;
+    const maxCheckLen = Math.min(normBase.length, normSession.length);
+
+    for (let len = maxCheckLen; len >= 3; len--) {
+        const baseSuffix = normBase.slice(-len);
+        const sessionPrefix = normSession.slice(0, len);
+        if (baseSuffix === sessionPrefix) {
+            maxOverlapLen = len;
+            break;
+        }
+    }
+
+    if (maxOverlapLen > 0) {
+        // Schneide die überlappenden alpha-nummerischen Zeichen vom Anfang von session ab
+        let normCount = 0;
+        let cutIndex = session.length;
+
+        for (let i = 0; i < session.length; i++) {
+            const char = session[i];
+            if (/[a-zA-Z0-9äöüÄÖÜß]/.test(char)) {
+                normCount++;
+            }
+            if (normCount === maxOverlapLen) {
+                cutIndex = i + 1;
+                break;
+            }
+        }
+
+        return session.slice(cutIndex).replace(/^[.,!?:;\s]+/, "").trimStart();
+    }
+
+    return session;
+}
+
+/**
  * Kombiniert den Basis-Text vor der Aufnahme mit dem aktuellen Session-Transkript.
- * Wendet Sprachbefehle und Satzanfangs-Kapitalisierung an.
+ * Entfernt Überlappungen, wendet Sprachbefehle und Satzanfangs-Kapitalisierung an.
  */
 export function combineBaseAndSessionText(baseText: string, sessionText: string): string {
     const trimmedSession = sessionText.trimStart();
     if (!trimmedSession) return baseText;
 
-    const { text: processed } = processVoiceCommands(trimmedSession);
-    const capitalizedSession = capitalizeSentences(processed, baseText);
+    // 1. Sprachbefehle verarbeiten
+    const { text: processedSession } = processVoiceCommands(trimmedSession);
 
-    if (!baseText) return capitalizedSession;
+    if (!baseText.trim()) {
+        return capitalizeSentences(processedSession, "");
+    }
 
+    // 2. Überlappungen mit dem Basis-Text strikt entfernen
+    const newSessionText = removeOverlap(baseText, processedSession);
+    if (!newSessionText.trim()) {
+        return baseText;
+    }
+
+    // 3. Kapitalisieren und anfügen
+    const capitalizedSession = capitalizeSentences(newSessionText, baseText);
     const isNewline = capitalizedSession.startsWith("\n");
     const separator = baseText.endsWith("\n") || baseText.endsWith(" ") || isNewline ? "" : " ";
 
@@ -131,5 +191,6 @@ export function combineBaseAndSessionText(baseText: string, sessionText: string)
 export function appendDeduplicatedText(existing: string, incoming: string): string {
     return combineBaseAndSessionText(existing, incoming);
 }
+
 
 
