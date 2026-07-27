@@ -140,7 +140,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 )}
             </div>
 
-            <nav className="flex-1 space-y-2 overflow-y-auto pr-2 custom-scrollbar">
+            <nav className="flex-1 space-y-1.5 overflow-y-auto px-2 py-1 custom-scrollbar">
                  {navItems
                     .filter((item) => {
                         const role = userProfile?.role;
@@ -175,20 +175,20 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                         return true;
                     })
                     .map((item) => {
-                    const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-                    const iconActiveColor = "text-indigo-600 dark:text-white";
+                    const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href + "/"));
+                    const iconActiveColor = "text-white";
                     return (
                         <Link
                             key={item.href}
                             href={item.href}
                             onClick={onClose}
                             className={cn(
-                                "flex items-center gap-4 px-5 py-3.5 transition-all duration-200",
+                                "flex items-center gap-3.5 px-4 py-3 text-sm transition-all duration-200",
                                 isActive ? "nav-pill-active" : "nav-pill-inactive"
                             )}
                         >
-                            <item.icon className={cn("w-5 h-5", isActive ? iconActiveColor : "text-gray-500 dark:text-slate-400")} />
-                            <span className={cn(isActive ? "" : "text-gray-700 dark:text-slate-300")}>
+                            <item.icon className={cn("w-5 h-5 shrink-0", isActive ? iconActiveColor : "text-gray-500 dark:text-slate-400")} />
+                            <span className={cn(isActive ? "font-bold text-white" : "font-medium text-gray-700 dark:text-slate-300")}>
                                 {item.name}
                             </span>
                         </Link>
