@@ -3,7 +3,7 @@ import { ConsultationType, LifeStage, SmartCheck, Consultation } from "@/types";
 import { Button } from "../ui/Button";
 import { VoiceInput } from "../ui/VoiceInput";
 import { PhotoUpload } from "../ui/PhotoUpload";
-import { capitalizeSentences } from "@/lib/utils/voiceCommands";
+import { appendDeduplicatedText } from "@/lib/utils/voiceCommands";
 
 import { useSettings } from "@/contexts/SettingsContext";
 
@@ -211,11 +211,8 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
     };
 
     const handleVoiceInput = (field: keyof Consultation, text: string) => {
-        const prev = formData[field] as string || "";
-        const capitalizedText = capitalizeSentences(text, prev);
-        const isNewline = capitalizedText.startsWith("\n");
-        const separator = prev && !prev.endsWith("\n") && !prev.endsWith(" ") && !isNewline ? " " : "";
-        handleChange(field, prev + separator + capitalizedText);
+        const prev = (formData[field] as string) || "";
+        handleChange(field, appendDeduplicatedText(prev, text));
     };
 
     // Helper formatting for date inputs

@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { clientService } from "@/lib/firebase/services/clientService";
 import { aiAnalysisService, ConsultationAnalysisResult, SkbAnalysisResult } from "@/lib/firebase/services/aiAnalysisService";
 import { Client } from "@/types";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/Button";
-import { ArrowLeft, Sparkles, Loader2, FileText, HeartHandshake, Baby, Mic, MicOff, Info } from "lucide-react";
-import { processVoiceCommands, capitalizeSentences } from "@/lib/utils/voiceCommands";
+import { VoiceInput } from "@/components/ui/VoiceInput";
+import { ArrowLeft, Sparkles, Loader2, FileText, HeartHandshake, Baby, Info } from "lucide-react";
+import { appendDeduplicatedText } from "@/lib/utils/voiceCommands";
 
 type NoteType = "seelsorge" | "skb";
 
@@ -24,139 +25,8 @@ export default function NotesPage() {
     const [analyzing, setAnalyzing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Voice-to-Text
+    // Voice-to-Text State
     const [isListening, setIsListening] = useState(false);
-    const [speechSupported, setSpeechSupported] = useState(false);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const recognitionRef = useRef<any>(null);
-    const isListeningRef = useRef(false);
-    const hadFatalErrorRef = useRef(false);
-    const notesRef = useRef(notes);
-    const processedIndicesRef = useRef<Set<number>>(new Set());
-    const lastTranscriptRef = useRef<string>("");
-
-    // Keep ref in sync with state
-    useEffect(() => { notesRef.current = notes; }, [notes]);
-
-    // ── Build the SpeechRecognition instance exactly once ──
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (!SpeechRecognitionAPI) return;
-
-        setSpeechSupported(true);
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const recognition = new (SpeechRecognitionAPI as any)();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = "de-DE";
-
-        recognition.onstart = () => {
-            console.debug('[NotesPage] onstart');
-            hadFatalErrorRef.current = false;
-            processedIndicesRef.current.clear();
-        };
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        recognition.onresult = (event: any) => {
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                if (event.results[i].isFinal) {
-                    if (processedIndicesRef.current.has(i)) {
-                        continue;
-                    }
-                    processedIndicesRef.current.add(i);
-
-                    const raw = event.results[i][0].transcript.trim();
-                    if (raw) {
-                        const { text: transcript } = processVoiceCommands(raw);
-                        
-                        if (lastTranscriptRef.current === transcript) {
-                            console.warn("[NotesPage] Ignoriere doppeltes Transkript:", transcript);
-                            continue;
-                        }
-                        lastTranscriptRef.current = transcript;
-
-                        setNotes(prev => {
-                            const capitalizedText = capitalizeSentences(transcript, prev);
-                            const isNewline = capitalizedText.startsWith("\n");
-                            const separator = prev && !prev.endsWith("\n") && !prev.endsWith(" ") && !isNewline ? " " : "";
-                            return prev + separator + capitalizedText + " ";
-                        });
-                    }
-                }
-            }
-        };
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        recognition.onerror = (event: any) => {
-            console.error("Speech recognition error:", event.error);
-            // no-speech und aborted sind normal bei Pausen → ignorieren
-            if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-                hadFatalErrorRef.current = true;
-                isListeningRef.current = false;
-                setIsListening(false);
-            }
-        };
-
-        // ── Auto-Restart bei Sprechpausen ──
-        // Chrome beendet die Erkennung bei Stille automatisch.
-        // Wir starten DIESELBE Instanz erneut (keine neue erzeugen,
-        // sonst verlangt Chrome eine User-Gesture).
-        recognition.onend = () => {
-            console.debug('[NotesPage] onend, isListening=', isListeningRef.current, 'hadFatal=', hadFatalErrorRef.current);
-
-            if (!isListeningRef.current || hadFatalErrorRef.current) {
-                setIsListening(false);
-                return;
-            }
-
-            let attempts = 0;
-            const maxAttempts = 8;
-            const tryRestart = () => {
-                if (!isListeningRef.current || !recognitionRef.current) return;
-                try {
-                    recognitionRef.current.start();
-                    console.debug('[NotesPage] restart OK nach Versuch', attempts + 1);
-                } catch (e) {
-                    attempts++;
-                    console.debug('[NotesPage] restart fehlgeschlagen, Versuch', attempts, (e as Error)?.message);
-                    if (attempts < maxAttempts && isListeningRef.current) {
-                        setTimeout(tryRestart, Math.min(100 * Math.pow(2, attempts - 1), 2000));
-                    } else {
-                        console.warn('[NotesPage] Konnte Erkennung nicht neu starten');
-                        isListeningRef.current = false;
-                        setIsListening(false);
-                    }
-                }
-            };
-            setTimeout(tryRestart, 120);
-        };
-
-        recognitionRef.current = recognition;
-
-        return () => {
-            isListeningRef.current = false;
-            try { recognition.stop(); } catch { /* not running */ }
-        };
-    }, []);
-
-    const toggleListening = () => {
-        if (!recognitionRef.current) return;
-
-        if (isListeningRef.current) {
-            isListeningRef.current = false;
-            setIsListening(false);
-            try { recognitionRef.current.stop(); } catch { /* */ }
-        } else {
-            isListeningRef.current = true;
-            hadFatalErrorRef.current = false;
-            setIsListening(true);
-            try { recognitionRef.current.start(); } catch { /* */ }
-        }
-    };
 
     const loadClient = useCallback(async () => {
         if (!clientId) return;
@@ -303,18 +173,12 @@ export default function NotesPage() {
                             )}
                         </div>
                         <div className="flex items-center gap-2">
-                            {speechSupported && (
-                                <button
-                                    onClick={toggleListening}
-                                    title={isListening ? "Aufnahme stoppen" : "Spracheingabe starten"}
-                                    className={`p-2 rounded-xl transition-all ${isListening
-                                        ? "bg-red-100 text-red-600 hover:bg-red-200 shadow-sm"
-                                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                        }`}
-                                >
-                                    {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                                </button>
-                            )}
+                            <VoiceInput
+                                onResult={(text) => {
+                                    setNotes(prev => appendDeduplicatedText(prev, text));
+                                }}
+                                onListeningChange={(listening) => setIsListening(listening)}
+                            />
                             <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${noteType === "seelsorge"
                                 ? "bg-indigo-50 text-indigo-600"
                                 : "bg-emerald-50 text-emerald-600"

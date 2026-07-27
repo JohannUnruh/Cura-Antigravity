@@ -4,6 +4,7 @@ import { Button } from "../ui/Button";
 import { VoiceInput } from "../ui/VoiceInput";
 import { PhotoUpload } from "../ui/PhotoUpload";
 import { useSettings } from "@/contexts/SettingsContext";
+import { appendDeduplicatedText } from "@/lib/utils/voiceCommands";
 
 interface SkbFormProps {
     clientId: string;
@@ -179,7 +180,8 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
     };
 
     const handleVoiceInput = (field: keyof SkbConsultation, text: string) => {
-        handleChange(field, ((formData[field] as string) || "") + " " + text);
+        const prev = (formData[field] as string) || "";
+        handleChange(field, appendDeduplicatedText(prev, text));
     };
 
     const handleSubmit = (e: React.FormEvent) => {

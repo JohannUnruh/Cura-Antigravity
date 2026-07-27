@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { cn } from './Card';
-import { processVoiceCommands } from '@/lib/utils/voiceCommands';
+import { processVoiceCommands, normalizeForDeduplication } from '@/lib/utils/voiceCommands';
 
 interface VoiceInputProps {
     onResult: (text: string) => void;
     className?: string;
     onError?: (error: string) => void;
+    onListeningChange?: (isListening: boolean) => void;
 }
 
 // Fehler, die echt fatal sind → Aufnahme muss stoppen.
@@ -17,7 +18,7 @@ const FATAL_ERRORS = new Set(["not-allowed", "service-not-allowed"]);
 // Eindeutige ID pro Instanz, um Unmount-Zyklen zu erkennen
 let instanceCounter = 0;
 
-export function VoiceInput({ onResult, className, onError }: VoiceInputProps) {
+export function VoiceInput({ onResult, className, onError, onListeningChange }: VoiceInputProps) {
     const [isListening, setIsListening] = useState(false);
     const [supportError, setSupportError] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -28,15 +29,27 @@ export function VoiceInput({ onResult, className, onError }: VoiceInputProps) {
     const hadFatalErrorRef = useRef(false);
     const instanceIdRef = useRef(0);
     const processedIndicesRef = useRef<Set<number>>(new Set());
-    const lastTranscriptRef = useRef<string>("");
+
+    // Verlauf der letzten finalen Transkripte mit Zeitstempel (für mobil-sichere Entdopplung)
+    const recentTranscriptsRef = useRef<Array<{ norm: string; timestamp: number }>>([]);
 
     const onResultRef = useRef(onResult);
     const onErrorRef = useRef(onError);
+    const onListeningChangeRef = useRef(onListeningChange);
 
     useEffect(() => {
         onResultRef.current = onResult;
         onErrorRef.current = onError;
+        onListeningChangeRef.current = onListeningChange;
     });
+
+    const updateListeningState = (listening: boolean) => {
+        isListeningRef.current = listening;
+        setIsListening(listening);
+        if (onListeningChangeRef.current) {
+            onListeningChangeRef.current(listening);
+        }
+    };
 
     // ── Build the SpeechRecognition instance exactly once ──
     useEffect(() => {
@@ -61,7 +74,7 @@ export function VoiceInput({ onResult, className, onError }: VoiceInputProps) {
         rec.onstart = () => {
             console.warn(`[VoiceInput #${id}] ✅ onstart – Erkennung läuft`);
             hadFatalErrorRef.current = false;
-            setIsListening(true);
+            updateListeningState(true);
             processedIndicesRef.current.clear();
         };
 
@@ -80,13 +93,30 @@ export function VoiceInput({ onResult, className, onError }: VoiceInputProps) {
             if (finalTranscript) {
                 console.warn(`[VoiceInput #${id}] 📝 onresult (final):`, finalTranscript);
                 const { text } = processVoiceCommands(finalTranscript);
-                if (finalTranscript.trim()) {
-                    if (lastTranscriptRef.current === text) {
-                        console.warn(`[VoiceInput #${id}] Ignoriere doppeltes Transkript:`, text);
+                const trimmedText = text.trim();
+
+                if (trimmedText) {
+                    const norm = normalizeForDeduplication(trimmedText);
+                    const now = Date.now();
+
+                    // Veraltete Einträge (> 20 Sekunden) bereinigen
+                    recentTranscriptsRef.current = recentTranscriptsRef.current.filter(
+                        item => now - item.timestamp < 20000
+                    );
+
+                    // Prüfen, ob norm im Verlauf (oder als Teilstring) enthalten ist
+                    const isDuplicate = recentTranscriptsRef.current.some(
+                        item => item.norm === norm || item.norm.endsWith(norm) || norm.endsWith(item.norm)
+                    );
+
+                    if (isDuplicate) {
+                        console.warn(`[VoiceInput #${id}] Ignoriere doppeltes Transkript (History Match):`, trimmedText);
                         return;
                     }
-                    lastTranscriptRef.current = text;
-                    onResultRef.current(text);
+
+                    // Im Verlauf speichern und weiterleiten
+                    recentTranscriptsRef.current.push({ norm, timestamp: now });
+                    onResultRef.current(trimmedText);
                 }
             }
         };
@@ -114,27 +144,20 @@ export function VoiceInput({ onResult, className, onError }: VoiceInputProps) {
 
             if (FATAL_ERRORS.has(event.error)) {
                 hadFatalErrorRef.current = true;
-                isListeningRef.current = false;
-                setIsListening(false);
+                updateListeningState(false);
             }
         };
 
         // ── Auto-Restart bei Sprechpausen ──
-        // Chrome beendet die Erkennung bei Stille automatisch (auch mit
-        // continuous=true). Wir starten DIESELBE Instanz einfach erneut.
-        // Wichtig: Keine neue Instanz erzeugen, sonst verlangt Chrome
-        // eine neue User-Gesture und blockiert den Start.
         rec.onend = () => {
             console.warn(`[VoiceInput #${id}] 🔚 onend – isListening=${isListeningRef.current}, hadFatal=${hadFatalErrorRef.current}`);
 
             if (!isListeningRef.current || hadFatalErrorRef.current) {
                 console.warn(`[VoiceInput #${id}] ⛔ Kein Neustart (isListening=${isListeningRef.current}, hadFatal=${hadFatalErrorRef.current})`);
-                setIsListening(false);
+                updateListeningState(false);
                 return;
             }
 
-            // Retry-Schleife: start() kann direkt nach onend noch fehlschlagen,
-            // weil Chrome die interne Audio-Session noch nicht freigegeben hat.
             let attempts = 0;
             const maxAttempts = 8;
             const tryRestart = () => {
@@ -150,19 +173,15 @@ export function VoiceInput({ onResult, className, onError }: VoiceInputProps) {
                     const errMsg = (e as Error)?.message || '';
                     console.warn(`[VoiceInput #${id}] ⚠️ Restart fehlgeschlagen, Versuch ${attempts}:`, errMsg);
                     if (attempts < maxAttempts && isListeningRef.current) {
-                        // Exponentieller Backoff: 100, 200, 400, 800, …
                         setTimeout(tryRestart, Math.min(100 * Math.pow(2, attempts - 1), 2000));
                     } else {
-                        // Alle Versuche erschöpft → sauber aufgeben
                         console.warn(`[VoiceInput #${id}] 💀 Konnte Erkennung nicht neu starten nach ${maxAttempts} Versuchen`);
-                        isListeningRef.current = false;
-                        setIsListening(false);
+                        updateListeningState(false);
                         setErrorMessage("Neustart fehlgeschlagen – bitte erneut klicken.");
                         setTimeout(() => setErrorMessage(null), 5000);
                     }
                 }
             };
-            // Erster Versuch nach kurzer Pause
             setTimeout(tryRestart, 120);
         };
 
@@ -170,7 +189,7 @@ export function VoiceInput({ onResult, className, onError }: VoiceInputProps) {
 
         return () => {
             console.warn(`[VoiceInput #${id}] 🔴 UNMOUNT – Cleanup, isListening war ${isListeningRef.current}`);
-            isListeningRef.current = false;
+            updateListeningState(false);
             try { rec.stop(); } catch { /* not running */ }
         };
     }, []);
@@ -180,23 +199,19 @@ export function VoiceInput({ onResult, className, onError }: VoiceInputProps) {
         const id = instanceIdRef.current;
 
         if (isListeningRef.current) {
-            // ── Stoppen ──
             console.warn(`[VoiceInput #${id}] 🛑 toggleListening → STOP`);
-            isListeningRef.current = false;
-            setIsListening(false);
+            updateListeningState(false);
             try { recognitionRef.current.stop(); } catch { /* not running */ }
         } else {
-            // ── Starten (hier gibt es eine echte User-Gesture) ──
             console.warn(`[VoiceInput #${id}] ▶️ toggleListening → START`);
-            isListeningRef.current = true;
+            recentTranscriptsRef.current = [];
             hadFatalErrorRef.current = false;
-            setIsListening(true);
+            updateListeningState(true);
             try {
                 recognitionRef.current.start();
             } catch (error) {
                 console.error(`[VoiceInput #${id}] start() fehlgeschlagen:`, error);
-                isListeningRef.current = false;
-                setIsListening(false);
+                updateListeningState(false);
             }
         }
     }, []);
@@ -250,3 +265,4 @@ export function VoiceInput({ onResult, className, onError }: VoiceInputProps) {
         </div>
     );
 }
+

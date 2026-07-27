@@ -93,3 +93,50 @@ export function capitalizeSentences(text: string, precedingText: string = ""): s
 
     return result;
 }
+
+/**
+ * Normalisiert einen Text für den Duplikats-Vergleich:
+ * Wandelt in Kleinbuchstaben um und entfernt Satzzeichen sowie Whitespace.
+ */
+export function normalizeForDeduplication(text: string): string {
+    if (!text) return "";
+    return text
+        .toLowerCase()
+        .replace(/[.,!?:;\s\-–—"']/g, "");
+}
+
+/**
+ * Fügt einen neuen transkribierten Sprachtext an bestehenden Text an.
+ * Prüft strikt auf Duplikate, um Mehrfacheinfügungen (z. B. auf Mobilgeräten) zu verhindern.
+ */
+export function appendDeduplicatedText(existing: string, incoming: string): string {
+    const trimmedIncoming = incoming.trim();
+    if (!trimmedIncoming) return existing;
+
+    const normIncoming = normalizeForDeduplication(trimmedIncoming);
+    if (!normIncoming) return existing;
+
+    const trimmedExisting = existing.trim();
+    const normExisting = normalizeForDeduplication(trimmedExisting);
+
+    // 1. Prüfen, ob der bisherige Text genau mit dem neuen Text endet
+    if (normExisting.endsWith(normIncoming)) {
+        console.warn('[VoiceInput] Text endet bereits mit dem neuen Transkript – Ignoriere Duplikat:', incoming);
+        return existing;
+    }
+
+    // 2. Prüfen, ob das neue Transkript in der jüngsten Historie des bestehenden Texts enthalten ist
+    const recentNormExisting = normExisting.slice(-Math.max(normIncoming.length * 3, 300));
+    if (recentNormExisting.includes(normIncoming)) {
+        console.warn('[VoiceInput] Jüngster Text enthält bereits das neue Transkript – Ignoriere Duplikat:', incoming);
+        return existing;
+    }
+
+    // Formatieren und Anfügen
+    const capitalizedText = capitalizeSentences(trimmedIncoming, existing);
+    const isNewline = capitalizedText.startsWith("\n");
+    const separator = existing && !existing.endsWith("\n") && !existing.endsWith(" ") && !isNewline ? " " : "";
+
+    return existing + separator + capitalizedText;
+}
+
