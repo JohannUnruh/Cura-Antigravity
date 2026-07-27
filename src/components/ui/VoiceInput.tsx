@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { cn } from './Card';
-import { appendChunk, normalizeForDeduplication, processVoiceCommands, capitalizeSentences } from '@/lib/utils/voiceCommands';
+import { appendChunk, processVoiceCommands, capitalizeSentences } from '@/lib/utils/voiceCommands';
 
 interface VoiceInputProps {
     onResult: (text: string) => void;
@@ -13,6 +13,15 @@ interface VoiceInputProps {
 
 // Fehler, die echt fatal sind → Aufnahme muss stoppen.
 const FATAL_ERRORS = new Set(["not-allowed", "service-not-allowed"]);
+
+/**
+ * Erkennung ob mobiles Gerät (Touchscreen-Smartphone).
+ * Tablets mit Tastatur werden als Desktop behandelt.
+ */
+function detectIsMobile(): boolean {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+    return /Android|iPhone|iPod/i.test(navigator.userAgent);
+}
 
 let instanceCounter = 0;
 
@@ -26,15 +35,10 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
     const isListeningRef = useRef(false);
     const hadFatalErrorRef = useRef(false);
     const instanceIdRef = useRef(0);
-
-    // Verarbeitete Indizes der AKTUELLEN WebSpeech-Session
-    const processedIndicesRef = useRef<Set<number>>(new Set());
+    const isMobileRef = useRef(false);
 
     // Akkumulierter Gesamttext über die gesamte Aufnahmedauer
     const accumulatedTextRef = useRef<string>(value);
-
-    // Verlauf der normalisierten finalen Phrasen (überlebt Auto-Restarts!)
-    const recentHistoryRef = useRef<Array<{ norm: string; timestamp: number }>>([]);
 
     const onResultRef = useRef(onResult);
     const onErrorRef = useRef(onError);
@@ -54,11 +58,40 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
         }
     };
 
+    // ── Hilfsfunktion: Recording starten ──
+    const startRecording = useCallback(() => {
+        if (!recognitionRef.current || isListeningRef.current) return;
+        const id = instanceIdRef.current;
+        console.warn(`[VoiceInput #${id}] ▶️ startRecording (mobile=${isMobileRef.current})`);
+
+        accumulatedTextRef.current = value;
+        hadFatalErrorRef.current = false;
+        updateListeningState(true);
+        try {
+            recognitionRef.current.start();
+        } catch (error) {
+            console.error(`[VoiceInput #${id}] start() fehlgeschlagen:`, error);
+            updateListeningState(false);
+        }
+    }, [value]);
+
+    // ── Hilfsfunktion: Recording stoppen ──
+    const stopRecording = useCallback(() => {
+        if (!recognitionRef.current) return;
+        const id = instanceIdRef.current;
+        console.warn(`[VoiceInput #${id}] 🛑 stopRecording`);
+        updateListeningState(false);
+        try { recognitionRef.current.stop(); } catch { /* not running */ }
+    }, []);
+
     // ── Build the SpeechRecognition instance exactly once ──
     useEffect(() => {
         const id = ++instanceCounter;
         instanceIdRef.current = id;
-        console.warn(`[VoiceInput #${id}] 🟢 MOUNT – Instanz erstellt`);
+        const mobile = detectIsMobile();
+        isMobileRef.current = mobile;
+
+        console.warn(`[VoiceInput #${id}] 🟢 MOUNT – mobile=${mobile}`);
 
         if (typeof window === 'undefined') return;
 
@@ -70,80 +103,51 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
         }
 
         const rec = new SpeechRecognition();
-        rec.continuous = true;
+        // Entscheidend: Auf Mobilgeräten KEIN continuous-Modus!
+        // Jeder Sprechvorgang = ein einzelnes Ergebnis, kein Auto-Restart-Chaos.
+        rec.continuous = !mobile;
         rec.interimResults = true;
         rec.lang = 'de-DE';
 
         rec.onstart = () => {
-            console.warn(`[VoiceInput #${id}] ✅ onstart – Erkennung läuft`);
+            console.warn(`[VoiceInput #${id}] ✅ onstart`);
             hadFatalErrorRef.current = false;
             updateListeningState(true);
-            // Pro WebSpeech-Session setzen wir nur die Index-Registrierung zurück
-            processedIndicesRef.current.clear();
         };
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rec.onresult = (event: any) => {
-            let hasNewFinalChunk = false;
-            let currentInterim = '';
+            // Gesamten Session-Transkript aufbauen (final + interim getrennt)
+            let finalText = '';
+            let interimText = '';
 
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
+            for (let i = 0; i < event.results.length; ++i) {
                 const result = event.results[i];
                 if (!result || !result[0]) continue;
-
                 if (result.isFinal) {
-                    if (processedIndicesRef.current.has(i)) {
-                        continue;
-                    }
-                    processedIndicesRef.current.add(i);
-
-                    const rawChunk = result[0].transcript.trim();
-                    if (rawChunk) {
-                        const norm = normalizeForDeduplication(rawChunk);
-                        const now = Date.now();
-
-                        // Veraltete Historieneinträge (> 15 Sekunden) löschen
-                        recentHistoryRef.current = recentHistoryRef.current.filter(
-                            item => now - item.timestamp < 15000
-                        );
-
-                        // Prüfen, ob norm im Verlauf oder im akkumulierten Text bereits vorhanden ist
-                        const normAccumulated = normalizeForDeduplication(accumulatedTextRef.current);
-                        const isDuplicate = 
-                            normAccumulated.endsWith(norm) ||
-                            recentHistoryRef.current.some(item => 
-                                item.norm === norm || 
-                                (norm.length > 5 && item.norm.endsWith(norm)) || 
-                                (item.norm.length > 5 && norm.endsWith(item.norm))
-                            );
-
-                        if (isDuplicate) {
-                            console.warn(`[VoiceInput #${id}] Ignoriere doppelte finale Phrase:`, rawChunk);
-                            continue;
-                        }
-
-                        recentHistoryRef.current.push({ norm, timestamp: now });
-                        accumulatedTextRef.current = appendChunk(accumulatedTextRef.current, rawChunk);
-                        hasNewFinalChunk = true;
-                    }
+                    finalText += result[0].transcript;
                 } else {
-                    // Interim Result für temporäre Vorschau
-                    currentInterim += result[0].transcript;
+                    interimText += result[0].transcript;
                 }
             }
 
-            // Ausgeben des Textes an das Eltern-Element
-            if (hasNewFinalChunk || currentInterim) {
-                let textToEmit = accumulatedTextRef.current;
-                if (currentInterim.trim()) {
-                    const { text: processedInterim } = processVoiceCommands(currentInterim.trim());
-                    const capitalizedInterim = capitalizeSentences(processedInterim, accumulatedTextRef.current);
-                    const isNewline = capitalizedInterim.startsWith("\n");
-                    const separator = accumulatedTextRef.current.endsWith("\n") || accumulatedTextRef.current.endsWith(" ") || isNewline ? "" : " ";
-                    textToEmit = accumulatedTextRef.current + separator + capitalizedInterim;
-                }
-                onResultRef.current(textToEmit);
+            // Finale Ergebnisse direkt in den Akkumulator übernehmen
+            if (finalText.trim()) {
+                const newAccumulated = appendChunk(accumulatedTextRef.current, finalText);
+                accumulatedTextRef.current = newAccumulated;
             }
+
+            // Interim-Text nur als flüchtige Live-Vorschau anhängen
+            let textToEmit = accumulatedTextRef.current;
+            if (interimText.trim()) {
+                const { text: processedInterim } = processVoiceCommands(interimText.trim());
+                const capitalizedInterim = capitalizeSentences(processedInterim, accumulatedTextRef.current);
+                const isNewline = capitalizedInterim.startsWith("\n");
+                const separator = accumulatedTextRef.current.endsWith("\n") || accumulatedTextRef.current.endsWith(" ") || isNewline ? "" : " ";
+                textToEmit = accumulatedTextRef.current + separator + capitalizedInterim;
+            }
+
+            onResultRef.current(textToEmit);
         };
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -158,6 +162,10 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
                 msg = "Erkennungsdienst vom System blockiert.";
             } else if (event.error === "network") {
                 msg = "Netzwerkfehler – Verbindung prüfen.";
+            } else if (event.error === "no-speech") {
+                // Auf Mobilgeräten kommt no-speech wenn man den Button hält
+                // ohne zu sprechen – kein fataler Fehler.
+                msg = "";
             }
 
             if (msg) {
@@ -171,10 +179,20 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
             }
         };
 
-        // ── Auto-Restart bei Sprechpausen ──
         rec.onend = () => {
-            console.warn(`[VoiceInput #${id}] 🔚 onend – isListening=${isListeningRef.current}`);
+            console.warn(`[VoiceInput #${id}] 🔚 onend – isListening=${isListeningRef.current}, mobile=${mobile}`);
 
+            if (mobile) {
+                // ── MOBIL: Kein Auto-Restart! ──
+                // Die Aufnahme endet sauber wenn der Nutzer loslässt
+                // oder wenn die Engine nach einer Äußerung stoppt.
+                updateListeningState(false);
+                // Finalen Stand nochmal ausgeben (ohne flüchtige Interim-Daten)
+                onResultRef.current(accumulatedTextRef.current);
+                return;
+            }
+
+            // ── DESKTOP: Auto-Restart bei Sprechpausen ──
             if (!isListeningRef.current || hadFatalErrorRef.current) {
                 updateListeningState(false);
                 return;
@@ -194,7 +212,7 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
                     if (attempts < maxAttempts && isListeningRef.current) {
                         setTimeout(tryRestart, Math.min(100 * Math.pow(2, attempts - 1), 2000));
                     } else {
-                        console.warn(`[VoiceInput #${id}] 💀 Konnte Erkennung nicht neu starten nach ${maxAttempts} Versuchen`);
+                        console.warn(`[VoiceInput #${id}] 💀 Neustart nach ${maxAttempts} Versuchen fehlgeschlagen`);
                         updateListeningState(false);
                         setErrorMessage("Neustart fehlgeschlagen – bitte erneut klicken.");
                         setTimeout(() => setErrorMessage(null), 5000);
@@ -213,30 +231,41 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
         };
     }, []);
 
-    const toggleListening = useCallback(() => {
-        if (!recognitionRef.current) return;
-        const id = instanceIdRef.current;
-
+    // ── Desktop: Toggle-Klick ──
+    const handleClick = useCallback(() => {
+        if (isMobileRef.current) return; // Auf Mobilgeräten ignorieren – dort regeln Pointer-Events
         if (isListeningRef.current) {
-            console.warn(`[VoiceInput #${id}] 🛑 toggleListening → STOP`);
-            updateListeningState(false);
-            try { recognitionRef.current.stop(); } catch { /* not running */ }
+            stopRecording();
         } else {
-            console.warn(`[VoiceInput #${id}] ▶️ toggleListening → START`);
-            // Bei manuellem Start des Nutzers wird der aktuelle Wert des Feldes als Basis gesetzt
-            accumulatedTextRef.current = value;
-            const initialNorm = normalizeForDeduplication(value);
-            recentHistoryRef.current = initialNorm ? [{ norm: initialNorm, timestamp: Date.now() }] : [];
-            hadFatalErrorRef.current = false;
-            updateListeningState(true);
-            try {
-                recognitionRef.current.start();
-            } catch (error) {
-                console.error(`[VoiceInput #${id}] start() fehlgeschlagen:`, error);
-                updateListeningState(false);
-            }
+            startRecording();
         }
-    }, [value]);
+    }, [startRecording, stopRecording]);
+
+    // ── Mobil: Push-to-Talk (Halten = Aufnehmen, Loslassen = Stoppen) ──
+    const handlePointerDown = useCallback((e: React.PointerEvent) => {
+        if (!isMobileRef.current) return;
+        // Context-Menü auf Long-Press verhindern
+        e.preventDefault();
+        startRecording();
+    }, [startRecording]);
+
+    const handlePointerUp = useCallback(() => {
+        if (!isMobileRef.current) return;
+        stopRecording();
+    }, [stopRecording]);
+
+    const handlePointerLeave = useCallback(() => {
+        // Falls der Finger vom Button wegrutscht → Aufnahme stoppen
+        if (!isMobileRef.current || !isListeningRef.current) return;
+        stopRecording();
+    }, [stopRecording]);
+
+    // Context-Menü unterdrücken auf dem Mikrofon-Button (Long-Press auf mobil)
+    const handleContextMenu = useCallback((e: React.MouseEvent) => {
+        if (isMobileRef.current) {
+            e.preventDefault();
+        }
+    }, []);
 
     if (supportError) {
         return (
@@ -258,15 +287,20 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
         <div className="relative inline-block">
             <button
                 type="button"
-                onClick={toggleListening}
+                onClick={handleClick}
+                onPointerDown={handlePointerDown}
+                onPointerUp={handlePointerUp}
+                onPointerLeave={handlePointerLeave}
+                onPointerCancel={handlePointerUp}
+                onContextMenu={handleContextMenu}
                 className={cn(
-                    "p-2 rounded-full transition-all duration-300 relative group",
+                    "p-2 rounded-full transition-all duration-300 relative group touch-none select-none",
                     isListening
                         ? "bg-red-100 text-red-600 hover:bg-red-200 shadow-[0_0_15px_rgba(239,68,68,0.3)] animate-pulse"
                         : "bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:scale-105",
                     className
                 )}
-                title={isListening ? "Aufnahme stoppen" : "Spracheingabe starten"}
+                title={isListening ? "Aufnahme stoppen" : "Spracheingabe starten (auf Mobilgeräten gedrückt halten)"}
             >
                 {isListening ? (
                     <>
@@ -287,6 +321,3 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
         </div>
     );
 }
-
-
-
