@@ -3,7 +3,6 @@ import { ConsultationType, LifeStage, SmartCheck, Consultation } from "@/types";
 import { Button } from "../ui/Button";
 import { VoiceInput } from "../ui/VoiceInput";
 import { PhotoUpload } from "../ui/PhotoUpload";
-import { appendDeduplicatedText } from "@/lib/utils/voiceCommands";
 
 import { useSettings } from "@/contexts/SettingsContext";
 
@@ -211,8 +210,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
     };
 
     const handleVoiceInput = (field: keyof Consultation, text: string) => {
-        const prev = (formData[field] as string) || "";
-        handleChange(field, appendDeduplicatedText(prev, text));
+        handleChange(field, text);
     };
 
     // Helper formatting for date inputs
@@ -547,7 +545,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                         <div>
                             <div className="flex justify-between mb-1">
                                 <label htmlFor="goalAgreement" className="block text-base font-semibold text-gray-900 dark:text-white">Zielvereinbarung</label>
-                                <VoiceInput onResult={(text) => handleVoiceInput('goalAgreement', text)} />
+                                <VoiceInput value={formData.goalAgreement} onResult={(text) => handleVoiceInput('goalAgreement', text)} />
                             </div>
                             <textarea
                                 id="goalAgreement"
@@ -567,7 +565,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                 <div>
                     <div className="flex justify-between mb-1">
                         <label htmlFor="causeFromCounselor" className="block text-base font-semibold text-gray-900 dark:text-white">Ursache aus Seelsorger-Sicht</label>
-                        <VoiceInput onResult={(text) => handleVoiceInput('causeFromCounselor', text)} />
+                        <VoiceInput value={formData.causeFromCounselor} onResult={(text) => handleVoiceInput('causeFromCounselor', text)} />
                     </div>
                     <textarea
                         id="causeFromCounselor"
@@ -581,7 +579,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                 <div>
                     <div className="flex justify-between mb-1">
                         <label htmlFor="notes" className="block text-base font-semibold text-gray-900 dark:text-white">Notizen</label>
-                        <VoiceInput onResult={(text) => handleVoiceInput('notes', text)} />
+                        <VoiceInput value={formData.notes} onResult={(text) => handleVoiceInput('notes', text)} />
                     </div>
                     <textarea
                         id="notes"

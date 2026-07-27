@@ -9,7 +9,6 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/Button";
 import { VoiceInput } from "@/components/ui/VoiceInput";
 import { ArrowLeft, Sparkles, Loader2, FileText, HeartHandshake, Baby, Info } from "lucide-react";
-import { appendDeduplicatedText } from "@/lib/utils/voiceCommands";
 
 type NoteType = "seelsorge" | "skb";
 
@@ -174,9 +173,8 @@ export default function NotesPage() {
                         </div>
                         <div className="flex items-center gap-2">
                             <VoiceInput
-                                onResult={(text) => {
-                                    setNotes(prev => appendDeduplicatedText(prev, text));
-                                }}
+                                value={notes}
+                                onResult={(text) => setNotes(text)}
                                 onListeningChange={(listening) => setIsListening(listening)}
                             />
                             <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${noteType === "seelsorge"

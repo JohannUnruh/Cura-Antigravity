@@ -1,31 +1,35 @@
-import { describe, it, expect } from "./test-framework";
-import { normalizeForDeduplication, appendDeduplicatedText } from "../src/lib/utils/voiceCommands";
+// @ts-expect-error vitest is provided at runtime
+import { describe, it, expect } from "vitest";
+import { normalizeForDeduplication, combineBaseAndSessionText, processVoiceCommands } from "../src/lib/utils/voiceCommands";
 
-describe("Voice Deduplication", () => {
+describe("Voice Processing & Deduplication", () => {
     it("normalizes text correctly by stripping punctuation, spaces, and casing", () => {
         expect(normalizeForDeduplication("Ich habe Personen X beraten.")).toBe("ichhabepersonenxberaten");
         expect(normalizeForDeduplication("  ich habe  personen x beraten  ")).toBe("ichhabepersonenxberaten");
-        expect(normalizeForDeduplication("Ich habe Personen X beraten")).toBe("ichhabepersonenxberaten");
     });
 
-    it("prevents duplicate sentences when appended to existing text", () => {
-        const existing = "Heute war ein Gespräch. Ich habe Personen X beraten.";
-        const incoming = "Ich habe Personen X beraten.";
-        const result = appendDeduplicatedText(existing, incoming);
-        expect(result).toBe(existing);
+    it("replaces voice commands correctly for punctuation and linebreaks", () => {
+        expect(processVoiceCommands("Ich habe Personen X beraten Punkt").text).toBe("Ich habe Personen X beraten.");
+        expect(processVoiceCommands("Hallo Komma wie geht es dir Fragezeichen").text).toBe("Hallo, wie geht es dir?");
+        expect(processVoiceCommands("Erster Satz Punkt nächste Zeile Zweiter Satz").text).toBe("Erster Satz.\nZweiter Satz");
+        expect(processVoiceCommands("Abschnitt 1 Punkt nächster Absatz Abschnitt 2").text).toBe("Abschnitt 1.\n\nAbschnitt 2");
     });
 
-    it("prevents duplicates with slight variations in whitespace or trailing punctuation", () => {
-        const existing = "Heute war ein Gespräch. Ich habe Personen X beraten.";
-        const incoming = " ich habe personen x beraten ";
-        const result = appendDeduplicatedText(existing, incoming);
-        expect(result).toBe(existing);
+    it("combines base text with session text without duplication", () => {
+        const base = "Heute war ein Gespräch.";
+        const session = "Ich habe Personen X beraten Punkt";
+        const result = combineBaseAndSessionText(base, session);
+        expect(result).toBe("Heute war ein Gespräch. Ich habe Personen X beraten.");
     });
 
-    it("appends new unique sentences correctly", () => {
-        const existing = "Heute war ein Gespräch. Ich habe Personen X beraten.";
-        const incoming = "Wir haben nächste Schritte vereinbart.";
-        const result = appendDeduplicatedText(existing, incoming);
-        expect(result).toBe("Heute war ein Gespräch. Ich habe Personen X beraten. Wir haben nächste Schritte vereinbart.");
+    it("handles cumulative session updates cleanly", () => {
+        const base = "";
+        const sessionUpdate1 = "Ich habe Personen X beraten Punkt";
+        const res1 = combineBaseAndSessionText(base, sessionUpdate1);
+        expect(res1).toBe("Ich habe Personen X beraten.");
+
+        const sessionUpdate2 = "Ich habe Personen X beraten Punkt nächster Absatz Wir haben ein Ziel vereinbart Punkt";
+        const res2 = combineBaseAndSessionText(base, sessionUpdate2);
+        expect(res2).toBe("Ich habe Personen X beraten.\n\nWir haben ein Ziel vereinbart.");
     });
 });

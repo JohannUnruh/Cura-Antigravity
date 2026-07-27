@@ -4,7 +4,6 @@ import { Button } from "../ui/Button";
 import { VoiceInput } from "../ui/VoiceInput";
 import { PhotoUpload } from "../ui/PhotoUpload";
 import { useSettings } from "@/contexts/SettingsContext";
-import { appendDeduplicatedText } from "@/lib/utils/voiceCommands";
 
 interface SkbFormProps {
     clientId: string;
@@ -180,8 +179,7 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
     };
 
     const handleVoiceInput = (field: keyof SkbConsultation, text: string) => {
-        const prev = (formData[field] as string) || "";
-        handleChange(field, appendDeduplicatedText(prev, text));
+        handleChange(field, text);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -494,7 +492,7 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                 <div>
                     <div className="flex justify-between mb-1">
                         <label htmlFor="goalAgreement" className="block text-base font-semibold text-gray-900 dark:text-white">Zielvereinbarung / Nächste Schritte</label>
-                        <VoiceInput onResult={(text) => handleVoiceInput('goalAgreement', text)} />
+                        <VoiceInput value={formData.goalAgreement} onResult={(text) => handleVoiceInput('goalAgreement', text)} />
                     </div>
                     <textarea
                         id="goalAgreement"
@@ -509,7 +507,7 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                 <div>
                     <div className="flex justify-between mb-1">
                         <label htmlFor="notes" className="block text-base font-semibold text-gray-900 dark:text-white">Notizen / Fazit</label>
-                        <VoiceInput onResult={(text) => handleVoiceInput('notes', text)} />
+                        <VoiceInput value={formData.notes} onResult={(text) => handleVoiceInput('notes', text)} />
                     </div>
                     <textarea
                         id="notes"

@@ -1,37 +1,35 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { cn } from './Card';
-import { processVoiceCommands, normalizeForDeduplication } from '@/lib/utils/voiceCommands';
+import { combineBaseAndSessionText } from '@/lib/utils/voiceCommands';
 
 interface VoiceInputProps {
     onResult: (text: string) => void;
+    value?: string;
     className?: string;
     onError?: (error: string) => void;
     onListeningChange?: (isListening: boolean) => void;
 }
 
 // Fehler, die echt fatal sind → Aufnahme muss stoppen.
-// Alles andere (no-speech, network, aborted, audio-capture etc.) ist
-// temporär → Recognition via onend automatisch neustarten.
 const FATAL_ERRORS = new Set(["not-allowed", "service-not-allowed"]);
 
-// Eindeutige ID pro Instanz, um Unmount-Zyklen zu erkennen
 let instanceCounter = 0;
 
-export function VoiceInput({ onResult, className, onError, onListeningChange }: VoiceInputProps) {
+export function VoiceInput({ onResult, value = "", className, onError, onListeningChange }: VoiceInputProps) {
     const [isListening, setIsListening] = useState(false);
     const [supportError, setSupportError] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const recognitionRef = useRef<any>(null);
     const isListeningRef = useRef(false);
-    // Tracks whether the last onerror was fatal, so onend knows not to restart.
     const hadFatalErrorRef = useRef(false);
     const instanceIdRef = useRef(0);
-    const processedIndicesRef = useRef<Set<number>>(new Set());
 
-    // Verlauf der letzten finalen Transkripte mit Zeitstempel (für mobil-sichere Entdopplung)
-    const recentTranscriptsRef = useRef<Array<{ norm: string; timestamp: number }>>([]);
+    // Basis-Text vor Beginn der aktuellen Aufnahme-Session
+    const baseTextRef = useRef<string>(value);
+    // Zuletzt berechneter Gesamttext
+    const lastFullTextRef = useRef<string>(value);
 
     const onResultRef = useRef(onResult);
     const onErrorRef = useRef(onError);
@@ -75,49 +73,21 @@ export function VoiceInput({ onResult, className, onError, onListeningChange }: 
             console.warn(`[VoiceInput #${id}] ✅ onstart – Erkennung läuft`);
             hadFatalErrorRef.current = false;
             updateListeningState(true);
-            processedIndicesRef.current.clear();
         };
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rec.onresult = (event: any) => {
-            let finalTranscript = '';
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    if (processedIndicesRef.current.has(i)) {
-                        continue;
-                    }
-                    processedIndicesRef.current.add(i);
-                    finalTranscript += event.results[i][0].transcript;
+            let sessionText = '';
+            for (let i = 0; i < event.results.length; ++i) {
+                if (event.results[i] && event.results[i][0]) {
+                    sessionText += event.results[i][0].transcript;
                 }
             }
-            if (finalTranscript) {
-                console.warn(`[VoiceInput #${id}] 📝 onresult (final):`, finalTranscript);
-                const { text } = processVoiceCommands(finalTranscript);
-                const trimmedText = text.trim();
 
-                if (trimmedText) {
-                    const norm = normalizeForDeduplication(trimmedText);
-                    const now = Date.now();
-
-                    // Veraltete Einträge (> 20 Sekunden) bereinigen
-                    recentTranscriptsRef.current = recentTranscriptsRef.current.filter(
-                        item => now - item.timestamp < 20000
-                    );
-
-                    // Prüfen, ob norm im Verlauf (oder als Teilstring) enthalten ist
-                    const isDuplicate = recentTranscriptsRef.current.some(
-                        item => item.norm === norm || item.norm.endsWith(norm) || norm.endsWith(item.norm)
-                    );
-
-                    if (isDuplicate) {
-                        console.warn(`[VoiceInput #${id}] Ignoriere doppeltes Transkript (History Match):`, trimmedText);
-                        return;
-                    }
-
-                    // Im Verlauf speichern und weiterleiten
-                    recentTranscriptsRef.current.push({ norm, timestamp: now });
-                    onResultRef.current(trimmedText);
-                }
+            if (sessionText) {
+                const combined = combineBaseAndSessionText(baseTextRef.current, sessionText);
+                lastFullTextRef.current = combined;
+                onResultRef.current(combined);
             }
         };
 
@@ -126,7 +96,6 @@ export function VoiceInput({ onResult, className, onError, onListeningChange }: 
             console.warn(`[VoiceInput #${id}] ❌ onerror:`, event.error);
             if (onErrorRef.current) onErrorRef.current(event.error);
 
-            // Benutzerfreundliche Fehlermeldung als Tooltip anzeigen
             let msg = "";
             if (event.error === "not-allowed") {
                 msg = "Mikrofon blockiert – bitte Berechtigung prüfen.";
@@ -135,7 +104,6 @@ export function VoiceInput({ onResult, className, onError, onListeningChange }: 
             } else if (event.error === "network") {
                 msg = "Netzwerkfehler – Verbindung prüfen.";
             }
-            // no-speech und aborted sind normal bei Pausen → kein Tooltip.
 
             if (msg) {
                 setErrorMessage(msg);
@@ -150,21 +118,20 @@ export function VoiceInput({ onResult, className, onError, onListeningChange }: 
 
         // ── Auto-Restart bei Sprechpausen ──
         rec.onend = () => {
-            console.warn(`[VoiceInput #${id}] 🔚 onend – isListening=${isListeningRef.current}, hadFatal=${hadFatalErrorRef.current}`);
+            console.warn(`[VoiceInput #${id}] 🔚 onend – isListening=${isListeningRef.current}`);
 
             if (!isListeningRef.current || hadFatalErrorRef.current) {
-                console.warn(`[VoiceInput #${id}] ⛔ Kein Neustart (isListening=${isListeningRef.current}, hadFatal=${hadFatalErrorRef.current})`);
                 updateListeningState(false);
                 return;
             }
 
+            // Bei automatischem Neustart Basis-Text auf den bisher erreichten Stand setzen
+            baseTextRef.current = lastFullTextRef.current;
+
             let attempts = 0;
             const maxAttempts = 8;
             const tryRestart = () => {
-                if (!isListeningRef.current || !recognitionRef.current) {
-                    console.warn(`[VoiceInput #${id}] ⛔ Retry abgebrochen (isListening=${isListeningRef.current}, ref=${!!recognitionRef.current})`);
-                    return;
-                }
+                if (!isListeningRef.current || !recognitionRef.current) return;
                 try {
                     recognitionRef.current.start();
                     console.warn(`[VoiceInput #${id}] 🔄 Restart OK nach Versuch ${attempts + 1}`);
@@ -188,7 +155,7 @@ export function VoiceInput({ onResult, className, onError, onListeningChange }: 
         recognitionRef.current = rec;
 
         return () => {
-            console.warn(`[VoiceInput #${id}] 🔴 UNMOUNT – Cleanup, isListening war ${isListeningRef.current}`);
+            console.warn(`[VoiceInput #${id}] 🔴 UNMOUNT – Cleanup`);
             updateListeningState(false);
             try { rec.stop(); } catch { /* not running */ }
         };
@@ -204,7 +171,8 @@ export function VoiceInput({ onResult, className, onError, onListeningChange }: 
             try { recognitionRef.current.stop(); } catch { /* not running */ }
         } else {
             console.warn(`[VoiceInput #${id}] ▶️ toggleListening → START`);
-            recentTranscriptsRef.current = [];
+            baseTextRef.current = value;
+            lastFullTextRef.current = value;
             hadFatalErrorRef.current = false;
             updateListeningState(true);
             try {
@@ -214,7 +182,7 @@ export function VoiceInput({ onResult, className, onError, onListeningChange }: 
                 updateListeningState(false);
             }
         }
-    }, []);
+    }, [value]);
 
     if (supportError) {
         return (
@@ -265,4 +233,5 @@ export function VoiceInput({ onResult, className, onError, onListeningChange }: 
         </div>
     );
 }
+
 
