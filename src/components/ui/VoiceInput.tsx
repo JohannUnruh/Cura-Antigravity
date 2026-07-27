@@ -37,6 +37,11 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
     const instanceIdRef = useRef(0);
     const isMobileRef = useRef(false);
 
+    // Trackt ob der Nutzer den Button auf dem Smartphone gerade gedrückt hält.
+    // Solange isHoldingRef.current === true, wird die Aufnahme bei onend
+    // automatisch neu gestartet (mit frischem Puffer, da continuous=false).
+    const isHoldingRef = useRef(false);
+
     // Akkumulierter Gesamttext über die gesamte Aufnahmedauer
     const accumulatedTextRef = useRef<string>(value);
 
@@ -80,6 +85,7 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
         if (!recognitionRef.current) return;
         const id = instanceIdRef.current;
         console.warn(`[VoiceInput #${id}] 🛑 stopRecording`);
+        isHoldingRef.current = false;
         updateListeningState(false);
         try { recognitionRef.current.stop(); } catch { /* not running */ }
     }, []);
@@ -104,7 +110,7 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
 
         const rec = new SpeechRecognition();
         // Entscheidend: Auf Mobilgeräten KEIN continuous-Modus!
-        // Jeder Sprechvorgang = ein einzelnes Ergebnis, kein Auto-Restart-Chaos.
+        // Jeder Sprechvorgang = ein einzelnes Ergebnis, kein kumulatives Replay.
         rec.continuous = !mobile;
         rec.interimResults = true;
         rec.lang = 'de-DE';
@@ -175,20 +181,40 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
 
             if (FATAL_ERRORS.has(event.error)) {
                 hadFatalErrorRef.current = true;
+                isHoldingRef.current = false;
                 updateListeningState(false);
             }
         };
 
         rec.onend = () => {
-            console.warn(`[VoiceInput #${id}] 🔚 onend – isListening=${isListeningRef.current}, mobile=${mobile}`);
+            console.warn(`[VoiceInput #${id}] 🔚 onend – isListening=${isListeningRef.current}, mobile=${mobile}, holding=${isHoldingRef.current}`);
 
             if (mobile) {
-                // ── MOBIL: Kein Auto-Restart! ──
-                // Die Aufnahme endet sauber wenn der Nutzer loslässt
-                // oder wenn die Engine nach einer Äußerung stoppt.
-                updateListeningState(false);
-                // Finalen Stand nochmal ausgeben (ohne flüchtige Interim-Daten)
-                onResultRef.current(accumulatedTextRef.current);
+                // ── MOBIL: Auto-Restart NUR wenn der Nutzer den Button noch hält ──
+                // Da continuous=false, startet jede neue Session mit leerem Puffer.
+                // Kein kumulatives Replay → keine Duplikate möglich.
+                if (isHoldingRef.current && !hadFatalErrorRef.current) {
+                    console.warn(`[VoiceInput #${id}] 🔄 Mobile Auto-Restart (Button wird gehalten)`);
+                    // Finalen Stand ausgeben bevor wir neu starten
+                    onResultRef.current(accumulatedTextRef.current);
+                    setTimeout(() => {
+                        if (!isHoldingRef.current || !recognitionRef.current) {
+                            updateListeningState(false);
+                            return;
+                        }
+                        try {
+                            recognitionRef.current.start();
+                        } catch (e) {
+                            console.warn(`[VoiceInput #${id}] ⚠️ Mobile Restart fehlgeschlagen:`, e);
+                            isHoldingRef.current = false;
+                            updateListeningState(false);
+                        }
+                    }, 100);
+                } else {
+                    // Nutzer hat losgelassen oder fataler Fehler
+                    updateListeningState(false);
+                    onResultRef.current(accumulatedTextRef.current);
+                }
                 return;
             }
 
@@ -226,6 +252,7 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
 
         return () => {
             console.warn(`[VoiceInput #${id}] 🔴 UNMOUNT – Cleanup`);
+            isHoldingRef.current = false;
             updateListeningState(false);
             try { rec.stop(); } catch { /* not running */ }
         };
@@ -246,17 +273,20 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
         if (!isMobileRef.current) return;
         // Context-Menü auf Long-Press verhindern
         e.preventDefault();
+        isHoldingRef.current = true;
         startRecording();
     }, [startRecording]);
 
     const handlePointerUp = useCallback(() => {
         if (!isMobileRef.current) return;
+        isHoldingRef.current = false;
         stopRecording();
     }, [stopRecording]);
 
     const handlePointerLeave = useCallback(() => {
         // Falls der Finger vom Button wegrutscht → Aufnahme stoppen
         if (!isMobileRef.current || !isListeningRef.current) return;
+        isHoldingRef.current = false;
         stopRecording();
     }, [stopRecording]);
 
