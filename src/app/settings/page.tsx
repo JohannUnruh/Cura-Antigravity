@@ -10,8 +10,8 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { TagInput } from "@/components/ui/TagInput";
-import { UserProfile, Role, AppSettings, ContractType } from "@/types";
-import { Settings, User, MapPin, CreditCard, ShieldCheck, Users, Key, AppWindow, Plus, Pencil, Trash2, FileSignature, Moon, Sun, Cloud, Eye, EyeOff, Bell, CheckCircle2, AlertCircle, Calendar, Copy, RefreshCw, Check } from "lucide-react";
+import { UserProfile, Role, AppSettings, ContractType, DocumentKind, UserContractDocument } from "@/types";
+import { Settings, User, MapPin, CreditCard, ShieldCheck, Users, Key, AppWindow, Plus, Pencil, Trash2, FileSignature, FileText, Moon, Sun, Cloud, Eye, EyeOff, Bell, CheckCircle2, AlertCircle, Calendar, Copy, RefreshCw, Check } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePushNotification } from "@/contexts/PushNotificationContext";
 import { updatePassword } from "firebase/auth";
@@ -142,11 +142,13 @@ export default function SettingsPage() {
     });
     const [isContractModalOpen, setIsContractModalOpen] = useState(false);
     const [contractForm, setContractForm] = useState({
+        documentKind: 'Vertrag' as DocumentKind,
         startDate: new Date().toISOString().slice(0, 10),
         endDate: "",
         weeklyHours: 0,
-        hourlyRate: 12.41,
-        lumpSumAmount: 250,
+        monthlyHours: 0,
+        hourlyRate: 16.75,
+        lumpSumAmount: 603,
         boardSignatureUrl: "",
         employeeSignatureUrl: ""
     });
@@ -387,6 +389,33 @@ export default function SettingsPage() {
         }
     };
 
+    const openContractModal = (u: UserProfile, kind: DocumentKind = 'Vertrag') => {
+        setSelectedUser(u);
+        const hourlyRate = u.hourlyRate || appSettings?.minimumWage || 16.75;
+        const monthlyEarningsLimit = appSettings?.monthlyEarningsLimit || 603;
+        const lumpSumAmount = u.contractType === 'Minijob' ? monthlyEarningsLimit : 250;
+        let monthlyHours = u.monthlyHours || 0;
+        let weeklyHours = u.weeklyHours || 0;
+        if (u.contractType === 'Minijob') {
+            if (!monthlyHours && hourlyRate > 0) {
+                monthlyHours = Math.round((lumpSumAmount / hourlyRate) * 100) / 100;
+            }
+            weeklyHours = Math.round((monthlyHours / 4.33) * 100) / 100;
+        }
+        setContractForm({
+            documentKind: kind,
+            startDate: new Date().toISOString().slice(0, 10),
+            endDate: "",
+            weeklyHours,
+            monthlyHours,
+            hourlyRate,
+            lumpSumAmount,
+            boardSignatureUrl: "",
+            employeeSignatureUrl: ""
+        });
+        setIsContractModalOpen(true);
+    };
+
     const handleGenerateContract = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedUser) return;
@@ -410,24 +439,72 @@ export default function SettingsPage() {
                 startDate: new Date(contractForm.startDate).toLocaleDateString("de-DE"),
                 endDate: contractForm.endDate ? new Date(contractForm.endDate).toLocaleDateString("de-DE") : undefined,
                 weeklyHours: contractForm.weeklyHours,
+                monthlyHours: contractForm.monthlyHours,
                 hourlyRate: contractForm.hourlyRate,
                 lumpSumAmount: contractForm.lumpSumAmount,
-                monthlyEarningsLimit: appSettings.monthlyEarningsLimit || 538,
+                monthlyEarningsLimit: appSettings.monthlyEarningsLimit || 603,
                 vacationDaysPerYear: selectedUser.vacationDaysPerYear ?? undefined,
                 contractType: selectedUser.contractType || "Ehrenamtlich",
+                documentKind: contractForm.documentKind,
                 boardSignatureUrl: contractForm.boardSignatureUrl,
                 employeeSignatureUrl: contractForm.employeeSignatureUrl
             }, selectedUser.id);
 
-            const updatedProfile = { ...selectedUser, contractDocumentUrl: url, entryDate: contractForm.startDate };
+            const isAmendment = contractForm.documentKind === 'Änderungsvereinbarung';
+            const docTitle = isAmendment 
+                ? `Änderung (${new Date(contractForm.startDate).toLocaleDateString("de-DE")})`
+                : `Vertrag (${new Date(contractForm.startDate).toLocaleDateString("de-DE")})`;
+
+            const newDoc: UserContractDocument = {
+                id: `doc_${Date.now()}`,
+                documentKind: contractForm.documentKind,
+                contractType: selectedUser.contractType || "Ehrenamtlich",
+                title: docTitle,
+                url,
+                createdAt: new Date().toISOString(),
+                effectiveDate: contractForm.startDate,
+                monthlyHours: contractForm.monthlyHours,
+                weeklyHours: contractForm.weeklyHours,
+                hourlyRate: contractForm.hourlyRate,
+                lumpSumAmount: contractForm.lumpSumAmount
+            };
+
+            const existingDocs = selectedUser.contractDocuments || [];
+            const migratedDocs: UserContractDocument[] = [...existingDocs];
+            if (migratedDocs.length === 0 && selectedUser.contractDocumentUrl) {
+                migratedDocs.push({
+                    id: `doc_initial_${selectedUser.id}`,
+                    documentKind: 'Vertrag',
+                    contractType: selectedUser.contractType || "Ehrenamtlich",
+                    title: "Vertrag (Ursprung)",
+                    url: selectedUser.contractDocumentUrl,
+                    createdAt: selectedUser.entryDate || new Date().toISOString(),
+                    effectiveDate: selectedUser.entryDate || "",
+                    monthlyHours: selectedUser.monthlyHours,
+                    weeklyHours: selectedUser.weeklyHours,
+                    hourlyRate: selectedUser.hourlyRate
+                });
+            }
+            migratedDocs.push(newDoc);
+
+            const updatedProfile: UserProfile = {
+                ...selectedUser,
+                contractDocumentUrl: url,
+                contractDocuments: migratedDocs,
+                entryDate: isAmendment ? selectedUser.entryDate : contractForm.startDate,
+                hourlyRate: contractForm.hourlyRate,
+                monthlyHours: contractForm.monthlyHours,
+                weeklyHours: contractForm.weeklyHours
+            };
+
             await userService.saveUserProfile(updatedProfile);
             setUsers(users.map(u => u.id === selectedUser.id ? updatedProfile : u));
 
             setIsContractModalOpen(false);
-            showMessage('success', 'Vertrag erfolgreich generiert und gespeichert!');
+            showMessage('success', isAmendment ? 'Änderungsvereinbarung erfolgreich generiert und gespeichert!' : 'Vertrag erfolgreich generiert und gespeichert!');
         } catch (error) {
             console.error(error);
-            showMessage('error', 'Fehler beim Generieren des Vertrages.');
+            showMessage('error', 'Fehler beim Generieren des Dokuments.');
         } finally {
             setIsSaving(false);
             setContractForm(f => ({ ...f, boardSignatureUrl: "", employeeSignatureUrl: "" }));
@@ -734,41 +811,55 @@ export default function SettingsPage() {
                                                         </span>
                                                     </p>
                                                 </div>
-                                                {u.contractDocumentUrl && (
-                                                    <a href={u.contractDocumentUrl} target="_blank" rel="noopener noreferrer" className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors flex items-center pr-3 group border border-rose-100" title="Vertrag ansehen">
-                                                        <FileSignature className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                                                    </a>
-                                                )}
+                                                <div className="flex flex-col items-end gap-1.5 max-w-[50%]">
+                                                    {u.contractDocuments && u.contractDocuments.length > 0 ? (
+                                                        u.contractDocuments.map((doc, idx) => (
+                                                            <a
+                                                                key={doc.id || idx}
+                                                                href={doc.url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="px-2 py-1 text-xs text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/30 dark:hover:bg-rose-900/40 rounded-lg border border-rose-200/70 dark:border-rose-800/40 flex items-center gap-1.5 transition-colors font-medium shadow-xs"
+                                                                title={`${doc.title} ansehen`}
+                                                            >
+                                                                {doc.documentKind === 'Änderungsvereinbarung' ? (
+                                                                    <FileText className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                                                ) : (
+                                                                    <FileSignature className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                                                                )}
+                                                                <span className="truncate max-w-[130px]">{doc.title}</span>
+                                                            </a>
+                                                        ))
+                                                    ) : u.contractDocumentUrl ? (
+                                                        <a
+                                                            href={u.contractDocumentUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="px-2 py-1 text-xs text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/30 dark:hover:bg-rose-900/40 rounded-lg border border-rose-200/70 dark:border-rose-800/40 flex items-center gap-1.5 transition-colors font-medium shadow-xs"
+                                                            title="Vertrag ansehen"
+                                                        >
+                                                            <FileSignature className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                                                            <span>Vertrag</span>
+                                                        </a>
+                                                    ) : null}
+                                                </div>
                                             </div>
-                                            <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-white/5">
+                                            <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-white/5">
                                                 <button
-                                                    onClick={() => {
-                                                        setSelectedUser(u);
-                                                        const hourlyRate = appSettings?.minimumWage || 12.41;
-                                                        const monthlyEarningsLimit = appSettings?.monthlyEarningsLimit || 538;
-                                                        const lumpSumAmount = u.contractType === 'Minijob' ? monthlyEarningsLimit : 250;
-                                                        let weeklyHours = 0;
-                                                        if (u.contractType === 'Minijob') {
-                                                            // Korrekte Berechnung: Monatsverdienst / Stundenlohn = Stunden pro Monat
-                                                            // Stunden pro Monat / 4.33 (Wochen pro Monat) = Stunden pro Woche
-                                                            weeklyHours = Math.round(((lumpSumAmount / hourlyRate) / 4.33) * 100) / 100;
-                                                        }
-                                                        setContractForm({
-                                                            startDate: new Date().toISOString().slice(0, 10),
-                                                            endDate: "",
-                                                            weeklyHours,
-                                                            hourlyRate,
-                                                            lumpSumAmount,
-                                                            boardSignatureUrl: "",
-                                                            employeeSignatureUrl: ""
-                                                        });
-                                                        setIsContractModalOpen(true);
-                                                    }}
-                                                    className="px-3 py-1.5 text-sm bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-white/10 shadow-sm text-gray-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-500/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors flex items-center gap-2 font-medium"
+                                                    onClick={() => openContractModal(u, 'Vertrag')}
+                                                    className="px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-white/10 shadow-sm text-gray-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-500/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors flex items-center gap-1.5 font-medium"
                                                     title="Vertrag generieren"
                                                 >
-                                                    <FileSignature className="w-4 h-4 text-rose-500" />
+                                                    <FileSignature className="w-3.5 h-3.5 text-rose-500" />
                                                     Vertrag
+                                                </button>
+                                                <button
+                                                    onClick={() => openContractModal(u, 'Änderungsvereinbarung')}
+                                                    className="px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-white/10 shadow-sm text-gray-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-500/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors flex items-center gap-1.5 font-medium"
+                                                    title="Änderungsvereinbarung erstellen"
+                                                >
+                                                    <FileText className="w-3.5 h-3.5 text-blue-500" />
+                                                    Änderung
                                                 </button>
                                                 <div className="flex-1"></div>
                                                 <button
@@ -1041,77 +1132,130 @@ export default function SettingsPage() {
                                 </div>
                             </Modal>
 
-                            <Modal isOpen={isContractModalOpen} onClose={() => setIsContractModalOpen(false)} title={`Vertrag generieren: ${selectedUser?.contractType || 'Ehrenamtlich'}`}>
+                            <Modal 
+                                isOpen={isContractModalOpen} 
+                                onClose={() => setIsContractModalOpen(false)} 
+                                title={`${contractForm.documentKind === 'Änderungsvereinbarung' ? 'Änderungsvereinbarung erstellen' : 'Vertrag generieren'}: ${selectedUser?.contractType || 'Ehrenamtlich'}`}
+                            >
                                 <form onSubmit={handleGenerateContract} className="space-y-4">
+                                    {/* Dokumentenart-Umschalter */}
+                                    <div className="flex bg-gray-100 dark:bg-slate-800/80 p-1 rounded-xl">
+                                        <button
+                                            type="button"
+                                            onClick={() => setContractForm(f => ({ ...f, documentKind: 'Vertrag' }))}
+                                            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${contractForm.documentKind === 'Vertrag' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'}`}
+                                        >
+                                            <FileSignature className="w-3.5 h-3.5" />
+                                            Arbeitsvertrag
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setContractForm(f => ({ ...f, documentKind: 'Änderungsvereinbarung' }))}
+                                            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${contractForm.documentKind === 'Änderungsvereinbarung' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'}`}
+                                        >
+                                            <FileText className="w-3.5 h-3.5" />
+                                            Änderungsvereinbarung
+                                        </button>
+                                    </div>
+
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Startdatum</label>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                                                {contractForm.documentKind === 'Änderungsvereinbarung' ? 'Inkrafttreten der Änderung (Gültig ab)' : 'Vertragsbeginn (Startdatum)'}
+                                            </label>
                                             <input type="date" title="Startdatum" required value={contractForm.startDate} onChange={e => setContractForm({ ...contractForm, startDate: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20" />
+                                                className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm" />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Enddatum (optional)</label>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Enddatum (optional, bei unbefristet leer lassen)</label>
                                             <input type="date" title="Enddatum" value={contractForm.endDate} onChange={e => setContractForm({ ...contractForm, endDate: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20" />
+                                                className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm" />
                                         </div>
                                         {selectedUser?.contractType === 'Minijob' && (
                                             <>
                                                 <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Stundenlohn (€)</label>
-                                                    <input type="number" title="Stundenlohn" step="0.01" required value={contractForm.hourlyRate}
-                                                        onChange={e => {
-                                                            const newRate = parseFloat(e.target.value) || 0;
-                                                            const weekly = newRate > 0 && contractForm.lumpSumAmount > 0 ? (contractForm.lumpSumAmount / newRate) / 4.33 : 0;
-                                                            setContractForm({ ...contractForm, hourlyRate: newRate, weeklyHours: Math.round(weekly * 100) / 100 });
-                                                        }}
-                                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20" />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Monatsgehalt (€)</label>
-                                                    <input type="number" title="Monatsgehalt" step="1" required value={contractForm.lumpSumAmount}
+                                                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Monatsgehalt / Verdienstgrenze (€)</label>
+                                                    <input type="number" title="Monatsgehalt" step="1" min="0" required value={contractForm.lumpSumAmount}
                                                         onChange={e => {
                                                             const newSalary = parseFloat(e.target.value) || 0;
-                                                            const weekly = contractForm.hourlyRate > 0 && newSalary > 0 ? (newSalary / contractForm.hourlyRate) / 4.33 : 0;
-                                                            setContractForm({ ...contractForm, lumpSumAmount: newSalary, weeklyHours: Math.round(weekly * 100) / 100 });
+                                                            const monthly = contractForm.hourlyRate > 0 && newSalary > 0 
+                                                                ? Math.round((newSalary / contractForm.hourlyRate) * 100) / 100 
+                                                                : 0;
+                                                            const weekly = Math.round((monthly / 4.33) * 100) / 100;
+                                                            setContractForm({ ...contractForm, lumpSumAmount: newSalary, monthlyHours: monthly, weeklyHours: weekly });
                                                         }}
-                                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20" />
+                                                        className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm" />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Stundenlohn (€)</label>
+                                                    <input type="number" title="Stundenlohn" step="0.01" min="0" required value={contractForm.hourlyRate}
+                                                        onChange={e => {
+                                                            const newRate = parseFloat(e.target.value) || 0;
+                                                            const monthly = newRate > 0 && contractForm.lumpSumAmount > 0 
+                                                                ? Math.round((contractForm.lumpSumAmount / newRate) * 100) / 100 
+                                                                : 0;
+                                                            const weekly = Math.round((monthly / 4.33) * 100) / 100;
+                                                            setContractForm({ ...contractForm, hourlyRate: newRate, monthlyHours: monthly, weeklyHours: weekly });
+                                                        }}
+                                                        className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm" />
                                                 </div>
                                                 <div className="col-span-2">
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Errechnete Wochenstunden (automatisch)</label>
-                                                    <input type="number" title="Wochenstunden" step="0.5" required value={contractForm.weeklyHours} onChange={e => setContractForm({ ...contractForm, weeklyHours: parseFloat(e.target.value) })}
-                                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 bg-gray-50" />
+                                                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Errechnete monatliche Arbeitszeit (automatisch, Std./Monat)</label>
+                                                    <input type="number" title="Monatliche Arbeitszeit" step="0.5" min="0" required value={contractForm.monthlyHours}
+                                                        onChange={e => {
+                                                            const newMonthly = parseFloat(e.target.value) || 0;
+                                                            const weekly = Math.round((newMonthly / 4.33) * 100) / 100;
+                                                            const newRate = newMonthly > 0 && contractForm.lumpSumAmount > 0
+                                                                ? Math.round((contractForm.lumpSumAmount / newMonthly) * 100) / 100
+                                                                : contractForm.hourlyRate;
+                                                            setContractForm({
+                                                                ...contractForm,
+                                                                monthlyHours: newMonthly,
+                                                                weeklyHours: weekly,
+                                                                hourlyRate: newRate
+                                                            });
+                                                        }}
+                                                        className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 bg-indigo-50/30 dark:bg-indigo-950/20 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white font-semibold text-sm" />
+                                                </div>
+                                                <div className="col-span-2 bg-indigo-50/70 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/40 rounded-xl p-3 text-xs text-indigo-900 dark:text-indigo-200 flex flex-wrap items-center justify-between gap-2">
+                                                    <span>
+                                                        <strong>Berechnung:</strong> {contractForm.monthlyHours} Std./Monat × {contractForm.hourlyRate.toFixed(2)} € = {(contractForm.monthlyHours * contractForm.hourlyRate).toFixed(2)} €
+                                                    </span>
+                                                    <span className="font-medium bg-white dark:bg-slate-800 px-2 py-0.5 rounded text-indigo-700 dark:text-indigo-300 shadow-xs border border-indigo-100/50 dark:border-indigo-700/30">
+                                                        Ø ca. {contractForm.weeklyHours} Std./Woche
+                                                    </span>
                                                 </div>
                                             </>
                                         )}
                                         {(selectedUser?.contractType === 'Ehrenamtspauschale' || selectedUser?.contractType === 'Übungsleiterpauschale') && (
                                             <div className="col-span-2">
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Pauschale (gesamt, €)</label>
-                                                <input type="number" title="Pauschale" step="10" required value={contractForm.lumpSumAmount} onChange={e => setContractForm({ ...contractForm, lumpSumAmount: parseFloat(e.target.value) })}
-                                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20" />
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Pauschale (gesamt, €)</label>
+                                                <input type="number" title="Pauschale" step="10" required value={contractForm.lumpSumAmount} onChange={e => setContractForm({ ...contractForm, lumpSumAmount: parseFloat(e.target.value) || 0 })}
+                                                    className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm" />
                                             </div>
                                         )}
                                     </div>
-                                    <div className="border-t border-gray-100 pt-4 space-y-4">
+                                    <div className="border-t border-gray-100 dark:border-white/10 pt-4 space-y-4">
                                         <SignaturePad
                                             label="Unterschrift Vorstand / Verein"
                                             onSave={(url) => setContractForm(f => ({ ...f, boardSignatureUrl: url }))}
                                             onClear={() => setContractForm(f => ({ ...f, boardSignatureUrl: "" }))}
                                         />
                                         <SignaturePad
-                                            label={`Unterschrift Vertragspartner (${selectedUser?.firstName})`}
+                                            label={`Unterschrift Vertragspartner (${selectedUser?.firstName} ${selectedUser?.lastName})`}
                                             onSave={(url) => setContractForm(f => ({ ...f, employeeSignatureUrl: url }))}
                                             onClear={() => setContractForm(f => ({ ...f, employeeSignatureUrl: "" }))}
                                         />
                                     </div>
                                     {(!contractForm.boardSignatureUrl || !contractForm.employeeSignatureUrl) && (
-                                        <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded-lg border border-amber-100">
-                                            Bitte beide Parteien im jeweiligen Feld unterschreiben.
+                                        <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 p-2.5 rounded-lg border border-amber-100 dark:border-amber-800/40">
+                                            Bitte beide Parteien im jeweiligen Feld auf dem Tablet unterzeichnen lassen.
                                         </p>
                                     )}
-                                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-white/10">
                                         <Button type="button" variant="ghost" onClick={() => setIsContractModalOpen(false)}>Abbrechen</Button>
                                         <Button type="submit" variant="primary" disabled={isSaving || !contractForm.boardSignatureUrl || !contractForm.employeeSignatureUrl}>
-                                            {isSaving ? "Generiert..." : "Generieren & Speichern"}
+                                            {isSaving ? "Wird erstellt..." : contractForm.documentKind === 'Änderungsvereinbarung' ? "Änderungsvereinbarung generieren & speichern" : "Vertrag generieren & speichern"}
                                         </Button>
                                     </div>
                                 </form>
@@ -1213,7 +1357,7 @@ export default function SettingsPage() {
                                         <div>
                                             <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 mb-2">Verdienstgrenze monatlich (Minijob, €)</label>
                                             <input type="number" title="Verdienstgrenze monatlich" step="1" min="0" required
-                                                value={appForm.monthlyEarningsLimit || 538}
+                                                value={appForm.monthlyEarningsLimit || 603}
                                                 onChange={e => setAppForm({ ...appForm, monthlyEarningsLimit: parseFloat(e.target.value) || 0 })}
                                                 className="w-full px-3 py-2 bg-white dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white" />
                                         </div>

@@ -1,4 +1,4 @@
-import { ContractType } from "@/types";
+import { ContractType, DocumentKind } from "@/types";
 
 export interface ContractData {
     employerName: string;
@@ -6,14 +6,16 @@ export interface ContractData {
     employerCity?: string; // Vereinssitz für Ort im Vertrag
     employeeName: string;
     employeeAddress: string;
-    startDate: string;
+    startDate: string; // Vertragsbeginn oder Inkrafttreten
     endDate?: string; // unbefristet, if empty
     weeklyHours?: number;
+    monthlyHours?: number; // Monatliche Arbeitszeit
     hourlyRate?: number;
-    lumpSumAmount?: number; // Pauschalbetrag
+    lumpSumAmount?: number; // Pauschalbetrag / Monatsvergütung
     monthlyEarningsLimit?: number; // Dynamische Verdienstgrenze aus App-Einstellungen
     vacationDaysPerYear?: number;
     contractType: ContractType;
+    documentKind?: DocumentKind; // 'Vertrag' | 'Änderungsvereinbarung'
     boardSignatureUrl: string; // the base64 png
     employeeSignatureUrl: string; // the base64 png
 }
@@ -39,11 +41,12 @@ Die ersten 6 Monate gelten als Probezeit, in der das Arbeitsverhältnis mit eine
 Der/Die Arbeitnehmer/in wird als Mitarbeiter/in eingestellt und erbringt die zugewiesenen Aufgaben nach besten Kräften. Der Arbeitgeber behält sich das Recht vor, dem/der Arbeitnehmer/in andere, gleichwertige Tätigkeiten zuzuweisen, sofern dies betrieblich erforderlich und zumutbar ist.
 
 § 3 Arbeitszeit
-Die regelmäßige wöchentliche Arbeitszeit beträgt ${data.weeklyHours || 0} Stunden. Die Verteilung der Arbeitszeit richtet sich nach den betrieblichen Erfordernissen und wird vom Arbeitgeber nach billigem Ermessen festgelegt. 
+Die regelmäßige monatliche Arbeitszeit beträgt ${data.monthlyHours ?? (data.weeklyHours ? Math.round(data.weeklyHours * 4.33 * 10) / 10 : 0)} Stunden${data.weeklyHours ? ` (entspricht durchschnittlich ca. ${data.weeklyHours} Stunden wöchentlich)` : ''}. Die Verteilung der Arbeitszeit richtet sich nach den betrieblichen Erfordernissen und wird vom Arbeitgeber nach billigem Ermessen festgelegt. 
 
 § 4 Vergütung
 Der/Die Arbeitnehmer/in erhält einen Bruttostundenlohn in Höhe von ${data.hourlyRate?.toFixed(2) || '0.00'} EUR.
-Es handelt sich um eine geringfügige Beschäftigung (§ 8 Abs. 1 Nr. 1 SGB IV). Die monatliche Vergütung darf die gesetzliche Geringfügigkeitsgrenze (derzeit ${data.monthlyEarningsLimit?.toFixed(2) || '538.00'} EUR) im regelmäßigen Durchschnitt nicht überschreiten. 
+Bei einer regelmäßigen monatlichen Arbeitszeit von ${data.monthlyHours ?? 0} Stunden ergibt sich eine monatliche Vergütung in Höhe von ${(data.lumpSumAmount || ((data.monthlyHours || 0) * (data.hourlyRate || 0))).toFixed(2)} EUR.
+Es handelt sich um eine geringfügige Beschäftigung (§ 8 Abs. 1 Nr. 1 SGB IV). Die monatliche Vergütung darf die gesetzliche Geringfügigkeitsgrenze (derzeit ${data.monthlyEarningsLimit?.toFixed(2) || '603.00'} EUR) im regelmäßigen Durchschnitt nicht überschreiten. 
 
 § 5 Urlaub und Krankheit
 Der/Die Arbeitnehmer/in hat Anspruch auf ${data.vacationDaysPerYear || 0} Urlaubstage pro Kalenderjahr. Im Übrigen gelten die gesetzlichen Vorschriften (insbesondere das Bundesurlaubsgesetz und Entgeltfortzahlungsgesetz).
@@ -52,7 +55,7 @@ Der/Die Arbeitnehmer/in hat Anspruch auf ${data.vacationDaysPerYear || 0} Urlaub
 Der/Die Arbeitnehmer/in verpflichtet sich, über alle betrieblichen Angelegenheiten und Daten der Klienten, die ihm/ihr im Rahmen der Tätigkeit bekannt werden, absolutes Stillschweigen zu bewahren (§ 203 StGB, DSGVO). Dies gilt auch nach Beendigung des Arbeitsverhältnisses.
 
 § 7 Sonstige Bestimmungen
-Es bestehen keine mündlichen Nebenabreden. Tarifverträge, Betriebsvereinbarungen oder sonstige kollektivrechtliche Regelungen finden auf dieses Arbeitsverhältnis keine Anwendung. Änderungen und Ergänzungen dieses Vertrages bedürfen zu ihrer Rechtswirksamkeit der Schriftform. Dies gilt auch für die Aufhebung des Schriftformerfordernisses selbst.
+Es bestehen keine mündlichen Nebenabreden. Tarifverträge, Betriebsvereinbarungen oder sonstige kollektivrechtliche Regelungen finden auf dieses Arbeitsverhältnis keine Anwendung. Änderungen und Ergänzungen dieses Vertrages bedürfen zu ihrer Rechtswirksamkeit der Textform.
 Etwaige übergesetzliche Ansprüche entstehen nicht durch betriebliche Übung, sondern stellen stets eine freiwillige, jederzeit widerrufliche Leistung dar.
 `
     },
@@ -160,3 +163,112 @@ Mündliche Nebenabreden bestehen nicht. Sollten einzelne Bestimmungen dieses Ver
 `
     }
 };
+
+export const AmendmentTemplates: Record<ContractType, { title: string, text: (data: ContractData) => string }> = {
+    'Minijob': {
+        title: "Änderungsvereinbarung zum Arbeitsvertrag (Minijob)",
+        text: (data) => `Zwischen
+${data.employerName}
+${data.employerAddress}
+– nachfolgend „Arbeitgeber“ genannt –
+und
+Herrn/Frau ${data.employeeName}
+${data.employeeAddress}
+– nachfolgend „Arbeitnehmer/in“ genannt –
+wird in Abänderung und Ergänzung des bestehenden Arbeitsvertrages folgende
+
+Änderungsvereinbarung
+
+geschlossen:
+
+§ 1 Inkrafttreten
+Die nachfolgenden Vereinbarungen treten mit Wirkung zum ${data.startDate} in Kraft. Das Arbeitsverhältnis wird unverändert auf unbestimmte Zeit fortgeführt.
+
+§ 2 Arbeitszeit
+Die regelmäßige monatliche Arbeitszeit beträgt ab dem vorgenannten Zeitpunkt ${data.monthlyHours ?? 0} Stunden${data.weeklyHours ? ` (dies entspricht durchschnittlich ca. ${data.weeklyHours} Stunden wöchentlich)` : ''}. Die zeitliche Lage und Verteilung der Arbeitszeit richtet sich weiterhin nach den betrieblichen Erfordernissen und wird vom Arbeitgeber nach billigem Ermessen festgelegt.
+
+§ 3 Vergütung
+Der/Die Arbeitnehmer/in erhält ab dem vorgenannten Zeitpunkt einen Bruttostundenlohn in Höhe von ${data.hourlyRate?.toFixed(2) || '0.00'} EUR.
+Bei einer regelmäßigen monatlichen Arbeitszeit von ${data.monthlyHours ?? 0} Stunden beträgt das monatliche Bruttoentgelt ${(data.lumpSumAmount || ((data.monthlyHours || 0) * (data.hourlyRate || 0))).toFixed(2)} EUR.
+Das Arbeitsverhältnis wird unverändert als geringfügige Beschäftigung im Sinne des § 8 Abs. 1 Nr. 1 SGB IV geführt. Die monatliche Vergütung darf die gesetzliche Geringfügigkeitsgrenze (derzeit ${data.monthlyEarningsLimit?.toFixed(2) || '603.00'} EUR) im regelmäßigen Durchschnitt nicht überschreiten.
+
+${data.vacationDaysPerYear ? `§ 4 Erholungsurlaub\nDer Anspruch auf bezahlten Erholungsurlaub beträgt ${data.vacationDaysPerYear} Urlaubstage pro Kalenderjahr.\n` : ''}
+§ ${data.vacationDaysPerYear ? '5' : '4'} Fortgeltung der übrigen Vertragsbestimmungen
+Alle weiteren Bestimmungen und Vereinbarungen des bisherigen Arbeitsvertrages bleiben von dieser Änderungsvereinbarung unberührt und gelten unverändert fort.
+
+§ ${data.vacationDaysPerYear ? '6' : '5'} Schlussbestimmungen
+Mündliche Nebenabreden bestehen nicht. Änderungen und Ergänzungen dieser Vereinbarung bedürfen zu ihrer Rechtswirksamkeit der Textform.
+`
+    },
+    'Ehrenamtspauschale': {
+        title: "Änderungsvereinbarung (Ehrenamtspauschale gem. § 3 Nr. 26a EStG)",
+        text: (data) => `Zwischen
+${data.employerName}
+${data.employerAddress}
+– nachfolgend „Verein/Träger“ genannt –
+und
+Herrn/Frau ${data.employeeName}
+${data.employeeAddress}
+– nachfolgend „Ehrenamtliche/r“ genannt –
+wird in Abänderung der bestehenden Vereinbarung folgende Änderungsvereinbarung geschlossen:
+
+§ 1 Inkrafttreten
+Die nachfolgende Anpassung tritt mit Wirkung zum ${data.startDate} in Kraft.
+
+§ 2 Aufwandsentschädigung (Ehrenamtspauschale)
+Die pauschale Aufwandsentschädigung wird ab dem genannten Zeitpunkt auf ${data.lumpSumAmount?.toFixed(2) || '0.00'} EUR angepasst. Die Entschädigung wird als Ehrenamtspauschale im Sinne des § 3 Nr. 26a EStG gezahlt und ist bis zum gesetzlichen Freibetrag steuer- und sozialversicherungsfrei.
+
+§ 3 Fortgeltung
+Alle übrigen Bestimmungen der bestehenden Vereinbarung bleiben unverändert in Kraft. Änderungen bedürfen der Textform.
+`
+    },
+    'Übungsleiterpauschale': {
+        title: "Änderungsvereinbarung (Übungsleiterpauschale gem. § 3 Nr. 26 EStG)",
+        text: (data) => `Zwischen
+${data.employerName}
+${data.employerAddress}
+– nachfolgend „Auftraggeber“ genannt –
+und
+Herrn/Frau ${data.employeeName}
+${data.employeeAddress}
+– nachfolgend „Auftragnehmer/in“ genannt –
+wird in Abänderung der bestehenden Vereinbarung folgende Änderungsvereinbarung geschlossen:
+
+§ 1 Inkrafttreten
+Die nachfolgende Anpassung tritt mit Wirkung zum ${data.startDate} in Kraft.
+
+§ 2 Vergütung
+Die pauschale Vergütung wird ab dem genannten Zeitpunkt auf ${data.lumpSumAmount?.toFixed(2) || '0.00'} EUR angepasst. Die Vergütung ist gemäß § 3 Nr. 26 EStG bis zur gesetzlichen Höchstgrenze steuer- und sozialversicherungsfrei.
+
+§ 3 Fortgeltung
+Alle übrigen Bestimmungen der bestehenden Vereinbarung bleiben unberührt und gelten unverändert fort. Änderungen bedürfen der Textform.
+`
+    },
+    'Ehrenamtlich': {
+        title: "Änderungsvereinbarung zur Ehrenamtsvereinbarung",
+        text: (data) => `Zwischen
+${data.employerName}
+${data.employerAddress}
+– nachfolgend „Verein/Träger“ genannt –
+und
+Herrn/Frau ${data.employeeName}
+${data.employeeAddress}
+– nachfolgend „Ehrenamtliche/r“ genannt –
+wird mit Wirkung zum ${data.startDate} folgende Anpassung der ehrenamtlichen Tätigkeit vereinbart:
+
+§ 1 Anpassung der Vereinbarung
+Die Parteien vereinbaren mit Wirkung zum ${data.startDate} eine Anpassung der Rahmenbedingungen der ehrenamtlichen Tätigkeit. Die Tätigkeit erfolgt weiterhin freiwillig und unentgeltlich.
+
+§ 2 Fortgeltung
+Alle übrigen Bestimmungen der bestehenden Ehrenamtsvereinbarung bleiben unverändert in Kraft.
+`
+    }
+};
+
+export function getContractTemplate(data: ContractData): { title: string; text: (data: ContractData) => string } {
+    if (data.documentKind === 'Änderungsvereinbarung') {
+        return AmendmentTemplates[data.contractType] || AmendmentTemplates['Minijob'];
+    }
+    return ContractTemplates[data.contractType] || ContractTemplates['Ehrenamtlich'];
+}
+

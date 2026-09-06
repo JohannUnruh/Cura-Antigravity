@@ -1,5 +1,20 @@
 export type Role = 'Mitarbeiter' | 'Kassenwart' | 'Admin';
 export type ContractType = 'Ehrenamtlich' | 'Ehrenamtspauschale' | 'Übungsleiterpauschale' | 'Minijob';
+export type DocumentKind = 'Vertrag' | 'Änderungsvereinbarung';
+
+export interface UserContractDocument {
+    id: string;
+    documentKind: DocumentKind;
+    contractType: ContractType;
+    title: string;
+    url: string;
+    createdAt: string; // ISO 8601
+    effectiveDate: string; // Vertragsbeginn oder Inkrafttreten
+    monthlyHours?: number;
+    weeklyHours?: number;
+    hourlyRate?: number;
+    lumpSumAmount?: number;
+}
 
 export interface UserProfile {
     id: string; // The Firebase Auth UID
@@ -8,9 +23,11 @@ export interface UserProfile {
     role: Role;
     contractType?: ContractType;
     entryDate?: string;
-    contractDocumentUrl?: string; // Links to Firebase Storage for the signed copy
+    contractDocumentUrl?: string; // Links to Firebase Storage for the latest signed copy
+    contractDocuments?: UserContractDocument[]; // Historie aller Verträge & Änderungsvereinbarungen
     hourlyRate?: number;
     weeklyHours?: number;
+    monthlyHours?: number;
     vacationDaysPerYear?: number | null;
     address: {
         street: string;
