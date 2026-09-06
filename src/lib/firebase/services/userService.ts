@@ -25,12 +25,26 @@ export const userService = {
     async saveUserProfile(profile: UserProfile): Promise<void> {
         try {
             const docRef = doc(db, "users", profile.id);
-            const cleanData = Object.entries(profile).reduce((acc, [key, value]) => {
-                if (value !== undefined) {
-                    acc[key] = value;
+            const cleanFirestoreData = (val: unknown): unknown => {
+                if (val === null || val === undefined) return null;
+                if (Array.isArray(val)) {
+                    return val
+                        .filter(item => item !== undefined)
+                        .map(item => cleanFirestoreData(item));
                 }
-                return acc;
-            }, {} as Record<string, unknown>);
+                if (typeof val === 'object' && !(val instanceof Date)) {
+                    const res: Record<string, unknown> = {};
+                    for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
+                        if (v !== undefined) {
+                            res[k] = cleanFirestoreData(v);
+                        }
+                    }
+                    return res;
+                }
+                return val;
+            };
+
+            const cleanData = cleanFirestoreData(profile) as Record<string, unknown>;
             await setDoc(docRef, { ...cleanData, updatedAt: new Date() }, { merge: true });
         } catch (error) {
             console.error("Error saving user profile:", error);

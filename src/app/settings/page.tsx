@@ -463,10 +463,10 @@ export default function SettingsPage() {
                 url,
                 createdAt: new Date().toISOString(),
                 effectiveDate: contractForm.startDate,
-                monthlyHours: contractForm.monthlyHours,
-                weeklyHours: contractForm.weeklyHours,
-                hourlyRate: contractForm.hourlyRate,
-                lumpSumAmount: contractForm.lumpSumAmount
+                ...(contractForm.monthlyHours ? { monthlyHours: contractForm.monthlyHours } : {}),
+                ...(contractForm.weeklyHours ? { weeklyHours: contractForm.weeklyHours } : {}),
+                ...(contractForm.hourlyRate ? { hourlyRate: contractForm.hourlyRate } : {}),
+                ...(contractForm.lumpSumAmount ? { lumpSumAmount: contractForm.lumpSumAmount } : {})
             };
 
             const existingDocs = selectedUser.contractDocuments || [];
@@ -480,9 +480,9 @@ export default function SettingsPage() {
                     url: selectedUser.contractDocumentUrl,
                     createdAt: selectedUser.entryDate || new Date().toISOString(),
                     effectiveDate: selectedUser.entryDate || "",
-                    monthlyHours: selectedUser.monthlyHours,
-                    weeklyHours: selectedUser.weeklyHours,
-                    hourlyRate: selectedUser.hourlyRate
+                    ...(selectedUser.monthlyHours ? { monthlyHours: selectedUser.monthlyHours } : {}),
+                    ...(selectedUser.weeklyHours ? { weeklyHours: selectedUser.weeklyHours } : {}),
+                    ...(selectedUser.hourlyRate ? { hourlyRate: selectedUser.hourlyRate } : {})
                 });
             }
             migratedDocs.push(newDoc);
@@ -491,10 +491,10 @@ export default function SettingsPage() {
                 ...selectedUser,
                 contractDocumentUrl: url,
                 contractDocuments: migratedDocs,
-                entryDate: isAmendment ? selectedUser.entryDate : contractForm.startDate,
-                hourlyRate: contractForm.hourlyRate,
-                monthlyHours: contractForm.monthlyHours,
-                weeklyHours: contractForm.weeklyHours
+                entryDate: isAmendment ? (selectedUser.entryDate || contractForm.startDate) : contractForm.startDate,
+                ...(contractForm.hourlyRate ? { hourlyRate: contractForm.hourlyRate } : {}),
+                ...(contractForm.monthlyHours ? { monthlyHours: contractForm.monthlyHours } : {}),
+                ...(contractForm.weeklyHours ? { weeklyHours: contractForm.weeklyHours } : {})
             };
 
             await userService.saveUserProfile(updatedProfile);
