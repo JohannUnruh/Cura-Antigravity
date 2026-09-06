@@ -1,10 +1,10 @@
 import jsPDF from "jspdf";
-import { ContractData, ContractTemplates } from "./templates";
+import { ContractData, getContractTemplate } from "./templates";
 import { storage } from "../firebase/config";
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 
 export async function generateAndUploadContract(data: ContractData, userId: string): Promise<string> {
-    const template = ContractTemplates[data.contractType];
+    const template = getContractTemplate(data);
     const textContent = template.text(data);
 
     const doc = new jsPDF();
@@ -157,7 +157,8 @@ export async function generateAndUploadContract(data: ContractData, userId: stri
     // Upload to Firebase Storage
     const timestamp = new Date().getTime();
     const safeName = data.employeeName.replace(/[^a-zA-Z0-9_\-]/g, '_');
-    const fileName = `contracts/${userId}/Vertrag_${data.contractType.replace(/\s/g, '_')}_${safeName}_${timestamp}.pdf`;
+    const docPrefix = data.documentKind === 'Änderungsvereinbarung' ? 'Aenderungsvereinbarung' : 'Vertrag';
+    const fileName = `contracts/${userId}/${docPrefix}_${data.contractType.replace(/\s/g, '_')}_${safeName}_${timestamp}.pdf`;
     const storageRef = ref(storage, fileName);
 
     await uploadString(storageRef, base64Content, 'base64', { contentType: 'application/pdf' });
