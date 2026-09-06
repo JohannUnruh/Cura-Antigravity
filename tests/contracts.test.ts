@@ -45,14 +45,14 @@ describe("Contracts & Amendment Agreements (Minijob & Monthly Hours)", () => {
         if (!text.includes("regelmäßige monatliche Arbeitszeit beträgt 36 Stunden")) {
             throw new Error("Text does not include monthly working hours in § 3");
         }
-        if (!text.includes("Bruttostundenlohn in Höhe von 16.75 EUR")) {
+        if (!text.includes("Bruttostundenlohn in Höhe von 16,75 EUR")) {
             throw new Error("Text does not include hourly rate in § 4");
         }
-        if (!text.includes("monatliche Vergütung in Höhe von 603.00 EUR")) {
+        if (!text.includes("monatliche Vergütung in Höhe von 603,00 EUR")) {
             throw new Error("Text does not include monthly salary in § 4");
         }
-        if (!text.includes("derzeit 603.00 EUR")) {
-            throw new Error("Text does not include 603.00 EUR earnings limit in § 4");
+        if (!text.includes("derzeit 603,00 EUR")) {
+            throw new Error("Text does not include 603,00 EUR earnings limit in § 4");
         }
     });
 
@@ -82,8 +82,8 @@ describe("Contracts & Amendment Agreements (Minijob & Monthly Hours)", () => {
         }
 
         const text = template.text(data);
-        if (!text.includes("Änderungsvereinbarung")) {
-            throw new Error("Missing Änderungsvereinbarung heading");
+        if (!text.includes("wird in Ergänzung und Abänderung des bestehenden Arbeitsvertrages folgendes vereinbart:")) {
+            throw new Error("Missing agreement preamble");
         }
         if (!text.includes("§ 1 Inkrafttreten")) {
             throw new Error("Missing § 1 Inkrafttreten");
@@ -94,10 +94,10 @@ describe("Contracts & Amendment Agreements (Minijob & Monthly Hours)", () => {
         if (!text.includes("monatliche Arbeitszeit beträgt ab dem vorgenannten Zeitpunkt 36 Stunden")) {
             throw new Error("Missing § 2 Arbeitszeit with monthly hours");
         }
-        if (!text.includes("Bruttostundenlohn in Höhe von 16.75 EUR")) {
+        if (!text.includes("Bruttostundenlohn in Höhe von 16,75 EUR")) {
             throw new Error("Missing § 3 hourly rate");
         }
-        if (!text.includes("monatliche Bruttoentgelt 603.00 EUR")) {
+        if (!text.includes("monatliche Bruttoentgelt 603,00 EUR")) {
             throw new Error("Missing § 3 monthly compensation");
         }
         if (!text.includes("Fortgeltung der übrigen Vertragsbestimmungen")) {
@@ -105,6 +105,33 @@ describe("Contracts & Amendment Agreements (Minijob & Monthly Hours)", () => {
         }
         if (!text.includes("Textform")) {
             throw new Error("Missing text form clause in final section");
+        }
+    });
+
+    it("generates Minijob amendment PDF fitting cleanly onto 1 single page", async () => {
+        const { createContractPdf } = await import("@/lib/contracts/generator");
+        const data: ContractData = {
+            employerName: "Musterverein e.V.",
+            employerAddress: "Musterstraße 1, 12345 Musterstadt",
+            employerCity: "Musterstadt",
+            employeeName: "Max Mustermann",
+            employeeAddress: "Beispielweg 2, 12345 Musterstadt",
+            startDate: "01.10.2026",
+            monthlyHours: 36,
+            weeklyHours: 8.31,
+            hourlyRate: 16.75,
+            lumpSumAmount: 603,
+            monthlyEarningsLimit: 603,
+            vacationDaysPerYear: 24,
+            contractType: "Minijob",
+            documentKind: "Änderungsvereinbarung",
+            boardSignatureUrl: "",
+            employeeSignatureUrl: ""
+        };
+
+        const doc = createContractPdf(data);
+        if (doc.getNumberOfPages() !== 1) {
+            throw new Error(`Expected 1 page for Minijob amendment, got ${doc.getNumberOfPages()}`);
         }
     });
 

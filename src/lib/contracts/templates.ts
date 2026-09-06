@@ -20,6 +20,16 @@ export interface ContractData {
     employeeSignatureUrl: string; // the base64 png
 }
 
+export const formatCurrencyDE = (amount?: number): string => {
+    if (amount === undefined || amount === null || isNaN(amount)) return '0,00 EUR';
+    return amount.toFixed(2).replace('.', ',') + ' EUR';
+};
+
+export const formatHoursDE = (hours?: number): string => {
+    if (hours === undefined || hours === null || isNaN(hours)) return '0';
+    return hours.toString().replace('.', ',');
+};
+
 export const ContractTemplates: Record<ContractType, { title: string, text: (data: ContractData) => string }> = {
     'Minijob': {
         title: "Arbeitsvertrag für geringfügig entlohnte Beschäftigte (Minijob)",
@@ -41,12 +51,12 @@ Die ersten 6 Monate gelten als Probezeit, in der das Arbeitsverhältnis mit eine
 Der/Die Arbeitnehmer/in wird als Mitarbeiter/in eingestellt und erbringt die zugewiesenen Aufgaben nach besten Kräften. Der Arbeitgeber behält sich das Recht vor, dem/der Arbeitnehmer/in andere, gleichwertige Tätigkeiten zuzuweisen, sofern dies betrieblich erforderlich und zumutbar ist.
 
 § 3 Arbeitszeit
-Die regelmäßige monatliche Arbeitszeit beträgt ${data.monthlyHours ?? (data.weeklyHours ? Math.round(data.weeklyHours * 4.33 * 10) / 10 : 0)} Stunden${data.weeklyHours ? ` (entspricht durchschnittlich ca. ${data.weeklyHours} Stunden wöchentlich)` : ''}. Die Verteilung der Arbeitszeit richtet sich nach den betrieblichen Erfordernissen und wird vom Arbeitgeber nach billigem Ermessen festgelegt. 
+Die regelmäßige monatliche Arbeitszeit beträgt ${formatHoursDE(data.monthlyHours ?? (data.weeklyHours ? Math.round(data.weeklyHours * 4.33 * 10) / 10 : 0))} Stunden${data.weeklyHours ? ` (entspricht durchschnittlich ca. ${formatHoursDE(data.weeklyHours)} Stunden wöchentlich)` : ''}. Die Verteilung der Arbeitszeit richtet sich nach den betrieblichen Erfordernissen und wird vom Arbeitgeber nach billigem Ermessen festgelegt. 
 
 § 4 Vergütung
-Der/Die Arbeitnehmer/in erhält einen Bruttostundenlohn in Höhe von ${data.hourlyRate?.toFixed(2) || '0.00'} EUR.
-Bei einer regelmäßigen monatlichen Arbeitszeit von ${data.monthlyHours ?? 0} Stunden ergibt sich eine monatliche Vergütung in Höhe von ${(data.lumpSumAmount || ((data.monthlyHours || 0) * (data.hourlyRate || 0))).toFixed(2)} EUR.
-Es handelt sich um eine geringfügige Beschäftigung (§ 8 Abs. 1 Nr. 1 SGB IV). Die monatliche Vergütung darf die gesetzliche Geringfügigkeitsgrenze (derzeit ${data.monthlyEarningsLimit?.toFixed(2) || '603.00'} EUR) im regelmäßigen Durchschnitt nicht überschreiten. 
+Der/Die Arbeitnehmer/in erhält einen Bruttostundenlohn in Höhe von ${formatCurrencyDE(data.hourlyRate)}.
+Bei einer regelmäßigen monatlichen Arbeitszeit von ${formatHoursDE(data.monthlyHours ?? 0)} Stunden ergibt sich eine monatliche Vergütung in Höhe von ${formatCurrencyDE(data.lumpSumAmount || ((data.monthlyHours || 0) * (data.hourlyRate || 0)))}.
+Es handelt sich um eine geringfügige Beschäftigung (§ 8 Abs. 1 Nr. 1 SGB IV). Die monatliche Vergütung darf die gesetzliche Geringfügigkeitsgrenze (derzeit ${formatCurrencyDE(data.monthlyEarningsLimit || 603)}) im regelmäßigen Durchschnitt nicht überschreiten. 
 
 § 5 Urlaub und Krankheit
 Der/Die Arbeitnehmer/in hat Anspruch auf ${data.vacationDaysPerYear || 0} Urlaubstage pro Kalenderjahr. Im Übrigen gelten die gesetzlichen Vorschriften (insbesondere das Bundesurlaubsgesetz und Entgeltfortzahlungsgesetz).
@@ -175,22 +185,18 @@ und
 Herrn/Frau ${data.employeeName}
 ${data.employeeAddress}
 – nachfolgend „Arbeitnehmer/in“ genannt –
-wird in Abänderung und Ergänzung des bestehenden Arbeitsvertrages folgende
-
-Änderungsvereinbarung
-
-geschlossen:
+wird in Ergänzung und Abänderung des bestehenden Arbeitsvertrages folgendes vereinbart:
 
 § 1 Inkrafttreten
 Die nachfolgenden Vereinbarungen treten mit Wirkung zum ${data.startDate} in Kraft. Das Arbeitsverhältnis wird unverändert auf unbestimmte Zeit fortgeführt.
 
 § 2 Arbeitszeit
-Die regelmäßige monatliche Arbeitszeit beträgt ab dem vorgenannten Zeitpunkt ${data.monthlyHours ?? 0} Stunden${data.weeklyHours ? ` (dies entspricht durchschnittlich ca. ${data.weeklyHours} Stunden wöchentlich)` : ''}. Die zeitliche Lage und Verteilung der Arbeitszeit richtet sich weiterhin nach den betrieblichen Erfordernissen und wird vom Arbeitgeber nach billigem Ermessen festgelegt.
+Die regelmäßige monatliche Arbeitszeit beträgt ab dem vorgenannten Zeitpunkt ${formatHoursDE(data.monthlyHours ?? 0)} Stunden${data.weeklyHours ? ` (dies entspricht durchschnittlich ca. ${formatHoursDE(data.weeklyHours)} Stunden wöchentlich)` : ''}. Die zeitliche Lage und Verteilung der Arbeitszeit richtet sich weiterhin nach den betrieblichen Erfordernissen und wird vom Arbeitgeber nach billigem Ermessen festgelegt.
 
 § 3 Vergütung
-Der/Die Arbeitnehmer/in erhält ab dem vorgenannten Zeitpunkt einen Bruttostundenlohn in Höhe von ${data.hourlyRate?.toFixed(2) || '0.00'} EUR.
-Bei einer regelmäßigen monatlichen Arbeitszeit von ${data.monthlyHours ?? 0} Stunden beträgt das monatliche Bruttoentgelt ${(data.lumpSumAmount || ((data.monthlyHours || 0) * (data.hourlyRate || 0))).toFixed(2)} EUR.
-Das Arbeitsverhältnis wird unverändert als geringfügige Beschäftigung im Sinne des § 8 Abs. 1 Nr. 1 SGB IV geführt. Die monatliche Vergütung darf die gesetzliche Geringfügigkeitsgrenze (derzeit ${data.monthlyEarningsLimit?.toFixed(2) || '603.00'} EUR) im regelmäßigen Durchschnitt nicht überschreiten.
+Der/Die Arbeitnehmer/in erhält ab dem vorgenannten Zeitpunkt einen Bruttostundenlohn in Höhe von ${formatCurrencyDE(data.hourlyRate)}.
+Bei einer regelmäßigen monatlichen Arbeitszeit von ${formatHoursDE(data.monthlyHours ?? 0)} Stunden beträgt das monatliche Bruttoentgelt ${formatCurrencyDE(data.lumpSumAmount || ((data.monthlyHours || 0) * (data.hourlyRate || 0)))}.
+Das Arbeitsverhältnis wird unverändert als geringfügige Beschäftigung im Sinne des § 8 Abs. 1 Nr. 1 SGB IV geführt. Die monatliche Vergütung darf die gesetzliche Geringfügigkeitsgrenze (derzeit ${formatCurrencyDE(data.monthlyEarningsLimit || 603)}) im regelmäßigen Durchschnitt nicht überschreiten.
 
 ${data.vacationDaysPerYear ? `§ 4 Erholungsurlaub\nDer Anspruch auf bezahlten Erholungsurlaub beträgt ${data.vacationDaysPerYear} Urlaubstage pro Kalenderjahr.\n` : ''}
 § ${data.vacationDaysPerYear ? '5' : '4'} Fortgeltung der übrigen Vertragsbestimmungen

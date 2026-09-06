@@ -430,14 +430,26 @@ export default function SettingsPage() {
 
         setIsSaving(true);
         try {
+            const formatIsoToGermanDate = (isoStr?: string): string => {
+                if (!isoStr) return "";
+                const parts = isoStr.split("-");
+                if (parts.length === 3) {
+                    return `${parts[2].padStart(2, "0")}.${parts[1].padStart(2, "0")}.${parts[0]}`;
+                }
+                return isoStr;
+            };
+
+            const formattedStartDate = formatIsoToGermanDate(contractForm.startDate);
+            const formattedEndDate = contractForm.endDate ? formatIsoToGermanDate(contractForm.endDate) : undefined;
+
             const url = await generateAndUploadContract({
                 employerName: appSettings.clubName || "Vereinsname nicht gesetzt",
                 employerAddress: `${appSettings.address?.street || ""}, ${appSettings.address?.zipCode || ""} ${appSettings.address?.city || ""}`,
                 employerCity: appSettings.address?.city || "",
                 employeeName: `${selectedUser.firstName} ${selectedUser.lastName}`,
                 employeeAddress: `${selectedUser.address?.street || ""}, ${selectedUser.address?.zipCode || ""} ${selectedUser.address?.city || ""}`,
-                startDate: new Date(contractForm.startDate).toLocaleDateString("de-DE"),
-                endDate: contractForm.endDate ? new Date(contractForm.endDate).toLocaleDateString("de-DE") : undefined,
+                startDate: formattedStartDate,
+                endDate: formattedEndDate,
                 weeklyHours: contractForm.weeklyHours,
                 monthlyHours: contractForm.monthlyHours,
                 hourlyRate: contractForm.hourlyRate,
@@ -452,8 +464,8 @@ export default function SettingsPage() {
 
             const isAmendment = contractForm.documentKind === 'Änderungsvereinbarung';
             const docTitle = isAmendment 
-                ? `Änderung (${new Date(contractForm.startDate).toLocaleDateString("de-DE")})`
-                : `Vertrag (${new Date(contractForm.startDate).toLocaleDateString("de-DE")})`;
+                ? `Änderung (${formattedStartDate})`
+                : `Vertrag (${formattedStartDate})`;
 
             const newDoc: UserContractDocument = {
                 id: `doc_${Date.now()}`,
