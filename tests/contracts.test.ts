@@ -154,8 +154,139 @@ describe("Contracts & Amendment Agreements (Minijob & Monthly Hours)", () => {
             throw new Error(`Unexpected title for Ehrenamtspauschale amendment: ${template.title}`);
         }
         const text = template.text(ehrenamtData);
-        if (!text.includes("70.00 EUR")) {
+        if (!text.includes("70,00 EUR") && !text.includes("70.00 EUR")) {
             throw new Error("Lump sum amount missing in Ehrenamtspauschale text");
+        }
+    });
+
+    it("generates Übungsleiter contract matching the official ZeFabiKo Word template", () => {
+        const data: ContractData = {
+            employerName: "Zentrum für Familienberatung nach biblischen Konzepten e.V.",
+            employerAddress: "Musterstr. 1, 58553 Halver",
+            employerCity: "Halver",
+            employeeName: "Jessica Koslowsky",
+            employeeAddress: "Beispielstr. 10, 58553 Halver",
+            employeeBirthDate: "23.02.1985",
+            startDate: "01.01.2026",
+            monthlyHours: 8.6,
+            lumpSumAmount: 125,
+            activityDescription: "Organisationsbeauftragte und Kassenprüferin",
+            contractType: "Übungsleiterpauschale",
+            documentKind: "Vertrag",
+            boardSignatureUrl: "data:image/png;base64,board",
+            employeeSignatureUrl: "data:image/png;base64,employee"
+        };
+
+        const template = getContractTemplate(data);
+        if (template.title !== "Vertrag für „Übungsleiter“") {
+            throw new Error(`Unexpected title: ${template.title}`);
+        }
+
+        const text = template.text(data);
+        if (!text.includes("Frau/Herrn Jessica Koslowsky, geb. am 23.02.1985")) {
+            throw new Error("Missing party name and birthdate");
+        }
+        if (!text.includes("nebenberufliche Tätigkeit als Organisationsbeauftragte und Kassenprüferin")) {
+            throw new Error("Missing activity description in § 1");
+        }
+        if (!text.includes("arbeitet 8,6 Stunden im Monat")) {
+            throw new Error("Missing monthly hours in § 2");
+        }
+        if (!text.includes("monatlich 125,00 EUR steuer- und sozialversicherungsfrei gemäß § 3 Nr. 26 EStG")) {
+            throw new Error("Missing compensation and § 3 Nr. 26 EStG in § 3");
+        }
+        if (!text.includes("maximal 3.000,00 EUR")) {
+            throw new Error("Missing 3.000 EUR limit in § 4");
+        }
+        if (!text.includes("Verschwiegenheit")) {
+            throw new Error("Missing confidentiality clause in § 5");
+        }
+        if (!text.includes("Erklärung der tätigen Person zur Inanspruchnahme der sog. Übungsleiterpauschale")) {
+            throw new Error("Missing declaration header");
+        }
+        if (!text.includes("§ 3 Nr. 26 EStG")) {
+            throw new Error("Missing § 3 Nr. 26 EStG in declaration");
+        }
+    });
+
+    it("generates Ehrenamtliche contract matching the official ZeFabiKo Word template", () => {
+        const data: ContractData = {
+            employerName: "Zentrum für Familienberatung nach biblischen Konzepten e.V.",
+            employerAddress: "Musterstr. 1, 58553 Halver",
+            employerCity: "Halver",
+            employeeName: "Jessica Koslowsky",
+            employeeAddress: "Beispielstr. 10, 58553 Halver",
+            startDate: "01.01.2026",
+            lumpSumAmount: 440,
+            activityDescription: "Organisationsbeauftragte und Kassenprüferin des Vereins",
+            tasksDescription: "Kassenprüfung\nOrganisation der Unterkünfte bei Freizeiten und Vorträgen\nBeratende Funktion",
+            contractType: "Ehrenamtspauschale",
+            documentKind: "Vertrag",
+            boardSignatureUrl: "data:image/png;base64,board",
+            employeeSignatureUrl: "data:image/png;base64,employee"
+        };
+
+        const template = getContractTemplate(data);
+        if (template.title !== "Vertrag für „ehrenamtliche“ Mitarbeiter") {
+            throw new Error(`Unexpected title: ${template.title}`);
+        }
+
+        const text = template.text(data);
+        if (!text.includes("nebenberufliche Tätigkeit als Organisationsbeauftragte und Kassenprüferin des Vereins")) {
+            throw new Error("Missing activity description in § 1");
+        }
+        if (!text.includes("• Kassenprüfung") || !text.includes("• Organisation der Unterkünfte")) {
+            throw new Error("Missing tasks list in § 2");
+        }
+        if (!text.includes("440,00 EUR steuer- und sozialversicherungsfrei gemäß § 3 Nr. 26a EStG")) {
+            throw new Error("Missing 440,00 EUR and § 3 Nr. 26a EStG in § 3");
+        }
+        if (!text.includes("maximal 840,00 EUR")) {
+            throw new Error("Missing 840 EUR annual limit in § 4");
+        }
+        if (!text.includes("Erklärung der tätigen Person zur Inanspruchnahme der sog. Ehrenamtspauschale")) {
+            throw new Error("Missing declaration header in Ehrenamtliche contract");
+        }
+    });
+
+    it("renders Übungsleiter and Ehrenamtliche PDFs without errors", async () => {
+        const { createContractPdf } = await import("@/lib/contracts/generator");
+        
+        const uebungsleiterData: ContractData = {
+            employerName: "Zentrum für Familienberatung nach biblischen Konzepten e.V.",
+            employerAddress: "Musterstr. 1, 58553 Halver",
+            employerCity: "Halver",
+            employeeName: "Jessica Koslowsky",
+            employeeAddress: "Beispielstr. 10, 58553 Halver",
+            startDate: "01.01.2026",
+            monthlyHours: 8.6,
+            lumpSumAmount: 125,
+            contractType: "Übungsleiterpauschale",
+            documentKind: "Vertrag",
+            boardSignatureUrl: "",
+            employeeSignatureUrl: ""
+        };
+        const doc1 = createContractPdf(uebungsleiterData);
+        if (doc1.getNumberOfPages() < 1) {
+            throw new Error("Failed to render Übungsleiter PDF");
+        }
+
+        const ehrenamtData: ContractData = {
+            employerName: "Zentrum für Familienberatung nach biblischen Konzepten e.V.",
+            employerAddress: "Musterstr. 1, 58553 Halver",
+            employerCity: "Halver",
+            employeeName: "Jessica Koslowsky",
+            employeeAddress: "Beispielstr. 10, 58553 Halver",
+            startDate: "01.01.2026",
+            lumpSumAmount: 840,
+            contractType: "Ehrenamtspauschale",
+            documentKind: "Vertrag",
+            boardSignatureUrl: "",
+            employeeSignatureUrl: ""
+        };
+        const doc2 = createContractPdf(ehrenamtData);
+        if (doc2.getNumberOfPages() < 1) {
+            throw new Error("Failed to render Ehrenamtliche PDF");
         }
     });
 });

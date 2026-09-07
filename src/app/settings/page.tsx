@@ -149,6 +149,9 @@ export default function SettingsPage() {
         monthlyHours: 0,
         hourlyRate: 16.75,
         lumpSumAmount: 603,
+        activityDescription: "",
+        tasksDescription: "",
+        birthDate: "",
         boardSignatureUrl: "",
         employeeSignatureUrl: ""
     });
@@ -393,15 +396,33 @@ export default function SettingsPage() {
         setSelectedUser(u);
         const hourlyRate = u.hourlyRate || appSettings?.minimumWage || 16.75;
         const monthlyEarningsLimit = appSettings?.monthlyEarningsLimit || 603;
-        const lumpSumAmount = u.contractType === 'Minijob' ? monthlyEarningsLimit : 250;
+        
+        let lumpSumAmount = 0;
         let monthlyHours = u.monthlyHours || 0;
         let weeklyHours = u.weeklyHours || 0;
+        let activityDescription = u.activityDescription || "";
+        let tasksDescription = u.tasksDescription || "";
+
         if (u.contractType === 'Minijob') {
+            lumpSumAmount = monthlyEarningsLimit;
             if (!monthlyHours && hourlyRate > 0) {
                 monthlyHours = Math.round((lumpSumAmount / hourlyRate) * 100) / 100;
             }
             weeklyHours = Math.round((monthlyHours / 4.33) * 100) / 100;
+        } else if (u.contractType === 'Übungsleiterpauschale') {
+            lumpSumAmount = u.monthlyHours && u.hourlyRate ? (u.monthlyHours * u.hourlyRate) : 125;
+            monthlyHours = monthlyHours || 8.6;
+            activityDescription = activityDescription || "Organisationsbeauftragte und Kassenprüferin";
+        } else if (u.contractType === 'Ehrenamtspauschale') {
+            lumpSumAmount = 840;
+            activityDescription = activityDescription || "Organisationsbeauftragte und Kassenprüferin des Vereins";
+            tasksDescription = tasksDescription || "Kassenprüfung\nOrganisation der Unterkünfte bei Freizeiten und Vorträgen\nBeratende Funktion";
+        } else { // Ehrenamtlich
+            lumpSumAmount = 0;
+            activityDescription = activityDescription || "ehrenamtliche/r Mitarbeiter/in des Vereins";
+            tasksDescription = tasksDescription || "Beratung und Seelsorge\nUnterstützung bei Freizeiten und Vorträgen\nAllgemeine ehrenamtliche Mitarbeit";
         }
+
         setContractForm({
             documentKind: kind,
             startDate: new Date().toISOString().slice(0, 10),
@@ -410,6 +431,9 @@ export default function SettingsPage() {
             monthlyHours,
             hourlyRate,
             lumpSumAmount,
+            activityDescription,
+            tasksDescription,
+            birthDate: u.birthDate || "",
             boardSignatureUrl: "",
             employeeSignatureUrl: ""
         });
@@ -441,6 +465,7 @@ export default function SettingsPage() {
 
             const formattedStartDate = formatIsoToGermanDate(contractForm.startDate);
             const formattedEndDate = contractForm.endDate ? formatIsoToGermanDate(contractForm.endDate) : undefined;
+            const formattedBirthDate = contractForm.birthDate ? formatIsoToGermanDate(contractForm.birthDate) : undefined;
 
             const url = await generateAndUploadContract({
                 employerName: appSettings.clubName || "Vereinsname nicht gesetzt",
@@ -448,6 +473,7 @@ export default function SettingsPage() {
                 employerCity: appSettings.address?.city || "",
                 employeeName: `${selectedUser.firstName} ${selectedUser.lastName}`,
                 employeeAddress: `${selectedUser.address?.street || ""}, ${selectedUser.address?.zipCode || ""} ${selectedUser.address?.city || ""}`,
+                employeeBirthDate: formattedBirthDate,
                 startDate: formattedStartDate,
                 endDate: formattedEndDate,
                 weeklyHours: contractForm.weeklyHours,
@@ -458,6 +484,8 @@ export default function SettingsPage() {
                 vacationDaysPerYear: selectedUser.vacationDaysPerYear ?? undefined,
                 contractType: selectedUser.contractType || "Ehrenamtlich",
                 documentKind: contractForm.documentKind,
+                activityDescription: contractForm.activityDescription,
+                tasksDescription: contractForm.tasksDescription,
                 boardSignatureUrl: contractForm.boardSignatureUrl,
                 employeeSignatureUrl: contractForm.employeeSignatureUrl
             }, selectedUser.id);
@@ -478,7 +506,8 @@ export default function SettingsPage() {
                 ...(contractForm.monthlyHours ? { monthlyHours: contractForm.monthlyHours } : {}),
                 ...(contractForm.weeklyHours ? { weeklyHours: contractForm.weeklyHours } : {}),
                 ...(contractForm.hourlyRate ? { hourlyRate: contractForm.hourlyRate } : {}),
-                ...(contractForm.lumpSumAmount ? { lumpSumAmount: contractForm.lumpSumAmount } : {})
+                ...(contractForm.lumpSumAmount ? { lumpSumAmount: contractForm.lumpSumAmount } : {}),
+                ...(contractForm.activityDescription ? { activityDescription: contractForm.activityDescription } : {})
             };
 
             const existingDocs = selectedUser.contractDocuments || [];
@@ -504,6 +533,9 @@ export default function SettingsPage() {
                 contractDocumentUrl: url,
                 contractDocuments: migratedDocs,
                 entryDate: isAmendment ? (selectedUser.entryDate || contractForm.startDate) : contractForm.startDate,
+                ...(contractForm.birthDate ? { birthDate: contractForm.birthDate } : {}),
+                ...(contractForm.activityDescription ? { activityDescription: contractForm.activityDescription } : {}),
+                ...(contractForm.tasksDescription ? { tasksDescription: contractForm.tasksDescription } : {}),
                 ...(contractForm.hourlyRate ? { hourlyRate: contractForm.hourlyRate } : {}),
                 ...(contractForm.monthlyHours ? { monthlyHours: contractForm.monthlyHours } : {}),
                 ...(contractForm.weeklyHours ? { weeklyHours: contractForm.weeklyHours } : {})
@@ -1158,7 +1190,7 @@ export default function SettingsPage() {
                                             className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${contractForm.documentKind === 'Vertrag' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'}`}
                                         >
                                             <FileSignature className="w-3.5 h-3.5" />
-                                            Arbeitsvertrag
+                                            {selectedUser?.contractType === 'Minijob' ? 'Arbeitsvertrag' : 'Vertrag'}
                                         </button>
                                         <button
                                             type="button"
@@ -1183,70 +1215,111 @@ export default function SettingsPage() {
                                             <input type="date" title="Enddatum" value={contractForm.endDate} onChange={e => setContractForm({ ...contractForm, endDate: e.target.value })}
                                                 className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm" />
                                         </div>
+                                        <div className="col-span-2 sm:col-span-1">
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Geburtsdatum (optional für Vertragskopf)</label>
+                                            <input type="date" title="Geburtsdatum" value={contractForm.birthDate} onChange={e => setContractForm({ ...contractForm, birthDate: e.target.value })}
+                                                className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm" />
+                                        </div>
+                                        <div className="col-span-2 sm:col-span-1">
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tätigkeit / Funktion</label>
+                                            <input type="text" title="Tätigkeit" value={contractForm.activityDescription} onChange={e => setContractForm({ ...contractForm, activityDescription: e.target.value })}
+                                                placeholder={selectedUser?.contractType === 'Übungsleiterpauschale' ? 'z. B. Organisationsbeauftragte und Kassenprüferin' : 'z. B. ehrenamtliche/r Mitarbeiter/in des Vereins'}
+                                                className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm" />
+                                        </div>
                                         {selectedUser?.contractType === 'Minijob' && (
                                             <>
                                                 <div>
                                                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Monatsgehalt / Verdienstgrenze (€)</label>
                                                     <input type="number" title="Monatsgehalt" step="1" min="0" required value={contractForm.lumpSumAmount}
                                                         onChange={e => {
-                                                            const newSalary = parseFloat(e.target.value) || 0;
-                                                            const monthly = contractForm.hourlyRate > 0 && newSalary > 0 
-                                                                ? Math.round((newSalary / contractForm.hourlyRate) * 100) / 100 
-                                                                : 0;
-                                                            const weekly = Math.round((monthly / 4.33) * 100) / 100;
-                                                            setContractForm({ ...contractForm, lumpSumAmount: newSalary, monthlyHours: monthly, weeklyHours: weekly });
-                                                        }}
-                                                        className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm" />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Stundenlohn (€)</label>
-                                                    <input type="number" title="Stundenlohn" step="0.01" min="0" required value={contractForm.hourlyRate}
-                                                        onChange={e => {
-                                                            const newRate = parseFloat(e.target.value) || 0;
-                                                            const monthly = newRate > 0 && contractForm.lumpSumAmount > 0 
-                                                                ? Math.round((contractForm.lumpSumAmount / newRate) * 100) / 100 
-                                                                : 0;
-                                                            const weekly = Math.round((monthly / 4.33) * 100) / 100;
-                                                            setContractForm({ ...contractForm, hourlyRate: newRate, monthlyHours: monthly, weeklyHours: weekly });
-                                                        }}
-                                                        className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm" />
-                                                </div>
-                                                <div className="col-span-2">
-                                                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Errechnete monatliche Arbeitszeit (automatisch, Std./Monat)</label>
-                                                    <input type="number" title="Monatliche Arbeitszeit" step="0.5" min="0" required value={contractForm.monthlyHours}
-                                                        onChange={e => {
-                                                            const newMonthly = parseFloat(e.target.value) || 0;
-                                                            const weekly = Math.round((newMonthly / 4.33) * 100) / 100;
-                                                            const newRate = newMonthly > 0 && contractForm.lumpSumAmount > 0
-                                                                ? Math.round((contractForm.lumpSumAmount / newMonthly) * 100) / 100
-                                                                : contractForm.hourlyRate;
-                                                            setContractForm({
-                                                                ...contractForm,
-                                                                monthlyHours: newMonthly,
-                                                                weeklyHours: weekly,
-                                                                hourlyRate: newRate
-                                                            });
-                                                        }}
-                                                        className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 bg-indigo-50/30 dark:bg-indigo-950/20 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white font-semibold text-sm" />
-                                                </div>
-                                                <div className="col-span-2 bg-indigo-50/70 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/40 rounded-xl p-3 text-xs text-indigo-900 dark:text-indigo-200 flex flex-wrap items-center justify-between gap-2">
-                                                    <span>
-                                                        <strong>Berechnung:</strong> {contractForm.monthlyHours} Std./Monat × {contractForm.hourlyRate.toFixed(2)} € = {(contractForm.monthlyHours * contractForm.hourlyRate).toFixed(2)} €
-                                                    </span>
-                                                    <span className="font-medium bg-white dark:bg-slate-800 px-2 py-0.5 rounded text-indigo-700 dark:text-indigo-300 shadow-xs border border-indigo-100/50 dark:border-indigo-700/30">
-                                                        Ø ca. {contractForm.weeklyHours} Std./Woche
-                                                    </span>
-                                                </div>
-                                            </>
-                                        )}
-                                        {(selectedUser?.contractType === 'Ehrenamtspauschale' || selectedUser?.contractType === 'Übungsleiterpauschale') && (
-                                            <div className="col-span-2">
-                                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Pauschale (gesamt, €)</label>
-                                                <input type="number" title="Pauschale" step="10" required value={contractForm.lumpSumAmount} onChange={e => setContractForm({ ...contractForm, lumpSumAmount: parseFloat(e.target.value) || 0 })}
-                                                    className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm" />
-                                            </div>
-                                        )}
-                                    </div>
+                                                             const newSalary = parseFloat(e.target.value) || 0;
+                                                             const monthly = contractForm.hourlyRate > 0 && newSalary > 0 
+                                                                 ? Math.round((newSalary / contractForm.hourlyRate) * 100) / 100 
+                                                                 : 0;
+                                                             const weekly = Math.round((monthly / 4.33) * 100) / 100;
+                                                             setContractForm({ ...contractForm, lumpSumAmount: newSalary, monthlyHours: monthly, weeklyHours: weekly });
+                                                         }}
+                                                         className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm" />
+                                                 </div>
+                                                 <div>
+                                                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Stundenlohn (€)</label>
+                                                     <input type="number" title="Stundenlohn" step="0.01" min="0" required value={contractForm.hourlyRate}
+                                                         onChange={e => {
+                                                             const newRate = parseFloat(e.target.value) || 0;
+                                                             const monthly = newRate > 0 && contractForm.lumpSumAmount > 0 
+                                                                 ? Math.round((contractForm.lumpSumAmount / newRate) * 100) / 100 
+                                                                 : 0;
+                                                             const weekly = Math.round((monthly / 4.33) * 100) / 100;
+                                                             setContractForm({ ...contractForm, hourlyRate: newRate, monthlyHours: monthly, weeklyHours: weekly });
+                                                         }}
+                                                         className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm" />
+                                                 </div>
+                                                 <div className="col-span-2">
+                                                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Errechnete monatliche Arbeitszeit (automatisch, Std./Monat)</label>
+                                                     <input type="number" title="Monatliche Arbeitszeit" step="0.5" min="0" required value={contractForm.monthlyHours}
+                                                         onChange={e => {
+                                                             const newMonthly = parseFloat(e.target.value) || 0;
+                                                             const weekly = Math.round((newMonthly / 4.33) * 100) / 100;
+                                                             const newRate = newMonthly > 0 && contractForm.lumpSumAmount > 0
+                                                                 ? Math.round((contractForm.lumpSumAmount / newMonthly) * 100) / 100
+                                                                 : contractForm.hourlyRate;
+                                                             setContractForm({
+                                                                 ...contractForm,
+                                                                 monthlyHours: newMonthly,
+                                                                 weeklyHours: weekly,
+                                                                 hourlyRate: newRate
+                                                             });
+                                                         }}
+                                                         className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 bg-indigo-50/30 dark:bg-indigo-950/20 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white font-semibold text-sm" />
+                                                 </div>
+                                                 <div className="col-span-2 bg-indigo-50/70 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/40 rounded-xl p-3 text-xs text-indigo-900 dark:text-indigo-200 flex flex-wrap items-center justify-between gap-2">
+                                                     <span>
+                                                         <strong>Berechnung:</strong> {contractForm.monthlyHours} Std./Monat × {contractForm.hourlyRate.toFixed(2)} € = {(contractForm.monthlyHours * contractForm.hourlyRate).toFixed(2)} €
+                                                     </span>
+                                                     <span className="font-medium bg-white dark:bg-slate-800 px-2 py-0.5 rounded text-indigo-700 dark:text-indigo-300 shadow-xs border border-indigo-100/50 dark:border-indigo-700/30">
+                                                         Ø ca. {contractForm.weeklyHours} Std./Woche
+                                                     </span>
+                                                 </div>
+                                             </>
+                                         )}
+                                         {selectedUser?.contractType === 'Übungsleiterpauschale' && (
+                                             <>
+                                                 <div>
+                                                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Monatliche Aufwandsentschädigung (€)</label>
+                                                     <input type="number" title="Aufwandsentschädigung" step="5" min="0" required value={contractForm.lumpSumAmount} onChange={e => setContractForm({ ...contractForm, lumpSumAmount: parseFloat(e.target.value) || 0 })}
+                                                         className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm" />
+                                                     <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-1">Gemäß § 3 Nr. 26 EStG (max. 3.000 €/Jahr)</p>
+                                                 </div>
+                                                 <div>
+                                                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Arbeitszeit (Std./Monat)</label>
+                                                     <input type="number" title="Monatliche Arbeitszeit" step="0.1" min="0" required value={contractForm.monthlyHours} onChange={e => setContractForm({ ...contractForm, monthlyHours: parseFloat(e.target.value) || 0 })}
+                                                         className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm" />
+                                                     <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-1">z. B. 8,6 Std./Monat laut Vereinsvorlage</p>
+                                                 </div>
+                                             </>
+                                         )}
+                                         {(selectedUser?.contractType === 'Ehrenamtspauschale' || selectedUser?.contractType === 'Ehrenamtlich') && (
+                                             <>
+                                                 <div className="col-span-2">
+                                                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Aufwandsentschädigung (€, Ehrenamtspauschale)</label>
+                                                     <input type="number" title="Aufwandsentschädigung" step="10" min="0" value={contractForm.lumpSumAmount} onChange={e => setContractForm({ ...contractForm, lumpSumAmount: parseFloat(e.target.value) || 0 })}
+                                                         className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm" />
+                                                     <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-1">Gemäß § 3 Nr. 26a EStG (max. 840 €/Jahr; 0 € für unentgeltlich)</p>
+                                                 </div>
+                                                 <div className="col-span-2">
+                                                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Aufgaben der tätigen Person (eine Aufgabe pro Zeile)</label>
+                                                     <textarea
+                                                         title="Aufgaben"
+                                                         rows={3}
+                                                         value={contractForm.tasksDescription}
+                                                         onChange={e => setContractForm({ ...contractForm, tasksDescription: e.target.value })}
+                                                         placeholder="Kassenprüfung&#10;Organisation der Unterkünfte bei Freizeiten und Vorträgen&#10;Beratende Funktion"
+                                                         className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm font-mono"
+                                                     />
+                                                 </div>
+                                             </>
+                                         )}
+                                     </div>
                                     <div className="border-t border-gray-100 dark:border-white/10 pt-4 space-y-4">
                                         <SignaturePad
                                             label="Unterschrift Vorstand / Verein"

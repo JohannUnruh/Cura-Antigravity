@@ -14,6 +14,7 @@ export interface UserContractDocument {
     weeklyHours?: number;
     hourlyRate?: number;
     lumpSumAmount?: number;
+    activityDescription?: string;
 }
 
 export interface UserProfile {
@@ -23,6 +24,9 @@ export interface UserProfile {
     role: Role;
     contractType?: ContractType;
     entryDate?: string;
+    birthDate?: string; // z.B. "TT.MM.JJJJ" für Verträge
+    activityDescription?: string; // z.B. "Organisationsbeauftragte und Kassenprüferin"
+    tasksDescription?: string; // z.B. Aufgaben für Ehrenamtliche
     contractDocumentUrl?: string; // Links to Firebase Storage for the latest signed copy
     contractDocuments?: UserContractDocument[]; // Historie aller Verträge & Änderungsvereinbarungen
     hourlyRate?: number;

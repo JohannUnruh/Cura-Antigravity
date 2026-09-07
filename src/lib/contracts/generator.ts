@@ -72,7 +72,7 @@ export function createContractPdf(data: ContractData, logoBase64?: string): jsPD
             continue;
         }
 
-        const isSection = trimmed.startsWith('§');
+        const isSection = trimmed.startsWith('§') || trimmed.startsWith('Erklärung');
         const isPartyLine = trimmed.includes(data.employerName) || trimmed.includes(data.employeeName);
 
         if (isSection) {
