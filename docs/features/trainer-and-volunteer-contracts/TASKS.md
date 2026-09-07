@@ -23,11 +23,11 @@
   - [x] `npm run lint` & `npm run build` verifizieren (0 Fehler, 0 Warnungen)
   - [x] Grep auf hartkodierte Datums-Literale (0 Treffer in `src/`)
 
-- [ ] **Task 6: Git Commit & Push**
-  - [ ] Sauberen Git-Commit mit semantischer Message erstellen
-  - [ ] Git Push auf `origin/main` ausführen
+- [x] **Task 6: Git Commit & Push**
+  - [x] Sauberen Git-Commit mit semantischer Message erstellen (`6f19fa55`)
+  - [x] Git Push auf `origin/main` ausführen (erfolgreich)
 
-- [ ] **Task 7: Dokumentation & Benachrichtigung**
-  - [ ] Antwortnotiz für Johann in `00_Inbox_Alfons/Antwort/` erstellen
-  - [ ] Daily Log `2026-09-07.md` anlegen / aktualisieren
-  - [ ] System herunterfahren wie beauftragt
+- [x] **Task 7: Dokumentation & Benachrichtigung**
+  - [x] Antwortnotiz für Johann in `00_Inbox_Alfons/Antwort/` erstellen
+  - [x] Daily Log `2026-09-07.md` anlegen / aktualisieren
+  - [x] System herunterfahren wie beauftragt
