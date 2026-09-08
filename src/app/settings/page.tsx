@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { TagInput } from "@/components/ui/TagInput";
-import { UserProfile, Role, AppSettings, ContractType, DocumentKind, UserContractDocument } from "@/types";
+import { UserProfile, Role, AppSettings, ContractType, DocumentKind } from "@/types";
 import { Settings, User, MapPin, CreditCard, ShieldCheck, Users, Key, AppWindow, Plus, Pencil, Trash2, FileSignature, FileText, Moon, Sun, Cloud, Eye, EyeOff, Bell, CheckCircle2, AlertCircle, Calendar, Copy, RefreshCw, Check } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePushNotification } from "@/contexts/PushNotificationContext";
@@ -18,6 +18,18 @@ import { updatePassword } from "firebase/auth";
 import { initializeApp, getApps } from "firebase/app";
 import { SignaturePad } from "@/components/ui/SignaturePad";
 import { generateAndUploadContract } from "@/lib/contracts/generator";
+import {
+    CONTRACT_TYPE_BADGE,
+    type ContractFormValues,
+    type ContractTypeCoverage,
+    buildContractDocument,
+    buildContractProfileUpdate,
+    formatIsoToGermanDate,
+    getContractCoverage,
+    getPrimaryContractType,
+    isPrimaryContractDocument,
+    suggestContractType
+} from "@/lib/contracts/relationships";
 import { getAuth, createUserWithEmailAndPassword, signOut, updateProfile } from "firebase/auth";
 import { firebaseConfig, db } from "@/lib/firebase/config";
 import { doc, setDoc } from "firebase/firestore";
@@ -141,6 +153,9 @@ export default function SettingsPage() {
         hasTimeTrackingAccess: true
     });
     const [isContractModalOpen, setIsContractModalOpen] = useState(false);
+    // Vertrags-Wizard: Schritt 1 wählt das Rechtsverhältnis, Schritt 2 die Vertragsdaten.
+    const [contractWizardStep, setContractWizardStep] = useState<1 | 2>(1);
+    const [contractWizardType, setContractWizardType] = useState<ContractType>('Ehrenamtlich');
     const [contractForm, setContractForm] = useState({
         documentKind: 'Vertrag' as DocumentKind,
         startDate: new Date().toISOString().slice(0, 10),
@@ -392,28 +407,35 @@ export default function SettingsPage() {
         }
     };
 
-    const openContractModal = (u: UserProfile, kind: DocumentKind = 'Vertrag') => {
-        setSelectedUser(u);
-        const hourlyRate = u.hourlyRate || appSettings?.minimumWage || 16.75;
+    /**
+     * Vorbelegung der Vertragsmaske für die GEWÄHLTE Vertragsart.
+     * Profilwerte (Stunden, Stundensatz, Tätigkeit) gehören zum primären Verhältnis –
+     * für einen Zusatzvertrag werden stattdessen die Vorlagen-Standardwerte der
+     * gewählten Art verwendet, damit z. B. die 36 Stunden eines Minijobs nicht
+     * als Monatsstunden im Übungsleitervertrag landen.
+     */
+    const buildContractFormDefaults = (u: UserProfile, type: ContractType, kind: DocumentKind) => {
+        const isPrimaryType = type === getPrimaryContractType(u);
         const monthlyEarningsLimit = appSettings?.monthlyEarningsLimit || 603;
-        
-        let lumpSumAmount = 0;
-        let monthlyHours = u.monthlyHours || 0;
-        let weeklyHours = u.weeklyHours || 0;
-        let activityDescription = u.activityDescription || "";
-        let tasksDescription = u.tasksDescription || "";
+        const hourlyRate = (isPrimaryType ? u.hourlyRate : 0) || appSettings?.minimumWage || 16.75;
 
-        if (u.contractType === 'Minijob') {
+        let lumpSumAmount = 0;
+        let monthlyHours = isPrimaryType ? (u.monthlyHours || 0) : 0;
+        let weeklyHours = isPrimaryType ? (u.weeklyHours || 0) : 0;
+        let activityDescription = isPrimaryType ? (u.activityDescription || "") : "";
+        let tasksDescription = isPrimaryType ? (u.tasksDescription || "") : "";
+
+        if (type === 'Minijob') {
             lumpSumAmount = monthlyEarningsLimit;
             if (!monthlyHours && hourlyRate > 0) {
                 monthlyHours = Math.round((lumpSumAmount / hourlyRate) * 100) / 100;
             }
             weeklyHours = Math.round((monthlyHours / 4.33) * 100) / 100;
-        } else if (u.contractType === 'Übungsleiterpauschale') {
-            lumpSumAmount = u.monthlyHours && u.hourlyRate ? (u.monthlyHours * u.hourlyRate) : 125;
+        } else if (type === 'Übungsleiterpauschale') {
+            lumpSumAmount = monthlyHours && hourlyRate ? (monthlyHours * hourlyRate) : 125;
             monthlyHours = monthlyHours || 8.6;
             activityDescription = activityDescription || "Organisationsbeauftragte und Kassenprüferin";
-        } else if (u.contractType === 'Ehrenamtspauschale') {
+        } else if (type === 'Ehrenamtspauschale') {
             lumpSumAmount = 840;
             activityDescription = activityDescription || "Organisationsbeauftragte und Kassenprüferin des Vereins";
             tasksDescription = tasksDescription || "Kassenprüfung\nOrganisation der Unterkünfte bei Freizeiten und Vorträgen\nBeratende Funktion";
@@ -423,7 +445,7 @@ export default function SettingsPage() {
             tasksDescription = tasksDescription || "Beratung und Seelsorge\nUnterstützung bei Freizeiten und Vorträgen\nAllgemeine ehrenamtliche Mitarbeit";
         }
 
-        setContractForm({
+        return {
             documentKind: kind,
             startDate: new Date().toISOString().slice(0, 10),
             endDate: "",
@@ -436,8 +458,44 @@ export default function SettingsPage() {
             birthDate: u.birthDate || "",
             boardSignatureUrl: "",
             employeeSignatureUrl: ""
-        });
+        };
+    };
+
+    /** Öffnet den Vertrags-Wizard (Schritt 1) mit der zum Verhältnis passenden Vorauswahl. */
+    const openContractModal = (u: UserProfile, kind: DocumentKind = 'Vertrag', preselectedType?: ContractType) => {
+        const type = preselectedType ?? suggestContractType(u, kind);
+        setSelectedUser(u);
+        setContractWizardType(type);
+        setContractWizardStep(1);
+        setContractForm(buildContractFormDefaults(u, type, kind));
         setIsContractModalOpen(true);
+    };
+
+    /** Vertragsart in Schritt 1 wechseln: Maske wird für die neue Art vorbelegt. */
+    const selectContractType = (u: UserProfile, type: ContractType) => {
+        setContractWizardType(type);
+        setContractForm(f => {
+            const defaults = buildContractFormDefaults(u, type, f.documentKind);
+            // Personenbezogene Angaben und geleistete Unterschriften bleiben erhalten.
+            return {
+                ...defaults,
+                startDate: f.startDate || defaults.startDate,
+                endDate: f.endDate,
+                birthDate: f.birthDate || defaults.birthDate,
+                boardSignatureUrl: f.boardSignatureUrl,
+                employeeSignatureUrl: f.employeeSignatureUrl
+            };
+        });
+    };
+
+    /** Kurzstatus je Vertragsart für Schritt 1 des Wizards. */
+    const getCoverageHint = (entry: ContractTypeCoverage, kind: DocumentKind): string => {
+        if (entry.total === 0) {
+            return entry.isKnownRelationship ? 'Verhältnis erfasst – noch kein Dokument' : 'Ergänzt ein weiteres Verhältnis';
+        }
+        return kind === 'Änderungsvereinbarung'
+            ? 'Vorhanden – wird als Änderungsvereinbarung ergänzt'
+            : 'Vorhanden – ergänzt als weiterer Vertrag';
     };
 
     const handleGenerateContract = async (e: React.FormEvent) => {
@@ -454,15 +512,8 @@ export default function SettingsPage() {
 
         setIsSaving(true);
         try {
-            const formatIsoToGermanDate = (isoStr?: string): string => {
-                if (!isoStr) return "";
-                const parts = isoStr.split("-");
-                if (parts.length === 3) {
-                    return `${parts[2].padStart(2, "0")}.${parts[1].padStart(2, "0")}.${parts[0]}`;
-                }
-                return isoStr;
-            };
-
+            const selectedType = contractWizardType;
+            const isPrimary = isPrimaryContractDocument(selectedUser, selectedType);
             const formattedStartDate = formatIsoToGermanDate(contractForm.startDate);
             const formattedEndDate = contractForm.endDate ? formatIsoToGermanDate(contractForm.endDate) : undefined;
             const formattedBirthDate = contractForm.birthDate ? formatIsoToGermanDate(contractForm.birthDate) : undefined;
@@ -482,7 +533,7 @@ export default function SettingsPage() {
                 lumpSumAmount: contractForm.lumpSumAmount,
                 monthlyEarningsLimit: appSettings.monthlyEarningsLimit || 603,
                 vacationDaysPerYear: selectedUser.vacationDaysPerYear ?? undefined,
-                contractType: selectedUser.contractType || "Ehrenamtlich",
+                contractType: selectedType,
                 documentKind: contractForm.documentKind,
                 activityDescription: contractForm.activityDescription,
                 tasksDescription: contractForm.tasksDescription,
@@ -490,62 +541,44 @@ export default function SettingsPage() {
                 employeeSignatureUrl: contractForm.employeeSignatureUrl
             }, selectedUser.id);
 
-            const isAmendment = contractForm.documentKind === 'Änderungsvereinbarung';
-            const docTitle = isAmendment 
-                ? `Änderung (${formattedStartDate})`
-                : `Vertrag (${formattedStartDate})`;
-
-            const newDoc: UserContractDocument = {
-                id: `doc_${Date.now()}`,
+            const formValues: ContractFormValues = {
                 documentKind: contractForm.documentKind,
-                contractType: selectedUser.contractType || "Ehrenamtlich",
-                title: docTitle,
-                url,
-                createdAt: new Date().toISOString(),
-                effectiveDate: contractForm.startDate,
-                ...(contractForm.monthlyHours ? { monthlyHours: contractForm.monthlyHours } : {}),
-                ...(contractForm.weeklyHours ? { weeklyHours: contractForm.weeklyHours } : {}),
-                ...(contractForm.hourlyRate ? { hourlyRate: contractForm.hourlyRate } : {}),
-                ...(contractForm.lumpSumAmount ? { lumpSumAmount: contractForm.lumpSumAmount } : {}),
-                ...(contractForm.activityDescription ? { activityDescription: contractForm.activityDescription } : {})
+                startDate: contractForm.startDate,
+                weeklyHours: contractForm.weeklyHours,
+                monthlyHours: contractForm.monthlyHours,
+                hourlyRate: contractForm.hourlyRate,
+                lumpSumAmount: contractForm.lumpSumAmount,
+                activityDescription: contractForm.activityDescription,
+                tasksDescription: contractForm.tasksDescription,
+                birthDate: contractForm.birthDate
             };
 
-            const existingDocs = selectedUser.contractDocuments || [];
-            const migratedDocs: UserContractDocument[] = [...existingDocs];
-            if (migratedDocs.length === 0 && selectedUser.contractDocumentUrl) {
-                migratedDocs.push({
-                    id: `doc_initial_${selectedUser.id}`,
-                    documentKind: 'Vertrag',
-                    contractType: selectedUser.contractType || "Ehrenamtlich",
-                    title: "Vertrag (Ursprung)",
-                    url: selectedUser.contractDocumentUrl,
-                    createdAt: selectedUser.entryDate || new Date().toISOString(),
-                    effectiveDate: selectedUser.entryDate || "",
-                    ...(selectedUser.monthlyHours ? { monthlyHours: selectedUser.monthlyHours } : {}),
-                    ...(selectedUser.weeklyHours ? { weeklyHours: selectedUser.weeklyHours } : {}),
-                    ...(selectedUser.hourlyRate ? { hourlyRate: selectedUser.hourlyRate } : {})
-                });
-            }
-            migratedDocs.push(newDoc);
+            const newDoc = buildContractDocument({
+                selectedType,
+                isPrimary,
+                documentUrl: url,
+                form: formValues
+            });
 
+            // Die Schutzlogik (welche Profilfelder überhaupt geschrieben werden dürfen)
+            // liegt rein und testbar in buildContractProfileUpdate().
             const updatedProfile: UserProfile = {
                 ...selectedUser,
-                contractDocumentUrl: url,
-                contractDocuments: migratedDocs,
-                entryDate: isAmendment ? (selectedUser.entryDate || contractForm.startDate) : contractForm.startDate,
-                ...(contractForm.birthDate ? { birthDate: contractForm.birthDate } : {}),
-                ...(contractForm.activityDescription ? { activityDescription: contractForm.activityDescription } : {}),
-                ...(contractForm.tasksDescription ? { tasksDescription: contractForm.tasksDescription } : {}),
-                ...(contractForm.hourlyRate ? { hourlyRate: contractForm.hourlyRate } : {}),
-                ...(contractForm.monthlyHours ? { monthlyHours: contractForm.monthlyHours } : {}),
-                ...(contractForm.weeklyHours ? { weeklyHours: contractForm.weeklyHours } : {})
+                ...buildContractProfileUpdate({
+                    profile: selectedUser,
+                    selectedType,
+                    documentUrl: url,
+                    form: formValues,
+                    document: newDoc
+                })
             };
 
             await userService.saveUserProfile(updatedProfile);
             setUsers(users.map(u => u.id === selectedUser.id ? updatedProfile : u));
 
             setIsContractModalOpen(false);
-            showMessage('success', isAmendment ? 'Änderungsvereinbarung erfolgreich generiert und gespeichert!' : 'Vertrag erfolgreich generiert und gespeichert!');
+            setContractWizardStep(1);
+            showMessage('success', `${contractForm.documentKind === 'Änderungsvereinbarung' ? 'Änderungsvereinbarung' : 'Vertrag'} (${selectedType}) erfolgreich generiert und gespeichert!`);
         } catch (error) {
             console.error(error);
             showMessage('error', 'Fehler beim Generieren des Dokuments.');
@@ -846,35 +879,54 @@ export default function SettingsPage() {
                                             <div className="flex justify-between items-start mb-2">
                                                 <div>
                                                     <h3 className="font-bold text-gray-900 dark:text-white">{u.firstName} {u.lastName}</h3>
-                                                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 flex gap-2">
+                                                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-1.5">
                                                         <span className={`px-2 py-0.5 rounded-full font-medium ${u.role === 'Admin' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300' : u.role === 'Kassenwart' ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' : 'bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-slate-300'}`}>
                                                             {u.role}
                                                         </span>
-                                                        <span className="px-2 py-0.5 rounded-full font-medium bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 whitespace-nowrap">
-                                                            {u.contractType || 'Ehrenamtlich'}
-                                                        </span>
+                                                        {getContractCoverage(u).filter(entry => entry.isKnownRelationship).map(entry => (
+                                                            <span
+                                                                key={entry.contractType}
+                                                                title={entry.isPrimary
+                                                                    ? `${entry.contractType} – primäres, abrechnungsrelevantes Verhältnis`
+                                                                    : `Zusätzliches Verhältnis: ${entry.contractType}`}
+                                                                className={`px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${entry.isPrimary
+                                                                    ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                                                                    : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-slate-300'}`}
+                                                            >
+                                                                {entry.isPrimary ? entry.contractType : CONTRACT_TYPE_BADGE[entry.contractType]}
+                                                            </span>
+                                                        ))}
                                                     </p>
                                                 </div>
-                                                <div className="flex flex-col items-end gap-1.5 max-w-[50%]">
-                                                    {u.contractDocuments && u.contractDocuments.length > 0 ? (
-                                                        u.contractDocuments.map((doc, idx) => (
-                                                            <a
-                                                                key={doc.id || idx}
-                                                                href={doc.url}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="px-2 py-1 text-xs text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/30 dark:hover:bg-rose-900/40 rounded-lg border border-rose-200/70 dark:border-rose-800/40 flex items-center gap-1.5 transition-colors font-medium shadow-xs"
-                                                                title={`${doc.title} ansehen`}
+                                                <div className="flex flex-col items-end gap-1.5 max-w-[55%]">
+                                                    {getContractCoverage(u).filter(entry => entry.total > 0).map(entry => (
+                                                        <div key={entry.contractType} className="flex items-center gap-1.5">
+                                                            <span
+                                                                className="px-1.5 py-1 text-[10px] font-bold rounded bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-slate-300 shrink-0"
+                                                                title={entry.contractType}
                                                             >
-                                                                {doc.documentKind === 'Änderungsvereinbarung' ? (
-                                                                    <FileText className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                                                                ) : (
-                                                                    <FileSignature className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                                                                )}
-                                                                <span className="truncate max-w-[130px]">{doc.title}</span>
-                                                            </a>
-                                                        ))
-                                                    ) : u.contractDocumentUrl ? (
+                                                                {CONTRACT_TYPE_BADGE[entry.contractType]}
+                                                            </span>
+                                                            {entry.documents.map((doc, idx) => (
+                                                                <a
+                                                                    key={doc.id || idx}
+                                                                    href={doc.url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="px-2 py-1 text-xs text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/30 dark:hover:bg-rose-900/40 rounded-lg border border-rose-200/70 dark:border-rose-800/40 flex items-center gap-1.5 transition-colors font-medium shadow-xs"
+                                                                    title={`${entry.contractType}: ${doc.title} ansehen`}
+                                                                >
+                                                                    {doc.documentKind === 'Änderungsvereinbarung' ? (
+                                                                        <FileText className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                                                    ) : (
+                                                                        <FileSignature className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                                                                    )}
+                                                                    <span className="truncate max-w-[110px]">{doc.title}</span>
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    ))}
+                                                    {(!u.contractDocuments || u.contractDocuments.length === 0) && u.contractDocumentUrl ? (
                                                         <a
                                                             href={u.contractDocumentUrl}
                                                             target="_blank"
@@ -1176,11 +1228,96 @@ export default function SettingsPage() {
                                 </div>
                             </Modal>
 
-                            <Modal 
-                                isOpen={isContractModalOpen} 
-                                onClose={() => setIsContractModalOpen(false)} 
-                                title={`${contractForm.documentKind === 'Änderungsvereinbarung' ? 'Änderungsvereinbarung erstellen' : 'Vertrag generieren'}: ${selectedUser?.contractType || 'Ehrenamtlich'}`}
+                            <Modal
+                                isOpen={isContractModalOpen}
+                                onClose={() => setIsContractModalOpen(false)}
+                                title={`${contractForm.documentKind === 'Änderungsvereinbarung' ? 'Änderungsvereinbarung erstellen' : 'Vertrag generieren'}: ${contractWizardType}`}
                             >
+                                {/* --- Schritt 1: Verhältnis & Vertragsart --- */}
+                                {contractWizardStep === 1 && selectedUser && (
+                                    <div className="space-y-4">
+                                        <div>
+                                            <h4 className="text-sm font-bold text-gray-900 dark:text-white">Verhältnis & Vertragsart</h4>
+                                            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                                                In welchem Verhältnis steht {selectedUser.firstName} {selectedUser.lastName} zum Verein?
+                                            </p>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            {getContractCoverage(selectedUser).map(entry => (
+                                                <button
+                                                    key={entry.contractType}
+                                                    type="button"
+                                                    onClick={() => selectContractType(selectedUser, entry.contractType)}
+                                                    title={`${entry.contractType} auswählen`}
+                                                    className={`text-left p-3 rounded-xl border-2 transition-all ${contractWizardType === entry.contractType
+                                                        ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20'
+                                                        : 'border-gray-100 dark:border-white/5 bg-gray-50 dark:bg-white/5 hover:border-indigo-200 dark:hover:border-indigo-500/40'}`}
+                                                >
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="font-semibold text-sm text-gray-900 dark:text-white">{entry.contractType}</span>
+                                                        {contractWizardType === entry.contractType && (
+                                                            <CheckCircle2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                                                        )}
+                                                    </div>
+                                                    <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-1">
+                                                        {getCoverageHint(entry, contractForm.documentKind)}
+                                                    </p>
+                                                    <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                                                        {entry.isPrimary && (
+                                                            <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+                                                                primär
+                                                            </span>
+                                                        )}
+                                                        <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-slate-300">
+                                                            {CONTRACT_TYPE_BADGE[entry.contractType]}
+                                                        </span>
+                                                        {entry.total > 0 && (
+                                                            <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-500 dark:text-slate-400">
+                                                                {entry.contracts} Vertrag · {entry.amendments} Änderung
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {(getContractCoverage(selectedUser).find(entry => entry.contractType === contractWizardType)?.documents.length ?? 0) > 0 && (
+                                            <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-white/10">
+                                                <p className="text-xs font-bold text-gray-600 dark:text-slate-300 mb-2">
+                                                    Bereits vorhanden für „{contractWizardType}“
+                                                </p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {(getContractCoverage(selectedUser).find(entry => entry.contractType === contractWizardType)?.documents ?? []).map((doc, idx) => (
+                                                        <a
+                                                            key={doc.id || idx}
+                                                            href={doc.url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            title={`${doc.title} ansehen`}
+                                                            className="px-2 py-1 text-xs text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/30 dark:hover:bg-rose-900/40 rounded-lg border border-rose-200/70 dark:border-rose-800/40 flex items-center gap-1.5 transition-colors font-medium shadow-xs"
+                                                        >
+                                                            {doc.documentKind === 'Änderungsvereinbarung' ? (
+                                                                <FileText className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                                            ) : (
+                                                                <FileSignature className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                                                            )}
+                                                            <span>{doc.title}</span>
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="flex justify-between gap-3 pt-4 border-t border-gray-100 dark:border-white/10">
+                                            <Button type="button" variant="ghost" onClick={() => setIsContractModalOpen(false)}>Abbrechen</Button>
+                                            <Button type="button" variant="primary" onClick={() => setContractWizardStep(2)}>Weiter zu den Vertragsdaten</Button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* --- Schritt 2: Vertragsdaten & Unterschriften --- */}
+                                {contractWizardStep === 2 && selectedUser && (
                                 <form onSubmit={handleGenerateContract} className="space-y-4">
                                     {/* Dokumentenart-Umschalter */}
                                     <div className="flex bg-gray-100 dark:bg-slate-800/80 p-1 rounded-xl">
@@ -1190,7 +1327,7 @@ export default function SettingsPage() {
                                             className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${contractForm.documentKind === 'Vertrag' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'}`}
                                         >
                                             <FileSignature className="w-3.5 h-3.5" />
-                                            {selectedUser?.contractType === 'Minijob' ? 'Arbeitsvertrag' : 'Vertrag'}
+                                            {contractWizardType === 'Minijob' ? 'Arbeitsvertrag' : 'Vertrag'}
                                         </button>
                                         <button
                                             type="button"
@@ -1201,6 +1338,12 @@ export default function SettingsPage() {
                                             Änderungsvereinbarung
                                         </button>
                                     </div>
+
+                                    {!isPrimaryContractDocument(selectedUser, contractWizardType) && (
+                                        <p className="text-xs text-gray-600 dark:text-slate-300 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-lg px-3 py-2">
+                                            Zusatzvertrag zu „{contractWizardType}“ – die Abrechnungsdaten des primären Verhältnisses „{getPrimaryContractType(selectedUser)}“ bleiben unverändert.
+                                        </p>
+                                    )}
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
@@ -1223,10 +1366,10 @@ export default function SettingsPage() {
                                         <div className="col-span-2 sm:col-span-1">
                                             <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tätigkeit / Funktion</label>
                                             <input type="text" title="Tätigkeit" value={contractForm.activityDescription} onChange={e => setContractForm({ ...contractForm, activityDescription: e.target.value })}
-                                                placeholder={selectedUser?.contractType === 'Übungsleiterpauschale' ? 'z. B. Organisationsbeauftragte und Kassenprüferin' : 'z. B. ehrenamtliche/r Mitarbeiter/in des Vereins'}
+                                                placeholder={contractWizardType === 'Übungsleiterpauschale' ? 'z. B. Organisationsbeauftragte und Kassenprüferin' : 'z. B. ehrenamtliche/r Mitarbeiter/in des Vereins'}
                                                 className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm" />
                                         </div>
-                                        {selectedUser?.contractType === 'Minijob' && (
+                                        {contractWizardType === 'Minijob' && (
                                             <>
                                                 <div>
                                                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Monatsgehalt / Verdienstgrenze (€)</label>
@@ -1282,7 +1425,7 @@ export default function SettingsPage() {
                                                  </div>
                                              </>
                                          )}
-                                         {selectedUser?.contractType === 'Übungsleiterpauschale' && (
+                                         {contractWizardType === 'Übungsleiterpauschale' && (
                                              <>
                                                  <div>
                                                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Monatliche Aufwandsentschädigung (€)</label>
@@ -1298,7 +1441,7 @@ export default function SettingsPage() {
                                                  </div>
                                              </>
                                          )}
-                                         {(selectedUser?.contractType === 'Ehrenamtspauschale' || selectedUser?.contractType === 'Ehrenamtlich') && (
+                                         {(contractWizardType === 'Ehrenamtspauschale' || contractWizardType === 'Ehrenamtlich') && (
                                              <>
                                                  <div className="col-span-2">
                                                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Aufwandsentschädigung (€, Ehrenamtspauschale)</label>
@@ -1337,13 +1480,17 @@ export default function SettingsPage() {
                                             Bitte beide Parteien im jeweiligen Feld auf dem Tablet unterzeichnen lassen.
                                         </p>
                                     )}
-                                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-white/10">
-                                        <Button type="button" variant="ghost" onClick={() => setIsContractModalOpen(false)}>Abbrechen</Button>
-                                        <Button type="submit" variant="primary" disabled={isSaving || !contractForm.boardSignatureUrl || !contractForm.employeeSignatureUrl}>
-                                            {isSaving ? "Wird erstellt..." : contractForm.documentKind === 'Änderungsvereinbarung' ? "Änderungsvereinbarung generieren & speichern" : "Vertrag generieren & speichern"}
-                                        </Button>
+                                    <div className="flex justify-between gap-3 pt-4 border-t border-gray-100 dark:border-white/10">
+                                        <Button type="button" variant="ghost" onClick={() => setContractWizardStep(1)}>Zurück</Button>
+                                        <div className="flex gap-3">
+                                            <Button type="button" variant="ghost" onClick={() => setIsContractModalOpen(false)}>Abbrechen</Button>
+                                            <Button type="submit" variant="primary" disabled={isSaving || !contractForm.boardSignatureUrl || !contractForm.employeeSignatureUrl}>
+                                                {isSaving ? "Wird erstellt..." : contractForm.documentKind === 'Änderungsvereinbarung' ? "Änderungsvereinbarung generieren & speichern" : "Vertrag generieren & speichern"}
+                                            </Button>
+                                        </div>
                                     </div>
                                 </form>
+                                )}
                             </Modal>
                         </div>
                     )
