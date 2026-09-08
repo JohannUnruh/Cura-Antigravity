@@ -1,5 +1,18 @@
-import { describe, it } from "./test-framework";
+import { describe, it, expect } from "./test-framework";
 import { getContractTemplate, ContractData } from "@/lib/contracts/templates";
+import {
+    ContractFormValues,
+    buildContractDocument,
+    buildContractProfileUpdate,
+    ensureContractHistory,
+    getContractCoverage,
+    getContractRelationships,
+    getPrimaryContractType,
+    isPrimaryContractDocument,
+    mergeContractTypes,
+    suggestContractType
+} from "@/lib/contracts/relationships";
+import { UserContractDocument, UserProfile } from "@/types";
 
 describe("Contracts & Amendment Agreements (Minijob & Monthly Hours)", () => {
     it("calculates monthly hours correctly for 603 EUR and 16.75 EUR hourly rate", () => {
@@ -288,5 +301,257 @@ describe("Contracts & Amendment Agreements (Minijob & Monthly Hours)", () => {
         if (doc2.getNumberOfPages() < 1) {
             throw new Error("Failed to render Ehrenamtliche PDF");
         }
+    });
+});
+
+describe("Multi-Contract: Rechtsverhältnisse & Abrechnungsschutz", () => {
+    const minijobDoc = (over: Partial<UserContractDocument> = {}): UserContractDocument => ({
+        id: "doc_minijob",
+        documentKind: "Vertrag",
+        contractType: "Minijob",
+        title: "Vertrag (01.03.2025)",
+        url: "https://example.test/minijob.pdf",
+        createdAt: "2025-03-01T00:00:00.000Z",
+        effectiveDate: "2025-03-01",
+        primary: true,
+        monthlyHours: 36,
+        weeklyHours: 8.31,
+        hourlyRate: 16.75,
+        lumpSumAmount: 603,
+        ...over
+    });
+
+    const baseProfile = (over: Partial<UserProfile> = {}): UserProfile => ({
+        id: "user_jk",
+        firstName: "Jessica",
+        lastName: "Koslowsky",
+        role: "Mitarbeiter",
+        contractType: "Minijob",
+        entryDate: "2025-03-01",
+        birthDate: "23.02.1985",
+        hourlyRate: 16.75,
+        monthlyHours: 36,
+        weeklyHours: 8.31,
+        vacationDaysPerYear: 24,
+        contractDocumentUrl: "https://example.test/minijob.pdf",
+        contractDocuments: [minijobDoc()],
+        ...over
+    });
+
+    // Zusatzvertrag: Übungsleiterpauschale für eine bestehende Minijobberin
+    const uebungsleiterForm: ContractFormValues = {
+        documentKind: "Vertrag",
+        startDate: "2026-09-01",
+        weeklyHours: 2,
+        monthlyHours: 8.6,
+        hourlyRate: 14.5,
+        lumpSumAmount: 125,
+        activityDescription: "Leitung des Kinderchors",
+        tasksDescription: "",
+        birthDate: "23.02.1985"
+    };
+
+    it("leitet Rechtsverhältnisse für Altprofile ohne contractTypes lazy ab", () => {
+        expect(getContractRelationships(baseProfile({ contractTypes: undefined }))).toEqual(["Minijob"]);
+        expect(getContractRelationships({ contractType: undefined, contractTypes: undefined })).toEqual(["Ehrenamtlich"]);
+        expect(getPrimaryContractType(undefined)).toBe("Ehrenamtlich");
+        expect(getPrimaryContractType(baseProfile())).toBe("Minijob");
+    });
+
+    it("stellt das primäre Verhältnis zuerst und ohne Duplikate", () => {
+        const profile = baseProfile({ contractTypes: ["Übungsleiterpauschale", "Minijob"] });
+        expect(getContractRelationships(profile)).toEqual(["Minijob", "Übungsleiterpauschale"]);
+    });
+
+    it("schlägt ein noch nicht abgedecktes Verhältnis vor, aber niemals automatisch den Minijob", () => {
+        const minijobberin = baseProfile();
+        expect(suggestContractType(minijobberin)).toBe("Übungsleiterpauschale");
+
+        const ehrenamtlicher = baseProfile({
+            contractType: "Ehrenamtlich",
+            contractTypes: undefined,
+            contractDocumentUrl: undefined,
+            contractDocuments: [minijobDoc({ contractType: "Ehrenamtlich", primary: true })]
+        });
+        expect(suggestContractType(ehrenamtlicher)).toBe("Ehrenamtspauschale");
+        expect(suggestContractType(ehrenamtlicher)).not.toBe("Minijob");
+    });
+
+    it("schlägt bei einer Änderungsvereinbarung das primäre Verhältnis mit Dokument vor", () => {
+        expect(suggestContractType(baseProfile(), "Änderungsvereinbarung")).toBe("Minijob");
+    });
+
+    it("erfasst den Deckungsgrad je Vertragsart", () => {
+        const coverage = getContractCoverage(baseProfile());
+        const minijob = coverage.find(entry => entry.contractType === "Minijob");
+        const uebungsleiter = coverage.find(entry => entry.contractType === "Übungsleiterpauschale");
+
+        expect(minijob?.total).toBe(1);
+        expect(minijob?.contracts).toBe(1);
+        expect(minijob?.isPrimary).toBe(true);
+        expect(minijob?.isKnownRelationship).toBe(true);
+        expect(uebungsleiter?.total).toBe(0);
+        expect(uebungsleiter?.isKnownRelationship).toBe(false);
+        expect(coverage.some(entry => entry.contractType === "Minijob")).toBe(true);
+    });
+
+    it("baut das Dokument des Zusatzvertrags mit eigenem Typ und eigenen Parametern", () => {
+        const profile = baseProfile();
+        const isPrimary = isPrimaryContractDocument(profile, "Übungsleiterpauschale");
+        expect(isPrimary).toBe(false);
+
+        const doc = buildContractDocument({
+            selectedType: "Übungsleiterpauschale",
+            isPrimary,
+            documentUrl: "https://example.test/uebungsleiter.pdf",
+            form: uebungsleiterForm
+        });
+
+        expect(doc.contractType).toBe("Übungsleiterpauschale");
+        expect(doc.documentKind).toBe("Vertrag");
+        expect(doc.primary).toBe(false);
+        expect(doc.title).toBe("Vertrag (01.09.2026)");
+        expect(doc.effectiveDate).toBe("2026-09-01");
+        expect(doc.monthlyHours).toBe(8.6);
+        expect(doc.lumpSumAmount).toBe(125);
+        expect(doc.activityDescription).toBe("Leitung des Kinderchors");
+        expect(doc.hourlyRate).toBe(14.5);
+    });
+
+    it("überschreibt ein Zusatzvertrag nicht die Gehaltsbasis des Minijobs", () => {
+        const profile = baseProfile();
+        const document = buildContractDocument({
+            selectedType: "Übungsleiterpauschale",
+            isPrimary: false,
+            documentUrl: "https://example.test/uebungsleiter.pdf",
+            form: uebungsleiterForm
+        });
+
+        const patch = buildContractProfileUpdate({
+            profile,
+            selectedType: "Übungsleiterpauschale",
+            documentUrl: "https://example.test/uebungsleiter.pdf",
+            form: uebungsleiterForm,
+            document
+        });
+
+        // Abrechnungsrelevante Felder des Minijobs bleiben unangetastet
+        expect(patch.entryDate).toBe(undefined);
+        expect(patch.hourlyRate).toBe(undefined);
+        expect(patch.monthlyHours).toBe(undefined);
+        expect(patch.weeklyHours).toBe(undefined);
+        expect(patch.vacationDaysPerYear).toBe(undefined);
+        expect(patch.activityDescription).toBe(undefined);
+        expect(patch.contractType).toBe(undefined);
+        // Der Abrechnungsbeleg des Minijobs darf nicht durch den Zusatzvertrag ersetzt werden
+        expect(patch.contractDocumentUrl).toBe(undefined);
+
+        // Zwei Verhältnisse, zwei Dokumente – das neue trägt seinen eigenen Typ
+        expect(patch.contractTypes).toEqual(["Minijob", "Übungsleiterpauschale"]);
+        const documents = patch.contractDocuments ?? [];
+        expect(documents.length).toBe(2);
+        expect(documents[0].contractType).toBe("Minijob");
+        expect(documents[1].contractType).toBe("Übungsleiterpauschale");
+        expect(documents[1].monthlyHours).toBe(8.6);
+
+        // Geburtsdatum gehört zur Person, nicht zum Verhältnis
+        expect(patch.birthDate).toBe("23.02.1985");
+
+        // Kontrollwert: das gespeicherte Profil rechnet weiterhin mit dem Minijob
+        const updated = { ...profile, ...patch } as UserProfile;
+        expect(updated.hourlyRate).toBe(16.75);
+        expect(updated.monthlyHours).toBe(36);
+        expect(updated.contractType).toBe("Minijob");
+        expect(updated.contractDocumentUrl).toBe("https://example.test/minijob.pdf");
+    });
+
+    it("aktualisiert beim neuen Primärvertrag alle Abrechnungsfelder und den Beleg", () => {
+        const profile = baseProfile({ contractDocumentUrl: undefined, contractDocuments: undefined });
+        const form: ContractFormValues = { ...uebungsleiterForm, documentKind: "Vertrag" };
+        const document = buildContractDocument({
+            selectedType: "Minijob",
+            isPrimary: true,
+            documentUrl: "https://example.test/minijob-neu.pdf",
+            form
+        });
+
+        const patch = buildContractProfileUpdate({
+            profile,
+            selectedType: "Minijob",
+            documentUrl: "https://example.test/minijob-neu.pdf",
+            form,
+            document
+        });
+
+        expect(patch.entryDate).toBe("2026-09-01");
+        expect(patch.hourlyRate).toBe(14.5);
+        expect(patch.monthlyHours).toBe(8.6);
+        expect(patch.weeklyHours).toBe(2);
+        expect(patch.contractDocumentUrl).toBe("https://example.test/minijob-neu.pdf");
+        expect(patch.contractDocuments?.length).toBe(1);
+    });
+
+    it("lässt bei einer Änderungsvereinbarung Eintrittsdatum und Abrechnungsbeleg unverändert", () => {
+        const profile = baseProfile();
+        const form: ContractFormValues = {
+            ...uebungsleiterForm,
+            documentKind: "Änderungsvereinbarung",
+            startDate: "2026-10-01",
+            monthlyHours: 40
+        };
+        const document = buildContractDocument({
+            selectedType: "Minijob",
+            isPrimary: true,
+            documentUrl: "https://example.test/aenderung.pdf",
+            form
+        });
+
+        const patch = buildContractProfileUpdate({
+            profile,
+            selectedType: "Minijob",
+            documentUrl: "https://example.test/aenderung.pdf",
+            form,
+            document
+        });
+
+        expect(patch.entryDate).toBe("2025-03-01");
+        expect(patch.contractDocumentUrl).toBe(undefined);
+        expect(patch.monthlyHours).toBe(40);
+        expect(document.documentKind).toBe("Änderungsvereinbarung");
+        expect(document.title).toBe("Änderung (01.10.2026)");
+    });
+
+    it("ergänzt bei einem Altprofil den Ursprungsbeleg automatisch in die Historie", () => {
+        const legacy = baseProfile({ contractDocuments: undefined });
+        const history = ensureContractHistory(legacy);
+        expect(history.length).toBe(1);
+        expect(history[0].url).toBe("https://example.test/minijob.pdf");
+        expect(history[0].primary).toBe(true);
+
+        const document = buildContractDocument({
+            selectedType: "Ehrenamtspauschale",
+            isPrimary: false,
+            documentUrl: "https://example.test/ehrenamt.pdf",
+            form: { ...uebungsleiterForm, lumpSumAmount: 70, monthlyHours: 0, weeklyHours: 0, hourlyRate: 0 }
+        });
+        const patch = buildContractProfileUpdate({
+            profile: legacy,
+            selectedType: "Ehrenamtspauschale",
+            documentUrl: "https://example.test/ehrenamt.pdf",
+            form: { ...uebungsleiterForm, lumpSumAmount: 70 },
+            document
+        });
+        const documents = patch.contractDocuments ?? [];
+        expect(documents.length).toBe(2);
+        expect(documents[0].contractType).toBe("Minijob");
+        expect(documents[1].contractType).toBe("Ehrenamtspauschale");
+        expect(documents[1].lumpSumAmount).toBe(70);
+        expect(documents[1].monthlyHours).toBe(undefined);
+    });
+
+    it("führt Rechtsverhältnisse als Vereinigungsmenge ohne Duplikate zusammen", () => {
+        expect(mergeContractTypes(["Minijob"], "Minijob")).toEqual(["Minijob"]);
+        expect(mergeContractTypes(undefined, "Ehrenamtlich")).toEqual(["Ehrenamtlich"]);
+        expect(mergeContractTypes(["Minijob"], "Übungsleiterpauschale")).toEqual(["Minijob", "Übungsleiterpauschale"]);
     });
 });

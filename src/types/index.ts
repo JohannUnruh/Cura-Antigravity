@@ -15,6 +15,8 @@ export interface UserContractDocument {
     hourlyRate?: number;
     lumpSumAmount?: number;
     activityDescription?: string;
+    tasksDescription?: string; // Aufgabenliste bei Ehrenamtsverträgen
+    primary?: boolean; // bezieht sich das Dokument auf das abrechnungsrelevante Verhältnis?
 }
 
 export interface UserProfile {
@@ -22,7 +24,8 @@ export interface UserProfile {
     firstName: string;
     lastName: string;
     role: Role;
-    contractType?: ContractType;
+    contractType?: ContractType; // PRIMÄRES, abrechnungsrelevantes Rechtsverhältnis
+    contractTypes?: ContractType[]; // ALLE aktiven Rechtsverhältnisse (z. B. Minijob + Übungsleiterpauschale)
     entryDate?: string;
     birthDate?: string; // z.B. "TT.MM.JJJJ" für Verträge
     activityDescription?: string; // z.B. "Organisationsbeauftragte und Kassenprüferin"
