@@ -13,6 +13,7 @@ import { retreatService } from "@/lib/firebase/services/retreatService";
 import { clientService } from "@/lib/firebase/services/clientService";
 import { useSettings } from "@/contexts/SettingsContext";
 import { Client, Consultation, Lecture, LegacyConsultation, Retreat } from "@/types";
+import { buildAnonymousAssociationStats, isAssociationViewAllowed, scopeRecords } from "@/lib/utils/dataScope";
 import { useTheme } from "@/contexts/ThemeContext";
 
 const COLORS = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#f43f5e", "#8b5cf6", "#ec4899"];
@@ -38,6 +39,10 @@ export default function Dashboard() {
     clients: []
   });
 
+  // Verbandsansicht: nur für Admins freigeschaltet und dort ausschließlich als
+  // anonymisierte Statistik – ohne Klientendaten und ohne Detail-Links.
+  const isAssociationView = isAssociationViewAllowed({ uid: user?.uid ?? '', viewMode, role: userProfile?.role });
+
   const availableYears = useMemo(() => {
     const years = new Set<number>();
     data.consultations.forEach(c => years.add(new Date(c.dateFrom).getFullYear()));
@@ -58,15 +63,20 @@ export default function Dashboard() {
     const loadAllData = async () => {
       setLoading(true);
       try {
-        let cons, legacyCons, lectures, retreats, clients;
+        // Verteidigung in der Tiefe: Was nicht in den State darf, wird vor dem
+        // setData(...) aussortiert – ein fremder Datensatz erreicht die UI gar nicht erst.
+        const scope = { uid: user.uid, viewMode, role: userProfile?.role };
+        let cons, legacyCons, lectures, retreats;
+        let clients: Client[] = [];
 
-        if (viewMode === 'all' && userProfile?.role === 'Admin') {
-          [cons, legacyCons, lectures, retreats, clients] = await Promise.all([
+        if (isAssociationViewAllowed(scope)) {
+          // Verbandsansicht: nur aggregierbare Module. Klientendaten werden bewusst
+          // NICHT geladen (seelsorgerliche Inhalte, Art. 9 DSGVO).
+          [cons, legacyCons, lectures, retreats] = await Promise.all([
             consultationService.getConsultations(),
             consultationService.getLegacyConsultations(),
             lectureService.getLectures(),
-            retreatService.getRetreats(),
-            clientService.getAllClients()
+            retreatService.getRetreats()
           ]);
         } else {
           [cons, legacyCons, lectures, retreats, clients] = await Promise.all([
@@ -79,11 +89,11 @@ export default function Dashboard() {
         }
 
         setData({
-          consultations: cons,
-          legacyCons: legacyCons as LegacyConsultation[],
-          lectures: lectures,
-          retreats: retreats,
-          clients: clients
+          consultations: scopeRecords(cons, scope),
+          legacyCons: scopeRecords(legacyCons as LegacyConsultation[], scope),
+          lectures: scopeRecords(lectures, scope),
+          retreats: scopeRecords(retreats, scope),
+          clients: scopeRecords(clients, scope)
         });
       } catch (error) {
         console.error("Error loading dashboard data:", error);
@@ -97,6 +107,10 @@ export default function Dashboard() {
 
   // --- Overdue target dates check ---
   const overdueClients = useMemo(() => {
+    // In der Verbandsansicht werden keine Klienten geladen – dieser Block ist
+    // personenbezogen und bleibt deshalb der eigenen Ansicht vorbehalten.
+    if (isAssociationView) return [];
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -146,11 +160,46 @@ export default function Dashboard() {
     });
 
     return overdueList.sort((a, b) => a.targetDate.getTime() - b.targetDate.getTime());
-  }, [data.clients, data.consultations]);
+  }, [data.clients, data.consultations, isAssociationView]);
 
   // --- Aggregations ---
 
+  // Anonymisierte Verbandsstatistik: ausschließlich Kennzahlen und Kategorien,
+  // berechnet aus den tatsächlich geladenen Datensätzen (kein Personenbezug).
+  const associationStats = useMemo(() => {
+    if (!isAssociationView) return null;
+    return buildAnonymousAssociationStats({
+      consultations: data.consultations,
+      legacyConsultations: data.legacyCons,
+      lectures: data.lectures,
+      retreats: data.retreats
+    }, {
+      year: yearFilter,
+      problemOriginLabels: settings?.problemOrigins
+    });
+  }, [isAssociationView, data, yearFilter, settings?.problemOrigins]);
+
   const stats = useMemo(() => {
+    if (associationStats) {
+      return {
+        totalConsHours: associationStats.consultationHours,
+        problemData: associationStats.problemData,
+        // Personengruppen setzen Klientendaten voraus und entfallen in der Verbandsansicht.
+        groupData: [] as { name: string; value: number }[],
+        totalLectureHours: associationStats.lectureHours,
+        totalLectureParticipants: associationStats.lectureParticipants,
+        lectureTypeData: associationStats.lectureTypeData,
+        totalRetreatHours: associationStats.retreatHours,
+        totalRetreatParticipants: associationStats.retreatParticipants,
+        retreatTypeData: associationStats.retreatTypeData,
+        totalEntries: associationStats.activityCount,
+        lectureCount: associationStats.lectureCount,
+        retreatCount: associationStats.retreatCount,
+        consultationCount: associationStats.consultationCount,
+        clientCount: null as number | null
+      };
+    }
+
     const filterByYear = (date: Date | string | number | undefined) => {
       if (yearFilter === 'all') return true;
       if (!date) return false;
@@ -231,9 +280,11 @@ export default function Dashboard() {
       retreatTypeData,
       totalEntries: filteredCons.length + filteredLegacy.length + filteredLectures.length + filteredRetreats.length,
       lectureCount: filteredLectures.length,
-      retreatCount: filteredRetreats.length
+      retreatCount: filteredRetreats.length,
+      consultationCount: filteredCons.length + filteredLegacy.length,
+      clientCount: data.clients.length as number | null
     };
-  }, [data, yearFilter, settings?.problemOrigins]);
+  }, [associationStats, data, yearFilter, settings?.problemOrigins]);
 
   if (loading) {
     return (
@@ -255,11 +306,11 @@ export default function Dashboard() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div>
             <h1 className="text-4xl font-semibold tracking-tight text-gray-900 dark:text-white">
-              {viewMode === 'all' ? 'Verbands-Übersicht' : `Willkommen, ${userProfile?.firstName}`}
+              {isAssociationView ? 'Anonymisierte Verbandsstatistik' : `Willkommen, ${userProfile?.firstName}`}
             </h1>
             <p className="text-gray-500 dark:text-slate-400 mt-2 font-medium">
-              {viewMode === 'all'
-                ? 'Auswertung aller erfassten Daten des Vereins.'
+              {isAssociationView
+                ? 'Aggregierte Kennzahlen ohne personenbezogene Daten.'
                 : 'Hier ist deine aktuelle Übersicht und Auswertung.'}
             </p>
           </div>
@@ -352,21 +403,27 @@ export default function Dashboard() {
           <Card className="kpi-card-orange border-none shadow-sm h-full">
             <CardContent className="p-6 flex flex-col justify-between h-full">
               <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center mb-4">
-                <Users className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                {isAssociationView
+                  ? <Calendar className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                  : <Users className="w-6 h-6 text-amber-600 dark:text-amber-400" />}
               </div>
               <div>
                 <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-1">
-                  {viewMode === 'all' ? 'Aktive Klienten gesamt' : 'Eigene Klienten'}
+                  {isAssociationView ? 'Erfasste Beratungen' : 'Eigene Klienten'}
                 </p>
-                <p className="text-3xl font-black text-gray-900 dark:text-white">{data.clients.length}</p>
-                <p className="text-xs text-gray-600 dark:text-slate-400 mt-1 font-medium">Aktiv in Betreuung</p>
+                <p className="text-3xl font-black text-gray-900 dark:text-white">
+                  {isAssociationView ? stats.consultationCount : stats.clientCount ?? 0}
+                </p>
+                <p className="text-xs text-gray-600 dark:text-slate-400 mt-1 font-medium">
+                  {isAssociationView ? 'Beratungsfälle im Filterzeitraum' : 'Aktiv in Betreuung'}
+                </p>
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Overdue Target Dates Widget */}
-        {overdueClients.length > 0 && (
+        {!isAssociationView && overdueClients.length > 0 && (
           <Card className="rounded-[2.5rem] border-rose-500/20 bg-rose-50/40 dark:bg-rose-950/10 backdrop-blur-sm shadow-sm overflow-hidden">
             <CardContent className="p-6 md:p-8">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -477,47 +534,50 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="rounded-[2.5rem] border-white/60 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm shadow-sm">
-                <CardContent className="p-8">
-                  <h4 className="text-sm font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                    <Users className="w-4 h-4" /> Personengruppen
-                  </h4>
-                  <div className="h-[280px] w-full flex items-center">
-                    {stats.groupData.length === 0 ? (
-                      <div className="flex items-center justify-center h-full w-full text-gray-400 italic">Keine Daten verfügbar</div>
-                    ) : (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={stats.groupData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={70}
-                            outerRadius={95}
-                            paddingAngle={6}
-                            dataKey="value"
-                            stroke="none"
-                            label={({ value }) => `${value}`}
-                          >
-                            {stats.groupData.map((_, index) => (
-                              <ReCell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                            contentStyle={{
-                              borderRadius: '16px',
-                              border: 'none',
-                              background: theme === 'dark' ? '#1e293b' : 'rgba(255,255,255,0.92)',
-                              color: theme === 'dark' ? '#f8fafc' : '#1e293b'
-                            }}
-                          />
-                          <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '13px', fontWeight: 500, color: theme === 'dark' ? '#94a3b8' : '#4b5563' }} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Personengruppen setzen Klientendaten voraus und bleiben der eigenen Ansicht vorbehalten. */}
+              {!isAssociationView && (
+                <Card className="rounded-[2.5rem] border-white/60 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm shadow-sm">
+                  <CardContent className="p-8">
+                    <h4 className="text-sm font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                      <Users className="w-4 h-4" /> Personengruppen
+                    </h4>
+                    <div className="h-[280px] w-full flex items-center">
+                      {stats.groupData.length === 0 ? (
+                        <div className="flex items-center justify-center h-full w-full text-gray-400 italic">Keine Daten verfügbar</div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={stats.groupData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={70}
+                              outerRadius={95}
+                              paddingAngle={6}
+                              dataKey="value"
+                              stroke="none"
+                              label={({ value }) => `${value}`}
+                            >
+                              {stats.groupData.map((_, index) => (
+                                <ReCell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              contentStyle={{
+                                borderRadius: '16px',
+                                border: 'none',
+                                background: theme === 'dark' ? '#1e293b' : 'rgba(255,255,255,0.92)',
+                                color: theme === 'dark' ? '#f8fafc' : '#1e293b'
+                              }}
+                            />
+                            <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '13px', fontWeight: 500, color: theme === 'dark' ? '#94a3b8' : '#4b5563' }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
 
@@ -604,10 +664,8 @@ export default function Dashboard() {
                   <Info className="w-6 h-6" /> Info zur Auswertung
                 </h4>
                 <p className="text-gray-600 dark:text-slate-300 text-sm leading-relaxed font-medium">
-                  {viewMode === 'all'
-                    ? 'Diese Ansicht zeigt die aggregierten Daten aller Mitarbeiter des Vereins.'
-                    : 'Diese Ansicht zeigt ausschließlich deine eigenen erfassten Daten.'}
-                  {" "}Die Stundenberechnungen beinhalten sowohl Durchführungs- als auch Vorbereitungszeiten.
+                  {!isAssociationView && 'Diese Ansicht zeigt ausschließlich deine eigenen erfassten Daten. '}
+                  Die Stundenberechnungen beinhalten sowohl Durchführungs- als auch Vorbereitungszeiten.
                 </p>
               </div>
             </div>

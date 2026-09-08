@@ -17,6 +17,7 @@ async function main() {
         await import("./spfh/feature6.test");
         await import("./spfh/scenarios.test");
         await import("./fosterCare.test");
+        await import("./dataScope.test");
         await import("./contracts.test");
 
 
