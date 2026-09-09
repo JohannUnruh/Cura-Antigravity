@@ -3,50 +3,58 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 
-  /* ── Vereins-Branding (CGH e.V.-Logo) ──────────────────────────────
-     Das Logo trägt einen Blau-Verlauf (#1971C2 → #1C7ED6 → #4DABF7),
-     einen Rot-Verlauf (#C92A2A → #E03131 → #FA5252) sowie Neutralgrau/Weiß.
+  /* ── Vereins-Branding (ZeFabiKo e.V.-Logo) ──────────────────────────
+     Gemessen aus public/zefabiko_logo.png (identisch in der
+     Workspace-Kopie und der Dark-Background-Variante):
+     Herz + Hand tragen einen Ziegelrot-Verlauf
+     #650200 (Schatten) → #8D0E02 (Median) → #CE1F04 (Licht),
+     der Schriftzug „ZEFABIKO" einen Petrolblau-Verlauf
+     #0A3C56 (links) → #026CA3 (Median) → #0077B6 (rechts).
      Damit die ganze App aus dieser einen zentralen Stelle die Markenfarben
      zieht, werden die bestehenden indigo-/rose-/red-Skalen auf die Logo-Töne
      gemappt — sämtliche vorhandenen Klassennamen bleiben unverändert.
-     Kontrast (WCAG): Weiß auf indigo-600 (#1971C2) ≈ 5.0:1 ✓ AA,
-     Weiß auf rose-600/red-600 (#E03131) ≈ 4.5:1 ✓ AA.
+     Kontrast (WCAG): Weiß auf indigo-600 (#026CA3) ≈ 5.7:1 ✓ AA,
+     indigo-600 als Text auf Weiß ≈ 5.7:1 ✓ AA,
+     indigo-500 (#0077B6) als Text auf Weiß ≈ 4.9:1 ✓ AA,
+     Weiß auf rose-600/red-600 (#A81403) ≈ 7.6:1 ✓ AA.
+     Neutralgrau bleibt unangetastet (Tailwind-Standard), weil die Logo-Töne
+     dort den Textkontrast unter AA drücken würden.
      Rot bleibt Warn-/Änderungs-/Ablehnungssignalen vorbehalten. */
-  --color-indigo-50: #e7f5ff;
-  --color-indigo-100: #d0ebff;
-  --color-indigo-200: #a5d8ff;
-  --color-indigo-300: #74c0fc;
-  --color-indigo-400: #4dabf7;
-  --color-indigo-500: #1c7ed6;
-  --color-indigo-600: #1971c2;
-  --color-indigo-700: #1864ab;
-  --color-indigo-800: #14548c;
-  --color-indigo-900: #10436f;
-  --color-indigo-950: #0b2e4e;
+  --color-indigo-50: #eaf3f8;
+  --color-indigo-100: #d2e6f1;
+  --color-indigo-200: #a3cbe0;
+  --color-indigo-300: #6baacb;
+  --color-indigo-400: #3589b4;
+  --color-indigo-500: #0077b6;
+  --color-indigo-600: #026ca3;
+  --color-indigo-700: #045e8d;
+  --color-indigo-800: #084565;
+  --color-indigo-900: #0a3c56;
+  --color-indigo-950: #062a3d;
 
-  --color-rose-50: #fff5f5;
-  --color-rose-100: #ffe3e3;
-  --color-rose-200: #ffc9c9;
-  --color-rose-300: #ffa8a8;
-  --color-rose-400: #ff8787;
-  --color-rose-500: #fa5252;
-  --color-rose-600: #e03131;
-  --color-rose-700: #c92a2a;
-  --color-rose-800: #a61e1e;
-  --color-rose-900: #8a1a1a;
-  --color-rose-950: #5c1111;
+  --color-rose-50: #fbefed;
+  --color-rose-100: #f6dbd7;
+  --color-rose-200: #ebb3ab;
+  --color-rose-300: #dc8378;
+  --color-rose-400: #da4a32;
+  --color-rose-500: #ce1f04;
+  --color-rose-600: #a81403;
+  --color-rose-700: #8d0e02;
+  --color-rose-800: #750901;
+  --color-rose-900: #650200;
+  --color-rose-950: #3f0100;
 
-  --color-red-50: #fff5f5;
-  --color-red-100: #ffe3e3;
-  --color-red-200: #ffc9c9;
-  --color-red-300: #ffa8a8;
-  --color-red-400: #ff8787;
-  --color-red-500: #fa5252;
-  --color-red-600: #e03131;
-  --color-red-700: #c92a2a;
-  --color-red-800: #a61e1e;
-  --color-red-900: #8a1a1a;
-  --color-red-950: #5c1111;
+  --color-red-50: #fbefed;
+  --color-red-100: #f6dbd7;
+  --color-red-200: #ebb3ab;
+  --color-red-300: #dc8378;
+  --color-red-400: #da4a32;
+  --color-red-500: #ce1f04;
+  --color-red-600: #a81403;
+  --color-red-700: #8d0e02;
+  --color-red-800: #750901;
+  --color-red-900: #650200;
+  --color-red-950: #3f0100;
 }
 
 /* Enable class-based dark mode for the 'dark:' variant in Tailwind v4 */

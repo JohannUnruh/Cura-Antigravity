@@ -3,34 +3,120 @@ import { ContractData, getContractTemplate } from "./templates";
 import { storage } from "../firebase/config";
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 
+/* ── Seitenraster (alle Maße in mm) ───────────────────────────────────
+   Ein gemeinsames Raster für alle vier Vertragstypen und die
+   Änderungsvereinbarungen: jede Textzeile, jeder Absatzabstand und jeder
+   Abschnittsabstand folgt denselben Konstanten, damit kein Vertragstyp
+   anders "atmet" als der andere. */
+const PAGE_HEIGHT = 297;
+const MARGIN_X = 20;
+const CONTENT_WIDTH = 170;
+const BODY_TOP_Y = 22;
+const BOTTOM_MARGIN = 22;
+const LINE_HEIGHT = 4.3;          // Durchschuss einer Fließtextzeile
+const PARAGRAPH_GAP = 4.3;        // Leerzeile = exakt eine Zeile Abstand
+const SECTION_GAP = 3.6;          // Zusatzabstand vor einer Überschrift (§ / Erklärung)
+const LIST_INDENT = 6;            // Einrückung der Aufzählungspunkte
+const LIST_GAP_BEFORE = 1.8;      // Abstand vor dem ersten Punkt einer Liste
+const LIST_LEADING = 0.7;         // Zusatzabstand zwischen zwei Punkten
+const CHECK_INDENT = 6;           // linke Kante des Ankreuzkästchens
+const CHECK_BOX_SIZE = 3.4;       // Kantenlänge des Kästchens
+const CHECK_TEXT_INDENT = 13;     // Textspalte hinter dem Kästchen
+const CHECK_GAP_BEFORE = 2.4;     // Abstand vor jeder Ankreuzzeile
+const SIGNATURE_RESERVE = 42;     // Platz, den der Umbruch für den Unterschriftsblock freihält
+const SIGNATURE_BLOCK_HEIGHT = 36;
+const SIGNATURE_PAGE_ANCHOR_Y = 60;
+
+/* ── ZEFABIKO-Farbwelt (aus public/zefabiko_logo.png gemessen) ─────────
+   Herz/Hand: Ziegelrot-Verlauf #650200 → #8D0E02 → #CE1F04
+   Schriftzug: Petrolblau-Verlauf #0A3C56 → #026CA3 → #0077B6
+   Der Deko-Balken nutzt definierte Zwischenstopps über die dunklen
+   Logo-Töne, damit die Mitte nicht ins Violett kippt. */
+const BRAND_BAR_STOPS: { at: number; rgb: [number, number, number] }[] = [
+    { at: 0.0, rgb: [141, 14, 2] },    // #8D0E02 Ziegelrot (Logo-Median)
+    { at: 0.42, rgb: [101, 2, 0] },    // #650200 dunkles Maronenrot (Logo-Schatten)
+    { at: 0.5, rgb: [51, 17, 13] },    // #33110D neutraler dunkler Umbruchpunkt
+    { at: 0.58, rgb: [10, 60, 86] },   // #0A3C56 dunkles Petrol (Schriftzug-Anfang)
+    { at: 1.0, rgb: [0, 119, 182] }    // #0077B6 helles Blau (Schriftzug-Ende)
+];
+
+const COLOR_TITLE: [number, number, number] = [30, 41, 59];      // Slate-800
+const COLOR_HEADING: [number, number, number] = [15, 23, 42];     // Slate-900
+const COLOR_BODY: [number, number, number] = [51, 65, 85];        // Slate-700
+const COLOR_META: [number, number, number] = [71, 85, 105];       // Slate-600
+const COLOR_RULE: [number, number, number] = [226, 232, 240];     // Slate-200
+const COLOR_LINE: [number, number, number] = [203, 213, 225];     // Slate-300
+const COLOR_BOX: [number, number, number] = [100, 116, 139];      // Slate-500
+const COLOR_PAGENO: [number, number, number] = [148, 163, 184];   // Slate-400
+
+function brandBarColor(ratio: number): [number, number, number] {
+    const t = Math.min(1, Math.max(0, ratio));
+    for (let i = 1; i < BRAND_BAR_STOPS.length; i++) {
+        const from = BRAND_BAR_STOPS[i - 1];
+        const to = BRAND_BAR_STOPS[i];
+        if (t <= to.at) {
+            const span = to.at - from.at;
+            const local = span === 0 ? 0 : (t - from.at) / span;
+            return [
+                Math.round(from.rgb[0] + (to.rgb[0] - from.rgb[0]) * local),
+                Math.round(from.rgb[1] + (to.rgb[1] - from.rgb[1]) * local),
+                Math.round(from.rgb[2] + (to.rgb[2] - from.rgb[2]) * local)
+            ];
+        }
+    }
+    return BRAND_BAR_STOPS[BRAND_BAR_STOPS.length - 1].rgb;
+}
+
+/** Liest die Pixelmaße eines PNG-Data-URLs aus dem IHDR-Chunk. */
+function readPngSize(dataUrl: string): { width: number; height: number } | null {
+    if (!dataUrl.startsWith("data:image/png")) return null;
+    const comma = dataUrl.indexOf(",");
+    if (comma < 0) return null;
+    try {
+        const bin = atob(dataUrl.slice(comma + 1));
+        if (bin.length < 24) return null;
+        const u32 = (offset: number) =>
+            ((bin.charCodeAt(offset) << 24) |
+                (bin.charCodeAt(offset + 1) << 16) |
+                (bin.charCodeAt(offset + 2) << 8) |
+                bin.charCodeAt(offset + 3)) >>> 0;
+        const width = u32(16);
+        const height = u32(20);
+        return width > 0 && height > 0 ? { width, height } : null;
+    } catch {
+        return null;
+    }
+}
+
 export function createContractPdf(data: ContractData, logoBase64?: string): jsPDF {
     const template = getContractTemplate(data);
     const textContent = template.text(data);
 
     const doc = new jsPDF();
 
-    // Helper: Draw a gradient from Reddish to Blue
-    const drawGradientDeco = (yPos: number, height: number) => {
-        const startColor = { r: 220, g: 38, b: 38 }; // Red
-        const endColor = { r: 59, g: 130, b: 246 };   // Blue
-        const steps = 210; // Document width approx 210mm
+    // Deko-Balken in den ZEFABIKO-Tönen, mit definiertem Zwischenstopp
+    const drawBrandBar = (yPos: number, height: number) => {
+        const steps = 210; // Dokumentbreite ≈ 210 mm
         const rectWidth = 210 / steps;
-
         for (let i = 0; i < steps; i++) {
-            const ratio = i / steps;
-            const r = Math.round(startColor.r + (endColor.r - startColor.r) * ratio);
-            const g = Math.round(startColor.g + (endColor.g - startColor.g) * ratio);
-            const b = Math.round(startColor.b + (endColor.b - startColor.b) * ratio);
-
+            const [r, g, b] = brandBarColor(i / steps);
             doc.setFillColor(r, g, b);
             doc.rect(i * rectWidth, yPos, rectWidth + 0.5, height, 'F');
         }
     };
 
-    // First page deco
-    drawGradientDeco(0, 5);
+    const applyStyle = (kind: "heading" | "party" | "body") => {
+        if (kind === "body") {
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(...COLOR_BODY);
+        } else {
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(...COLOR_HEADING);
+        }
+    };
 
-    // Add Logo if provided
+    // Erste Seite: Kopfbalken + Logo
+    drawBrandBar(0, 5);
     if (logoBase64) {
         try {
             doc.addImage(logoBase64, 'PNG', 160, 10, 32, 24);
@@ -39,133 +125,218 @@ export function createContractPdf(data: ContractData, logoBase64?: string): jsPD
         }
     }
 
-    // Title
+    // Titel
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
-    doc.setTextColor(30, 41, 59); // Slate-800
-
+    doc.setTextColor(...COLOR_TITLE);
     const titleLines = doc.splitTextToSize(template.title, 135);
-    doc.text(titleLines, 20, 22);
-
-    // Thin separator line below title
+    doc.text(titleLines, MARGIN_X, BODY_TOP_Y);
     const titleHeight = titleLines.length * 7.5;
-    doc.setDrawColor(226, 232, 240); // Slate-200
+    doc.setDrawColor(...COLOR_RULE);
     doc.setLineWidth(0.5);
-    doc.line(20, 16 + titleHeight, 190, 16 + titleHeight);
+    doc.line(MARGIN_X, 16 + titleHeight, 190, 16 + titleHeight);
 
-    // Body Text
+    // Fließtext mit einheitlichem Raster
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.setTextColor(51, 65, 85); // Slate-700
+    doc.setTextColor(...COLOR_BODY);
 
     const normalizedText = textContent.replace(/\r\n/g, '\n');
     const rawLines = normalizedText.split('\n');
 
-    let y = 22 + titleHeight;
-    const pageHeight = 297;
-    const bottomMargin = 22;
+    // Der Umbruch hält auf jeder Seite Platz für den Unterschriftsblock frei,
+    // damit die Unterschriften niemals allein auf einer Leerseite landen.
+    const bodyBottom = PAGE_HEIGHT - BOTTOM_MARGIN - SIGNATURE_RESERVE;
 
+    let y = BODY_TOP_Y + titleHeight;
+
+    const newContentPage = () => {
+        doc.addPage();
+        drawBrandBar(0, 5);
+        y = BODY_TOP_Y;
+    };
+
+    const classify = (trimmed: string) => {
+        const isSection = trimmed.startsWith('§') || trimmed.startsWith('Erklärung');
+        const isBullet = trimmed.startsWith('•');
+        const isCheckbox = /^\[[Xx\s]?\]/.test(trimmed);
+        const isPartyLine = !isSection && !isBullet && !isCheckbox &&
+            (trimmed.includes(data.employerName) || trimmed.includes(data.employeeName));
+        return { isSection, isBullet, isCheckbox, isPartyLine };
+    };
+
+    const wrappedFor = (trimmed: string, c: ReturnType<typeof classify>) => {
+        if (c.isCheckbox) {
+            const label = trimmed.replace(/^\[[Xx\s]?\]\s*/, '');
+            return doc.splitTextToSize(label, CONTENT_WIDTH - CHECK_TEXT_INDENT) as string[];
+        }
+        const indent = c.isBullet ? LIST_INDENT : 0;
+        return doc.splitTextToSize(trimmed, CONTENT_WIDTH - indent) as string[];
+    };
+
+    // Absätze = Blöcke (durch Leerzeilen getrennt). Ein Block wird als Ganzes
+    // umgebrochen, damit kein Satz und keine Ankreuzgruppe über die
+    // Seitengrenze reißt.
+    const groups: string[][] = [];
+    let currentGroup: string[] = [];
     for (const rawLine of rawLines) {
         const trimmed = rawLine.trim();
         if (trimmed === '') {
-            y += 3; // compact spacing for paragraph break
+            if (currentGroup.length) {
+                groups.push(currentGroup);
+                currentGroup = [];
+            }
             continue;
         }
+        currentGroup.push(trimmed);
+    }
+    if (currentGroup.length) groups.push(currentGroup);
 
-        const isSection = trimmed.startsWith('§') || trimmed.startsWith('Erklärung');
-        const isPartyLine = trimmed.includes(data.employerName) || trimmed.includes(data.employeeName);
-
-        if (isSection) {
-            doc.setFont("helvetica", "bold");
-            doc.setTextColor(15, 23, 42); // Slate-900
-            y += 2.5; // subtle breathing room before section
-        } else if (isPartyLine) {
-            doc.setFont("helvetica", "bold");
-            doc.setTextColor(15, 23, 42);
-        } else {
-            doc.setFont("helvetica", "normal");
-            doc.setTextColor(51, 65, 85);
-        }
-
-        const wrappedLines = doc.splitTextToSize(trimmed, 170);
-        for (const line of wrappedLines) {
-            if (y > pageHeight - bottomMargin) {
-                drawGradientDeco(pageHeight - 5, 5); // footer on previous page
-                doc.addPage();
-                drawGradientDeco(0, 5); // header on new page
-                y = 22;
-                if (isSection || isPartyLine) {
-                    doc.setFont("helvetica", "bold");
-                    doc.setTextColor(15, 23, 42);
-                } else {
-                    doc.setFont("helvetica", "normal");
-                    doc.setTextColor(51, 65, 85);
-                }
+    const blockHeight = (lines: string[]) => {
+        let h = 0;
+        let prevList = false;
+        for (const line of lines) {
+            const c = classify(line);
+            if (c.isSection) {
+                h += SECTION_GAP;
+                prevList = false;
+            } else if (c.isBullet) {
+                h += prevList ? LIST_LEADING : LIST_GAP_BEFORE;
+                prevList = true;
+            } else if (c.isCheckbox) {
+                h += CHECK_GAP_BEFORE;
+                prevList = true;
+            } else {
+                prevList = false;
             }
-            doc.text(line, 20, y);
-            y += 4.8;
+            h += wrappedFor(line, c).length * LINE_HEIGHT;
         }
-    }
+        return h;
+    };
 
-    // Signatures Section
-    y += 5;
-    if (y > 245) {
-        drawGradientDeco(pageHeight - 5, 5);
+    const usableHeight = bodyBottom - BODY_TOP_Y;
+
+    groups.forEach((lines, groupIndex) => {
+        if (groupIndex > 0) y += PARAGRAPH_GAP;
+        const height = blockHeight(lines);
+        if (y + height > bodyBottom && height <= usableHeight) newContentPage();
+
+        let prevList = false;
+        for (const trimmed of lines) {
+            const c = classify(trimmed);
+            if (c.isSection) {
+                y += SECTION_GAP;
+                prevList = false;
+            } else if (c.isBullet) {
+                y += prevList ? LIST_LEADING : LIST_GAP_BEFORE;
+                prevList = true;
+            } else if (c.isCheckbox) {
+                y += CHECK_GAP_BEFORE;
+                prevList = true;
+            } else {
+                prevList = false;
+            }
+
+            if (c.isCheckbox) {
+                const checked = /^\[[Xx]\]/.test(trimmed);
+                const wrapped = wrappedFor(trimmed, c);
+                for (let i = 0; i < wrapped.length; i++) {
+                    if (y > bodyBottom) newContentPage();
+                    if (i === 0) {
+                        doc.setDrawColor(...COLOR_BOX);
+                        doc.setLineWidth(0.35);
+                        doc.rect(MARGIN_X + CHECK_INDENT, y - CHECK_BOX_SIZE + 0.8, CHECK_BOX_SIZE, CHECK_BOX_SIZE, 'S');
+                        if (checked) {
+                            doc.setLineWidth(0.5);
+                            const bx = MARGIN_X + CHECK_INDENT;
+                            doc.line(bx + 0.7, y - 1.3, bx + 1.4, y - 0.5);
+                            doc.line(bx + 1.4, y - 0.5, bx + 2.7, y - 2.5);
+                        }
+                    }
+                    applyStyle("body");
+                    doc.text(wrapped[i], MARGIN_X + CHECK_TEXT_INDENT, y);
+                    y += LINE_HEIGHT;
+                }
+                continue;
+            }
+
+            const indent = c.isBullet ? LIST_INDENT : 0;
+            const kind: "heading" | "party" | "body" =
+                c.isSection || c.isPartyLine ? "heading" : "body";
+            const wrapped = wrappedFor(trimmed, c);
+            for (const line of wrapped) {
+                if (y > bodyBottom) newContentPage();
+                applyStyle(kind);
+                doc.text(line, MARGIN_X + indent, y);
+                y += LINE_HEIGHT;
+            }
+        }
+    });
+
+    // ── Unterschriftsblock ─────────────────────────────────────────────
+    y += 6;
+    let sigY = y;
+    if (sigY + SIGNATURE_BLOCK_HEIGHT > PAGE_HEIGHT - BOTTOM_MARGIN) {
+        // Sicherheitsnetz: eigene Seite ohne Kopfbalken, vertikal verankert
         doc.addPage();
-        drawGradientDeco(0, 5);
-        y = 25;
+        sigY = SIGNATURE_PAGE_ANCHOR_Y;
     }
 
-    const dateStr = data.startDate && /^\d{2}\.\d{2}\.\d{4}$/.test(data.startDate) 
-        ? data.startDate 
+    const dateStr = data.startDate && /^\d{2}\.\d{2}\.\d{4}$/.test(data.startDate)
+        ? data.startDate
         : new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const ortStr = data.employerCity || '________________';
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9.5);
-    doc.setTextColor(71, 85, 105);
+    doc.setTextColor(...COLOR_META);
+    doc.text(`Ort, Datum: ${ortStr}, den ${dateStr}`, MARGIN_X, sigY);
+    doc.text(`Ort, Datum: ${ortStr}, den ${dateStr}`, 110, sigY);
 
-    doc.text(`Ort, Datum: ${ortStr}, den ${dateStr}`, 20, y);
-    doc.text(`Ort, Datum: ${ortStr}, den ${dateStr}`, 110, y);
+    const lineY = sigY + 26;
 
-    y += 6;
-
-    // Board Signature
-    if (data.boardSignatureUrl) {
+    // Signaturen maßstabsgetreu und oberhalb der Signaturlinie platzieren
+    const drawSignature = (signatureUrl: string, colX: number) => {
+        if (!signatureUrl) return;
+        const colWidth = 60;
+        const maxW = 56;
+        const maxH = 18;
+        const size = readPngSize(signatureUrl);
+        let w = maxW;
+        let h = maxH;
+        if (size) {
+            const scale = Math.min(maxW / size.width, maxH / size.height);
+            w = size.width * scale;
+            h = size.height * scale;
+        }
         try {
-            doc.addImage(data.boardSignatureUrl, 'PNG', 20, y, 50, 20);
+            doc.addImage(signatureUrl, 'PNG', colX + (colWidth - w) / 2, lineY - 1.5 - h, w, h);
         } catch {
             // Ignore signature rendering error if dummy image
         }
-    }
-    // Employee Signature
-    if (data.employeeSignatureUrl) {
-        try {
-            doc.addImage(data.employeeSignatureUrl, 'PNG', 110, y, 50, 20);
-        } catch {
-            // Ignore signature rendering error if dummy image
-        }
-    }
+    };
+    drawSignature(data.boardSignatureUrl, MARGIN_X);
+    drawSignature(data.employeeSignatureUrl, 110);
 
-    y += 24;
-
-    doc.setDrawColor(203, 213, 225); // Slate-300
-    doc.line(20, y, 80, y);
-    doc.line(110, y, 170, y);
+    doc.setDrawColor(...COLOR_LINE);
+    doc.setLineWidth(0.3);
+    doc.line(MARGIN_X, lineY, 80, lineY);
+    doc.line(110, lineY, 170, lineY);
 
     doc.setFontSize(9);
-    doc.text("Unterschrift Verein / Träger", 20, y + 4.5);
-    doc.text("Unterschrift Vertragspartner", 110, y + 4.5);
+    doc.setTextColor(...COLOR_META);
+    doc.text("Unterschrift Verein / Träger", MARGIN_X, lineY + 4.5);
+    doc.text("Unterschrift Vertragspartner", 110, lineY + 4.5);
 
-    // Final page footer & page numbers (only if multi-page)
+    // Fußbalken + Seitenzahlen auf allen Seiten
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
-        drawGradientDeco(pageHeight - 5, 5);
+        drawBrandBar(PAGE_HEIGHT - 5, 5);
         if (totalPages > 1) {
             doc.setFont("helvetica", "normal");
             doc.setFontSize(8);
-            doc.setTextColor(148, 163, 184); // Slate-400
+            doc.setTextColor(...COLOR_PAGENO);
             doc.text(`Seite ${i} von ${totalPages}`, 190, 288, { align: 'right' });
         }
     }
@@ -177,7 +348,7 @@ export async function generateAndUploadContract(data: ContractData, userId: stri
     let logoBase64: string | undefined;
     if (typeof window !== "undefined" && typeof fetch !== "undefined") {
         try {
-            const res = await fetch("/logo.png");
+            const res = await fetch("/zefabiko_logo.png");
             if (res.ok) {
                 const blob = await res.blob();
                 logoBase64 = await new Promise<string>((resolve, reject) => {
