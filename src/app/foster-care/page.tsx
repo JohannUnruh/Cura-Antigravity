@@ -730,7 +730,7 @@ export default function FosterCareDashboard() {
                                     <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-slate-300">Gesamte Kapazität (Plätze)</label>
                                     <input type="number" min="1" max="10" required value={capacity} onChange={e => setCapacity(e.target.value)} className="w-full px-4 py-2 bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-gray-900 dark:text-white text-sm" />
                                 </div>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     <div>
                                         <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-slate-300">Alter von</label>
                                         <input type="number" min="0" max="18" required value={ageMin} onChange={e => setAgeMin(e.target.value)} className="w-full px-4 py-2 bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-gray-900 dark:text-white text-sm" />

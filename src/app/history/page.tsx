@@ -201,7 +201,7 @@ export default function UnifiedHistoryPage() {
                                                 </div>
                                             </div>
                                             {item.meta?.label && (
-                                                <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-md ${item.type === 'legacy_consultation' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-400' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-500'
+                                                <span className={`text-xs uppercase tracking-wider font-bold px-2 py-0.5 rounded-md ${item.type === 'legacy_consultation' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-400' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-500'
                                                     }`}>
                                                     {item.meta.label}
                                                 </span>

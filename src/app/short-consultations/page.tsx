@@ -227,7 +227,7 @@ export default function ShortConsultationsPage() {
 
                 <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={selected ? "Kurzgespräch bearbeiten" : "Neues Kurzgespräch erfassen"}>
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
                                 <input id="date" type="date" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
@@ -249,7 +249,7 @@ export default function ShortConsultationsPage() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">Gesprächsart</label>
                                 <select

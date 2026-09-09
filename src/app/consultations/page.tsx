@@ -270,7 +270,7 @@ export default function ConsultationsPage() {
 
                                         <div className="grid md:grid-cols-2 gap-4 mt-2 p-3 bg-gray-50/50 dark:bg-white/5 rounded-xl text-sm border border-gray-100 dark:border-white/10">
                                             <div>
-                                                <p className="text-gray-400 dark:text-slate-500 text-[10px] uppercase font-bold mb-1">Problemherkunft / Folgen</p>
+                                                <p className="text-gray-400 dark:text-slate-500 text-xs uppercase font-bold mb-1">Problemherkunft / Folgen</p>
                                                 <p className="text-gray-700 dark:text-slate-300">{item.origin || "Nicht angegeben"}</p>
                                                 <div className="flex flex-wrap gap-1 mt-1">
                                                     {[item.consequence1, item.consequence2, item.consequence3, item.consequence4].filter(Boolean).map((c, idx) => (
@@ -279,7 +279,7 @@ export default function ConsultationsPage() {
                                                 </div>
                                             </div>
                                             <div>
-                                                <p className="text-gray-400 dark:text-slate-500 text-[10px] uppercase font-bold mb-1">Fazit / Erfolg</p>
+                                                <p className="text-gray-400 dark:text-slate-500 text-xs uppercase font-bold mb-1">Fazit / Erfolg</p>
                                                 <p className="text-gray-700 dark:text-slate-300 italic">{item.conclusion || "Kein Fazit hinterlegt."}</p>
                                             </div>
                                         </div>

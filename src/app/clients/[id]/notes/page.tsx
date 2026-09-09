@@ -90,8 +90,8 @@ export default function NotesPage() {
                     </button>
                     <div className="flex-1">
                         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                            <div className="bg-violet-100 p-2 rounded-xl">
-                                <FileText className="w-6 h-6 text-violet-600" />
+                            <div className="bg-indigo-100 p-2 rounded-xl">
+                                <FileText className="w-6 h-6 text-indigo-600" />
                             </div>
                             Gesprächsnotiz
                         </h1>
@@ -206,8 +206,8 @@ export default function NotesPage() {
                 )}
 
                 {/* Info hint */}
-                <div className="mt-4 p-3 bg-violet-50 text-violet-800 rounded-xl border border-violet-100 text-sm flex items-start gap-3">
-                    <Sparkles className="w-5 h-5 text-violet-500 shrink-0 mt-0.5" />
+                <div className="mt-4 p-3 bg-indigo-50 text-indigo-800 rounded-xl border border-indigo-100 text-sm flex items-start gap-3">
+                    <Sparkles className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
                     <p>
                         <strong>KI-Analyse:</strong> Wenn du auf &quot;Daten verwerten&quot; klickst, analysiert Gemini deine Notizen und füllt das Formular automatisch vor.
                         Du kannst alles überprüfen und korrigieren, bevor du speicherst. Die KI verwendet nur bestehende Dropdown-Optionen aus deinen Einstellungen.
@@ -226,7 +226,7 @@ export default function NotesPage() {
                         variant="primary"
                         disabled={analyzing || !notes.trim()}
                         onClick={handleAnalyze}
-                        className="gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 border-none shadow-lg hover:shadow-xl transition-all"
+                        className="gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 border-none shadow-lg hover:shadow-xl transition-all"
                     >
                         {analyzing ? (
                             <>

@@ -297,7 +297,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
             </div>
 
             {/* Durations */}
-            <div className="grid grid-cols-2 gap-4 border-t border-gray-100 dark:border-white/10 pt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-gray-100 dark:border-white/10 pt-4">
                 <div>
                     <label htmlFor="unitsInHours" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Einheiten in Std.</label>
                     <input

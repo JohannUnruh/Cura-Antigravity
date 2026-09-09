@@ -100,7 +100,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
                         <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{title}</h3>
                         <button
                             onClick={onClose}
-                            className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-gray-500 dark:text-slate-400"
+                            className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-gray-500 dark:text-slate-400"
                             title="Schließen"
                             aria-label="Schließen"
                         >

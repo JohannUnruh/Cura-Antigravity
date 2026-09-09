@@ -126,7 +126,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     </div>
                     <div>
                         <span className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white block leading-none">Cura</span>
-                        <span className="text-[10px] font-medium text-gray-500 dark:text-slate-400 block mt-0.5">ZeFabiKo</span>
+                        <span className="text-xs font-medium text-gray-500 dark:text-slate-400 block mt-0.5">ZeFabiKo</span>
                     </div>
                 </div>
                 {onClose && (

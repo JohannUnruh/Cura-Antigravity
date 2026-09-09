@@ -5,7 +5,7 @@ import { Modal } from "./Modal";
 import { Button } from "./Button";
 import { reminderService } from "@/lib/firebase/services/reminderService";
 import { Reminder, ReminderFrequency, ReminderType } from "@/types";
-import { Bell, Calendar, Repeat } from "lucide-react";
+import { Bell, Calendar, CalendarRange, Repeat, type LucideIcon } from "lucide-react";
 
 interface ReminderModalProps {
     isOpen: boolean;
@@ -15,10 +15,10 @@ interface ReminderModalProps {
     initialData?: Partial<Reminder>;
 }
 
-const FREQUENCY_OPTIONS: { value: ReminderFrequency; label: string; icon: string }[] = [
-    { value: 'once', label: 'Einmalig', icon: '📅' },
-    { value: 'weekly', label: 'Wöchentlich', icon: '🔄' },
-    { value: 'monthly', label: 'Monatlich', icon: '📆' },
+const FREQUENCY_OPTIONS: { value: ReminderFrequency; label: string; icon: LucideIcon }[] = [
+    { value: 'once', label: 'Einmalig', icon: Calendar },
+    { value: 'weekly', label: 'Wöchentlich', icon: Repeat },
+    { value: 'monthly', label: 'Monatlich', icon: CalendarRange },
 ];
 
 const TYPE_OPTIONS: { value: ReminderType; label: string; description: string }[] = [
@@ -199,7 +199,7 @@ export function ReminderModal({ isOpen, onClose, onSuccess, userId, initialData 
                         <Repeat className="w-4 h-4 inline mr-1" />
                         Wiederholung
                     </label>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {FREQUENCY_OPTIONS.map((option) => (
                             <button
                                 key={option.value}
@@ -211,7 +211,7 @@ export function ReminderModal({ isOpen, onClose, onSuccess, userId, initialData 
                                         : 'border-gray-200 hover:border-gray-300'
                                 }`}
                             >
-                                <div className="text-2xl mb-1">{option.icon}</div>
+                                <option.icon className="w-6 h-6 mx-auto mb-1" />
                                 <div className="text-sm font-medium">{option.label}</div>
                             </button>
                         ))}

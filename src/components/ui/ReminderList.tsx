@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type ReactNode } from "react";
 import { reminderService } from "@/lib/firebase/services/reminderService";
 import { consultationService } from "@/lib/firebase/services/consultationService";
 import { clientService } from "@/lib/firebase/services/clientService";
 import { Reminder, ReminderFrequency, ReminderType } from "@/types";
-import { Bell, Calendar, Repeat, Trash2, Pencil, Check, X } from "lucide-react";
+import { Bell, Calendar, Cake, HeartHandshake, PenLine, Repeat, Trash2, Pencil, Check, X } from "lucide-react";
 import { Button } from "./Button";
 import { ReminderModal } from "./ReminderModal";
 
@@ -19,10 +19,10 @@ const FREQUENCY_LABELS: Record<ReminderFrequency, string> = {
     monthly: 'Monatlich',
 };
 
-const TYPE_ICONS: Record<ReminderType, string> = {
-    'consultation-goal': '🙏',
-    'client-birthday': '🎂',
-    'custom': '📝',
+const TYPE_ICONS: Record<ReminderType, ReactNode> = {
+    'consultation-goal': <HeartHandshake className="w-6 h-6" />,
+    'client-birthday': <Cake className="w-6 h-6" />,
+    'custom': <PenLine className="w-6 h-6" />,
 };
 
 interface ConsultationItem {
@@ -313,7 +313,7 @@ export function ReminderList({ userId }: ReminderListProps) {
                         </h4>
                         <button
                             onClick={() => setShowConsultationPicker(false)}
-                            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/10 text-gray-500"
+                            className="p-3 rounded hover:bg-gray-100 dark:hover:bg-white/10 text-gray-500"
                         >
                             <X className="w-4 h-4" />
                         </button>
@@ -412,7 +412,7 @@ export function ReminderList({ userId }: ReminderListProps) {
                     </div>
 
                     {/* Datum + Frequenz nebeneinander */}
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                                 Startdatum
@@ -462,7 +462,7 @@ export function ReminderList({ userId }: ReminderListProps) {
             {/* Empty State */}
             {reminders.length === 0 && !showInlineForm && !showConsultationPicker && (
                 <div className="text-center py-12">
-                    <div className="text-4xl mb-4">🔔</div>
+                    <div className="mb-4 flex justify-center text-gray-400 dark:text-slate-500"><Bell className="w-10 h-10" /></div>
                     <p className="text-gray-500 dark:text-slate-400 mb-2">Keine aktiven Erinnerungen</p>
                     <p className="text-sm text-gray-400 dark:text-slate-500">
                         Erstelle eine Erinnerung oder wähle eine Beratung aus
@@ -480,7 +480,7 @@ export function ReminderList({ userId }: ReminderListProps) {
                         >
                             <div className="flex items-start justify-between">
                                 <div className="flex items-start gap-3 flex-1">
-                                    <div className="text-2xl">
+                                    <div className="text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5">
                                         {TYPE_ICONS[reminder.type]}
                                     </div>
                                     <div className="flex-1">

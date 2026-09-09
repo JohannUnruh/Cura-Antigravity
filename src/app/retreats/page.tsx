@@ -411,7 +411,7 @@ export default function RetreatsPage() {
                                 className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500/20"
                                 placeholder="z.B. Männerfreizeit Schwarzwald" />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="retreatType" className="block text-sm font-bold text-gray-700 mb-1">Art der Freizeit</label>
                                 <select
@@ -435,7 +435,7 @@ export default function RetreatsPage() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="church" className="block text-sm font-bold text-gray-700 mb-1">Gemeinde</label>
                                 <input id="church" type="text" name="retreatChurch" autoComplete="off" value={form.church} onChange={e => setForm({ ...form, church: e.target.value })}
@@ -455,7 +455,7 @@ export default function RetreatsPage() {
                                 className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500/20 h-20"
                                 placeholder="Weitere Details zur Freizeit..." />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="dateFrom" className="block text-sm font-medium text-gray-700 mb-1">Datum Von</label>
                                 <input id="dateFrom" type="date" required value={form.dateFrom} onChange={e => handleDateFromChange(e.target.value)}
@@ -467,7 +467,7 @@ export default function RetreatsPage() {
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500/20" />
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="durationInHours" className="block text-sm font-medium text-gray-700 mb-1">Durchführung (Std.)</label>
                                 <input id="durationInHours" type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" required value={durationStr}

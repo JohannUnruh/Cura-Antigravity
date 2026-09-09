@@ -427,7 +427,7 @@ export default function ClientDetailPage() {
                             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{client.name}</h1>
                             <button
                                 onClick={toggleFavorite}
-                                className="p-1.5 rounded-xl hover:bg-white/50 dark:hover:bg-slate-800/50 text-amber-500 transition-colors"
+                                className="p-3 rounded-xl hover:bg-white/50 dark:hover:bg-slate-800/50 text-amber-500 transition-colors"
                                 title={isFavorite ? "Von Favoriten entfernen" : "Zu Favoriten hinzufügen"}
                             >
                                 <Star className={isFavorite ? "w-6 h-6 fill-amber-400 text-amber-400" : "w-6 h-6 text-gray-400 hover:text-amber-500"} />
@@ -543,9 +543,9 @@ export default function ClientDetailPage() {
                 <Button
                     variant="secondary"
                     onClick={() => router.push(`/clients/${clientId}/notes`)}
-                    className="py-4 text-base justify-start gap-3 bg-gradient-to-r from-violet-500/10 to-indigo-500/10 dark:from-violet-500/20 dark:to-indigo-500/20 border-violet-200 dark:border-violet-500/30 hover:border-violet-300 dark:hover:border-violet-400 hover:shadow-md transition-all"
+                    className="py-4 text-base justify-start gap-3 bg-gradient-to-r from-indigo-500/10 to-indigo-600/10 dark:from-indigo-500/20 dark:to-indigo-600/20 border-indigo-200 dark:border-indigo-500/30 hover:border-indigo-300 dark:hover:border-indigo-400 hover:shadow-md transition-all"
                 >
-                    <div className="bg-violet-100 dark:bg-violet-900/30 p-2 rounded-lg"><FileText className="w-5 h-5 text-violet-600 dark:text-violet-400" /></div>
+                    <div className="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded-lg"><FileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /></div>
                     <div className="text-left">
                         <span className="block font-semibold text-gray-800 dark:text-slate-200">Gesprächsnotiz starten</span>
                         <span className="block text-xs text-gray-500 dark:text-slate-400 font-normal">Freitext schreiben → KI füllt das Formular</span>

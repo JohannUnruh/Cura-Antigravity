@@ -243,7 +243,7 @@ export const PushNotificationProvider = ({ children }: { children: React.ReactNo
         try {
             // Lokale Browser-Benachrichtigung als Test
             if (Notification.permission === 'granted') {
-                new Notification("🔔 Cura Erinnerung", {
+                new Notification("Cura Erinnerung", {
                     body: "Test-Benachrichtigung erfolgreich!",
                     icon: "/favicon.png",
                     badge: "/favicon.png",

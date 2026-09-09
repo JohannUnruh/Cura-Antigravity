@@ -862,7 +862,7 @@ export default function SettingsPage() {
                 {
                     activeTab === 'benutzer' && (
                         <div className="space-y-6">
-                            <div className="flex justify-between items-center bg-white/40 dark:bg-slate-900/40 p-4 rounded-xl shadow-sm border border-white/60 dark:border-white/10 backdrop-blur-sm">
+                            <div className="flex flex-wrap justify-between items-center gap-3 bg-white/40 dark:bg-slate-900/40 p-4 rounded-xl shadow-sm border border-white/60 dark:border-white/10 backdrop-blur-sm">
                                 <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                                     <Users className="w-5 h-5 text-indigo-500" />
                                     Alle Benutzer ({users.length})
@@ -876,10 +876,11 @@ export default function SettingsPage() {
                                 {users.map(u => (
                                     <Card key={u.id} className="border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm hover:shadow-md transition-shadow">
                                         <CardContent className="p-4 flex flex-col justify-between">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div>
-                                                    <h3 className="font-bold text-gray-900 dark:text-white">{u.firstName} {u.lastName}</h3>
-                                                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-1.5">
+                                            <div className="min-w-0 mb-2">
+                                                <h3 className="font-bold text-gray-900 dark:text-white truncate" title={`${u.firstName} ${u.lastName}`}>
+                                                    {u.firstName} {u.lastName}
+                                                </h3>
+                                                <div className="text-xs text-gray-500 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-1.5">
                                                         <span className={`px-2 py-0.5 rounded-full font-medium ${u.role === 'Admin' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300' : u.role === 'Kassenwart' ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' : 'bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-slate-300'}`}>
                                                             {u.role}
                                                         </span>
@@ -896,13 +897,12 @@ export default function SettingsPage() {
                                                                 {entry.isPrimary ? entry.contractType : CONTRACT_TYPE_BADGE[entry.contractType]}
                                                             </span>
                                                         ))}
-                                                    </p>
                                                 </div>
-                                                <div className="flex flex-col items-end gap-1.5 max-w-[55%]">
+                                                <div className="mt-2 space-y-1.5 min-w-0">
                                                     {getContractCoverage(u).filter(entry => entry.total > 0).map(entry => (
-                                                        <div key={entry.contractType} className="flex items-center gap-1.5">
+                                                        <div key={entry.contractType} className="flex flex-wrap items-center gap-1.5 min-w-0">
                                                             <span
-                                                                className="px-1.5 py-1 text-[10px] font-bold rounded bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-slate-300 shrink-0"
+                                                                className="px-1.5 py-1 text-xs font-bold rounded bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-slate-300 shrink-0"
                                                                 title={entry.contractType}
                                                             >
                                                                 {CONTRACT_TYPE_BADGE[entry.contractType]}
@@ -979,7 +979,7 @@ export default function SettingsPage() {
                                                         });
                                                         setIsEditUserModalOpen(true);
                                                     }}
-                                                    className="p-1.5 text-gray-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                                                    className="p-3 text-gray-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
                                                     title="Bearbeiten"
                                                 >
                                                     <Pencil className="w-4 h-4" />
@@ -987,7 +987,7 @@ export default function SettingsPage() {
                                                 {u.id !== user?.uid && (
                                                     <button
                                                         onClick={() => { setSelectedUser(u); setIsDeleteUserModalOpen(true); }}
-                                                        className="p-1.5 text-gray-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                        className="p-3 text-gray-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                                         title="Löschen"
                                                     >
                                                         <Trash2 className="w-4 h-4" />
@@ -1004,7 +1004,7 @@ export default function SettingsPage() {
                                     <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 mb-4 text-sm text-blue-800">
                                         Mit diesem Formular wird ein neues Benutzerkonto angelegt. Das Einmalpasswort erhält der Benutzer von dir und er sollte es nach dem ersten Login ändern.
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
                                             <label htmlFor="newUser-firstName" className="block text-sm font-medium text-gray-700 mb-1">Vorname</label>
                                             <input id="newUser-firstName" type="text" required value={newUserForm.firstName} onChange={e => setNewUserForm({ ...newUserForm, firstName: e.target.value })}
@@ -1016,7 +1016,7 @@ export default function SettingsPage() {
                                                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20" />
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
                                             <label htmlFor="newUser-role" className="block text-sm font-medium text-gray-700 mb-1">Rolle</label>
                                             <select id="newUser-role" value={newUserForm.role} onChange={e => setNewUserForm({ ...newUserForm, role: e.target.value as Role })}
@@ -1114,7 +1114,7 @@ export default function SettingsPage() {
 
                             <Modal isOpen={isEditUserModalOpen} onClose={() => setIsEditUserModalOpen(false)} title="Benutzer bearbeiten">
                                 <form onSubmit={handleUpdateUser} className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Vorname</label>
                                             <input type="text" title="Vorname" required value={editUserForm.firstName} onChange={e => setEditUserForm({ ...editUserForm, firstName: e.target.value })}
@@ -1126,7 +1126,7 @@ export default function SettingsPage() {
                                                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20" />
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Rolle</label>
                                             <select title="Rolle auswählen" value={editUserForm.role} onChange={e => setEditUserForm({ ...editUserForm, role: e.target.value as Role })}
@@ -1265,15 +1265,15 @@ export default function SettingsPage() {
                                                     </p>
                                                     <div className="flex flex-wrap items-center gap-1 mt-1.5">
                                                         {entry.isPrimary && (
-                                                            <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+                                                            <span className="px-1.5 py-0.5 text-xs font-bold rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
                                                                 primär
                                                             </span>
                                                         )}
-                                                        <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-slate-300">
+                                                        <span className="px-1.5 py-0.5 text-xs font-bold rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-slate-300">
                                                             {CONTRACT_TYPE_BADGE[entry.contractType]}
                                                         </span>
                                                         {entry.total > 0 && (
-                                                            <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-500 dark:text-slate-400">
+                                                            <span className="px-1.5 py-0.5 text-xs font-medium rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-500 dark:text-slate-400">
                                                                 {entry.contracts} Vertrag · {entry.amendments} Änderung
                                                             </span>
                                                         )}
@@ -1345,7 +1345,7 @@ export default function SettingsPage() {
                                         </p>
                                     )}
 
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                                                 {contractForm.documentKind === 'Änderungsvereinbarung' ? 'Inkrafttreten der Änderung (Gültig ab)' : 'Vertragsbeginn (Startdatum)'}

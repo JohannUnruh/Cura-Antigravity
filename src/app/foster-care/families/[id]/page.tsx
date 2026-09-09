@@ -527,7 +527,7 @@ export default function FosterFamilyDetailPage() {
                     </Card>
 
                     <Card className="border-white/50 dark:border-white/10 bg-white/45 dark:bg-slate-900/45 p-4 flex items-center gap-4 shadow-sm">
-                        <div className="p-3 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 rounded-xl">
+                        <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-xl">
                             <CheckCircle2 className="w-6 h-6" />
                         </div>
                         <div>
@@ -946,7 +946,7 @@ export default function FosterFamilyDetailPage() {
                                                             </option>
                                                         ))}
                                                     </select>
-                                                    <p className="text-[10px] text-gray-400 mt-1">
+                                                    <p className="text-xs text-gray-400 mt-1">
                                                         Es werden nur unplatzierte Kinder angezeigt, die dem präferierten Alter ({ageMin}-{ageMax} J.) und Geschlecht entsprechen.
                                                     </p>
                                                 </div>
@@ -1045,21 +1045,21 @@ export default function FosterFamilyDetailPage() {
 
                                                         <div className="flex items-center gap-2">
                                                             {entry.hasTimeEntry && (
-                                                                <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950/20 px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-900/30" title="Zeiterfassung verknüpft">
+                                                                <span className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950/20 px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-900/30" title="Zeiterfassung verknüpft">
                                                                     <Briefcase className="w-3 h-3" />
                                                                     <span>Zeiterfassung</span>
                                                                 </span>
                                                             )}
                                                             <button
                                                                 onClick={() => handleOpenEditJournalModal(entry)}
-                                                                className="p-1.5 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg transition-colors"
+                                                                className="p-3 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg transition-colors"
                                                                 title="Eintrag bearbeiten"
                                                             >
                                                                 <Edit2 className="w-4 h-4" />
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDeleteJournalEntry(entry.id)}
-                                                                className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
+                                                                className="p-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
                                                                 title="Eintrag löschen"
                                                             >
                                                                 <Trash2 className="w-4 h-4" />
@@ -1149,7 +1149,7 @@ export default function FosterFamilyDetailPage() {
                     title={editingJournalId ? "Journaleintrag bearbeiten" : "Neuen Journaleintrag erstellen"}
                 >
                     <form onSubmit={handleSaveJournalEntry} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className={labelCls}>Datum *</label>
                                 <input

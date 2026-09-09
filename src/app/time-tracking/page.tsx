@@ -723,16 +723,16 @@ export default function TimeTrackingPage() {
                         {/* Urlaubs-Dashboard */}
                         {vacationDaysPerYear > 0 && (
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <Card className="border-purple-100 dark:border-purple-500/20 bg-gradient-to-br from-purple-50 to-white dark:from-slate-900/80 dark:to-slate-900/40 shadow-sm">
+                                <Card className="border-indigo-100 dark:border-indigo-500/20 bg-gradient-to-br from-indigo-50 to-white dark:from-slate-900/80 dark:to-slate-900/40 shadow-sm">
                                     <CardContent className="p-5">
                                         <div className="flex items-center justify-between mb-2">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center">
-                                                    <Sun className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                                                <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
+                                                    <Sun className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                                                 </div>
                                                 <div>
                                                     <h3 className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide">Urlaubsanspruch</h3>
-                                                    <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{vacationDaysPerYear} Tage</p>
+                                                    <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{vacationDaysPerYear} Tage</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -1157,7 +1157,7 @@ export default function TimeTrackingPage() {
                 <Modal isOpen={isPoolModalOpen} onClose={() => setIsPoolModalOpen(false)} title="Überstundenpool verwalten">
                     <div className="space-y-4">
                         {/* Pool Summary */}
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
                                 <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Verfügbarer Pool</p>
                                 <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
@@ -1264,7 +1264,7 @@ export default function TimeTrackingPage() {
                             Sie möchten <strong>{formatHours(poolEntries.filter(e => selectedPoolEntryIds.includes(e.id)).reduce((sum, e) => sum + e.durationInHours, 0))}h</strong> auf einen Zielmonat verteilen.
                         </p>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="distributeTargetMonth" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Zielmonat</label>
                                 <select
@@ -1438,7 +1438,7 @@ export default function TimeTrackingPage() {
                 {/* Edit Pool Entry Modal */}
                 <Modal isOpen={isEditPoolEntryModalOpen} onClose={() => setIsEditPoolEntryModalOpen(false)} title="Eintrag bearbeiten">
                     <form onSubmit={handleEditPoolEntry} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="editPoolDate" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Datum</label>
                                 <input

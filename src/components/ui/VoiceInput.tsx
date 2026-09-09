@@ -67,7 +67,7 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
     const startRecording = useCallback(() => {
         if (!recognitionRef.current || isListeningRef.current) return;
         const id = instanceIdRef.current;
-        console.warn(`[VoiceInput #${id}] ▶️ startRecording (mobile=${isMobileRef.current})`);
+        console.warn(`[VoiceInput #${id}] startRecording (mobile=${isMobileRef.current})`);
 
         accumulatedTextRef.current = value;
         hadFatalErrorRef.current = false;
@@ -84,7 +84,7 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
     const stopRecording = useCallback(() => {
         if (!recognitionRef.current) return;
         const id = instanceIdRef.current;
-        console.warn(`[VoiceInput #${id}] 🛑 stopRecording`);
+        console.warn(`[VoiceInput #${id}] stopRecording`);
         isHoldingRef.current = false;
         updateListeningState(false);
         try { recognitionRef.current.stop(); } catch { /* not running */ }
@@ -97,7 +97,7 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
         const mobile = detectIsMobile();
         isMobileRef.current = mobile;
 
-        console.warn(`[VoiceInput #${id}] 🟢 MOUNT – mobile=${mobile}`);
+        console.warn(`[VoiceInput #${id}] MOUNT – mobile=${mobile}`);
 
         if (typeof window === 'undefined') return;
 
@@ -116,7 +116,7 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
         rec.lang = 'de-DE';
 
         rec.onstart = () => {
-            console.warn(`[VoiceInput #${id}] ✅ onstart`);
+            console.warn(`[VoiceInput #${id}] onstart`);
             hadFatalErrorRef.current = false;
             updateListeningState(true);
         };
@@ -158,7 +158,7 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rec.onerror = (event: any) => {
-            console.warn(`[VoiceInput #${id}] ❌ onerror:`, event.error);
+            console.warn(`[VoiceInput #${id}] onerror:`, event.error);
             if (onErrorRef.current) onErrorRef.current(event.error);
 
             let msg = "";
@@ -187,14 +187,14 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
         };
 
         rec.onend = () => {
-            console.warn(`[VoiceInput #${id}] 🔚 onend – isListening=${isListeningRef.current}, mobile=${mobile}, holding=${isHoldingRef.current}`);
+            console.warn(`[VoiceInput #${id}] onend – isListening=${isListeningRef.current}, mobile=${mobile}, holding=${isHoldingRef.current}`);
 
             if (mobile) {
                 // ── MOBIL: Auto-Restart NUR wenn der Nutzer den Button noch hält ──
                 // Da continuous=false, startet jede neue Session mit leerem Puffer.
                 // Kein kumulatives Replay → keine Duplikate möglich.
                 if (isHoldingRef.current && !hadFatalErrorRef.current) {
-                    console.warn(`[VoiceInput #${id}] 🔄 Mobile Auto-Restart (Button wird gehalten)`);
+                    console.warn(`[VoiceInput #${id}] Mobile Auto-Restart (Button wird gehalten)`);
                     // Finalen Stand ausgeben bevor wir neu starten
                     onResultRef.current(accumulatedTextRef.current);
                     setTimeout(() => {
@@ -205,7 +205,7 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
                         try {
                             recognitionRef.current.start();
                         } catch (e) {
-                            console.warn(`[VoiceInput #${id}] ⚠️ Mobile Restart fehlgeschlagen:`, e);
+                            console.warn(`[VoiceInput #${id}] Mobile Restart fehlgeschlagen:`, e);
                             isHoldingRef.current = false;
                             updateListeningState(false);
                         }
@@ -230,15 +230,15 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
                 if (!isListeningRef.current || !recognitionRef.current) return;
                 try {
                     recognitionRef.current.start();
-                    console.warn(`[VoiceInput #${id}] 🔄 Restart OK nach Versuch ${attempts + 1}`);
+                    console.warn(`[VoiceInput #${id}] Restart OK nach Versuch ${attempts + 1}`);
                 } catch (e) {
                     attempts++;
                     const errMsg = (e as Error)?.message || '';
-                    console.warn(`[VoiceInput #${id}] ⚠️ Restart fehlgeschlagen, Versuch ${attempts}:`, errMsg);
+                    console.warn(`[VoiceInput #${id}] Restart fehlgeschlagen, Versuch ${attempts}:`, errMsg);
                     if (attempts < maxAttempts && isListeningRef.current) {
                         setTimeout(tryRestart, Math.min(100 * Math.pow(2, attempts - 1), 2000));
                     } else {
-                        console.warn(`[VoiceInput #${id}] 💀 Neustart nach ${maxAttempts} Versuchen fehlgeschlagen`);
+                        console.warn(`[VoiceInput #${id}] Neustart nach ${maxAttempts} Versuchen fehlgeschlagen`);
                         updateListeningState(false);
                         setErrorMessage("Neustart fehlgeschlagen – bitte erneut klicken.");
                         setTimeout(() => setErrorMessage(null), 5000);
@@ -251,7 +251,7 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
         recognitionRef.current = rec;
 
         return () => {
-            console.warn(`[VoiceInput #${id}] 🔴 UNMOUNT – Cleanup`);
+            console.warn(`[VoiceInput #${id}] UNMOUNT – Cleanup`);
             isHoldingRef.current = false;
             updateListeningState(false);
             try { rec.stop(); } catch { /* not running */ }

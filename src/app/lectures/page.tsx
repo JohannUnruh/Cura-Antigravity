@@ -441,7 +441,7 @@ export default function LecturesPage() {
                                 ))}
                             </select>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="location" className="block text-sm font-bold text-gray-700 mb-1">Ort</label>
                                 <input id="location" type="text" name="lectureLocation" autoComplete="off" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })}
@@ -456,7 +456,7 @@ export default function LecturesPage() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="participantCount" className="block text-sm font-bold text-gray-700 mb-1">Anzahl Teilnehmer</label>
                                 <input id="participantCount" type="number" min="0" value={form.participantCount} onChange={e => setForm({ ...form, participantCount: parseInt(e.target.value) || 0 })}
@@ -464,7 +464,7 @@ export default function LecturesPage() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="dateFrom" className="block text-sm font-medium text-gray-700 mb-1">Datum Von</label>
                                 <input id="dateFrom" type="date" required value={form.dateFrom} onChange={e => handleDateFromChange(e.target.value)}
@@ -476,7 +476,7 @@ export default function LecturesPage() {
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500/20" />
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="durationInHours" className="block text-sm font-medium text-gray-700 mb-1">Vortragsstunden</label>
                                 <input id="durationInHours" type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" required value={durationStr}

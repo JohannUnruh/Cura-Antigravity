@@ -71,7 +71,7 @@ export function TagInput({ value, onChange, placeholder = "Einträge durch Komma
 
             {isFocused && (
                 <p className="text-xs text-gray-500 dark:text-slate-400 mt-1.5">
-                    💡 Tipp: Mit <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-slate-800 rounded text-xs">Enter</kbd> kannst du einen Eintrag hinzufügen
+                    Mit <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-slate-800 rounded text-xs">Enter</kbd> kannst du einen Eintrag hinzufügen
                 </p>
             )}
         </div>

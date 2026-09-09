@@ -661,7 +661,7 @@ export default function CaseDetailPage() {
                                                 </div>
                                                 <p className="text-gray-900 dark:text-white font-medium">{goal.description}</p>
                                             </div>
-                                            <button onClick={() => removeGoal(goal.id)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                                            <button onClick={() => removeGoal(goal.id)} className="p-3 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
@@ -820,10 +820,10 @@ export default function CaseDetailPage() {
                                                         <p className="text-sm text-gray-600 dark:text-slate-300 mt-1 whitespace-pre-wrap">{entry.notes}</p>
                                                     </div>
                                                     <div className="flex gap-1 ml-3">
-                                                        <button onClick={() => openEditJournal(entry)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors" title="Bearbeiten">
+                                                        <button onClick={() => openEditJournal(entry)} className="p-3 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors" title="Bearbeiten">
                                                             <Edit2 className="w-4 h-4" />
                                                         </button>
-                                                        <button onClick={() => deleteJournal(entry.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Löschen">
+                                                        <button onClick={() => deleteJournal(entry.id)} className="p-3 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Löschen">
                                                             <Trash2 className="w-4 h-4" />
                                                         </button>
                                                     </div>
@@ -1063,12 +1063,12 @@ export default function CaseDetailPage() {
                 <Modal isOpen={isPdfModalOpen} onClose={() => setIsPdfModalOpen(false)} title="Leistungsnachweis exportieren">
                     <div className="space-y-4">
                         <p className="text-sm text-gray-500 dark:text-slate-400">Wählen Sie den Zeitraum für den monatlichen Leistungsnachweis.</p>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className={labelCls}>Monat</label>
                                 <select className={inputCls} value={pdfMonth} onChange={e => setPdfMonth(Number(e.target.value))}>
                                     {Array.from({ length: 12 }, (_, i) => (
-                                        <option key={i} value={i}>{new Date(2024, i).toLocaleString("de-DE", { month: "long" })}</option>
+                                        <option key={i} value={i}>{new Date(new Date().getFullYear(), i).toLocaleString("de-DE", { month: "long" })}</option>
                                     ))}
                                 </select>
                             </div>
