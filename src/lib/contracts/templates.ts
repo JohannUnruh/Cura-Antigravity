@@ -17,7 +17,7 @@ export interface ContractData {
     vacationDaysPerYear?: number;
     contractType: ContractType;
     documentKind?: DocumentKind; // 'Vertrag' | 'Änderungsvereinbarung'
-    activityDescription?: string; // z. B. "Organisationsbeauftragte und Kassenprüferin"
+    activityDescription?: string; // Freitext-Rolle, z. B. "Leitung des Kinderchors"; leer = geschlechtsneutraler Vorlagen-Default
     tasksDescription?: string; // Aufgabenliste bei Ehrenamtlichen
     boardSignatureUrl: string; // the base64 png
     employeeSignatureUrl: string; // the base64 png
@@ -128,6 +128,13 @@ Ich versichere, dass ich neben der in obiger Vereinbarung geregelten nebenberufl
                 ? `Als Aufwandsentschädigung erhält die tätige Person ${formatCurrencyDE(data.lumpSumAmount)} steuer- und sozialversicherungsfrei gemäß § 3 Nr. 26a EStG.`
                 : `Die Tätigkeit erfolgt ehrenamtlich und unentgeltlich.`;
 
+            // Geschlechtsneutraler Rollen-Default (Vorgabe Product Owner, 09.09.2026):
+            // Sachform statt weiblicher Rollenbezeichnung („Kassenprüferin"). Freitext-
+            // eingaben der Nutzer:innen werden unverändert mit „als …" eingesetzt.
+            const activityPhrase = data.activityDescription
+                ? `als ${data.activityDescription}`
+                : 'in der Kassenprüfung und Organisation des Vereins';
+
             return `Zwischen
 ${data.employerName}
 – im Weiteren „Einrichtung“ genannt –
@@ -137,7 +144,7 @@ Frau/Herrn ${data.employeeName}${data.employeeBirthDate ? `, geb. am ${data.empl
 wird folgendes vereinbart:
 
 § 1 Tätigkeit und Beginn
-Die tätige Person nimmt für die Einrichtung ab dem ${data.startDate} eine nebenberufliche Tätigkeit als ${data.activityDescription || 'Organisationsbeauftragte und Kassenprüferin des Vereins'} wahr.
+Die tätige Person nimmt für die Einrichtung ab dem ${data.startDate} eine nebenberufliche Tätigkeit ${activityPhrase} wahr.
 
 § 2 Aufgaben
 Die tätige Person hat folgende Aufgaben:
@@ -173,7 +180,7 @@ Frau/Herrn ${data.employeeName}${data.employeeBirthDate ? `, geb. am ${data.empl
 wird folgendes vereinbart:
 
 § 1 Tätigkeit und Beginn
-Die tätige Person nimmt für die Einrichtung ab dem ${data.startDate} eine nebenberufliche Tätigkeit als ${data.activityDescription || 'Organisationsbeauftragte und Kassenprüferin'} wahr.
+Die tätige Person nimmt für die Einrichtung ab dem ${data.startDate} eine nebenberufliche Tätigkeit ${data.activityDescription ? `als ${data.activityDescription}` : 'in der Kassenprüfung und Organisation des Vereins'} wahr.
 
 § 2 Arbeitszeit
 Die tätige Person arbeitet ${formatHoursDE(data.monthlyHours ?? 8.6)} Stunden im Monat.

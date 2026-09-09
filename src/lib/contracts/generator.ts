@@ -7,23 +7,29 @@ import { ref, uploadString, getDownloadURL } from "firebase/storage";
    Ein gemeinsames Raster für alle vier Vertragstypen und die
    Änderungsvereinbarungen: jede Textzeile, jeder Absatzabstand und jeder
    Abschnittsabstand folgt denselben Konstanten, damit kein Vertragstyp
-   anders "atmet" als der andere. */
+   anders "atmet" als der andere.
+   Vorgabe des Product Owners vom 09.09.2026: Luftigkeit schlägt Seitenzahl.
+   Verträge dürfen auf 2 Seiten umbrechen, statt Abstände zusammenzurücken;
+   nur der Unterschriftsblock darf niemals allein auf einer Seite stehen. */
 const PAGE_HEIGHT = 297;
 const MARGIN_X = 20;
 const CONTENT_WIDTH = 170;
 const BODY_TOP_Y = 22;
 const BOTTOM_MARGIN = 22;
-const LINE_HEIGHT = 4.3;          // Durchschuss einer Fließtextzeile
-const PARAGRAPH_GAP = 4.3;        // Leerzeile = exakt eine Zeile Abstand
-const SECTION_GAP = 3.6;          // Zusatzabstand vor einer Überschrift (§ / Erklärung)
+const LINE_HEIGHT = 4.9;          // Durchschuss einer Fließtextzeile (10 pt, ~1,4-fach)
+const PARAGRAPH_GAP = 6.0;        // Absatzabstand, deutlich mehr als eine Leerzeile
+const SECTION_GAP = 5.2;          // Zusatzabstand vor einer Überschrift (§ / Erklärung)
+const HEADING_GAP_AFTER = 1.4;    // Zusatzabstand zwischen Überschrift und folgendem Text
 const LIST_INDENT = 6;            // Einrückung der Aufzählungspunkte
-const LIST_GAP_BEFORE = 1.8;      // Abstand vor dem ersten Punkt einer Liste
-const LIST_LEADING = 0.7;         // Zusatzabstand zwischen zwei Punkten
+const LIST_GAP_BEFORE = 2.8;      // Abstand vor dem ersten Punkt einer Liste
+const LIST_LEADING = 1.5;         // Zusatzabstand zwischen zwei Punkten
 const CHECK_INDENT = 6;           // linke Kante des Ankreuzkästchens
 const CHECK_BOX_SIZE = 3.4;       // Kantenlänge des Kästchens
 const CHECK_TEXT_INDENT = 13;     // Textspalte hinter dem Kästchen
-const CHECK_GAP_BEFORE = 2.4;     // Abstand vor jeder Ankreuzzeile
-const SIGNATURE_RESERVE = 42;     // Platz, den der Umbruch für den Unterschriftsblock freihält
+const CHECK_GAP_BEFORE = 3.4;     // Abstand vor jeder Ankreuzzeile
+const SIGNATURE_GAP = 10;         // Abstand zwischen letzter Textzeile und Unterschriftsblock
+const SIGNATURE_RESERVE = 52;     // Umbruch-Reserve ≥ SIGNATURE_BLOCK_HEIGHT + SIGNATURE_GAP + LINE_HEIGHT,
+                                  // damit die Signatur immer unter Text auf dieselbe Seite passt
 const SIGNATURE_BLOCK_HEIGHT = 36;
 const SIGNATURE_PAGE_ANCHOR_Y = 60;
 
@@ -195,6 +201,7 @@ export function createContractPdf(data: ContractData, logoBase64?: string): jsPD
     const blockHeight = (lines: string[]) => {
         let h = 0;
         let prevList = false;
+        let prevSection = false;
         for (const line of lines) {
             const c = classify(line);
             if (c.isSection) {
@@ -207,8 +214,10 @@ export function createContractPdf(data: ContractData, logoBase64?: string): jsPD
                 h += CHECK_GAP_BEFORE;
                 prevList = true;
             } else {
+                if (prevSection) h += HEADING_GAP_AFTER;
                 prevList = false;
             }
+            prevSection = c.isSection;
             h += wrappedFor(line, c).length * LINE_HEIGHT;
         }
         return h;
@@ -222,6 +231,7 @@ export function createContractPdf(data: ContractData, logoBase64?: string): jsPD
         if (y + height > bodyBottom && height <= usableHeight) newContentPage();
 
         let prevList = false;
+        let prevSection = false;
         for (const trimmed of lines) {
             const c = classify(trimmed);
             if (c.isSection) {
@@ -234,8 +244,10 @@ export function createContractPdf(data: ContractData, logoBase64?: string): jsPD
                 y += CHECK_GAP_BEFORE;
                 prevList = true;
             } else {
+                if (prevSection) y += HEADING_GAP_AFTER;
                 prevList = false;
             }
+            prevSection = c.isSection;
 
             if (c.isCheckbox) {
                 const checked = /^\[[Xx]\]/.test(trimmed);
@@ -274,7 +286,9 @@ export function createContractPdf(data: ContractData, logoBase64?: string): jsPD
     });
 
     // ── Unterschriftsblock ─────────────────────────────────────────────
-    y += 6;
+    // SIGNATURE_RESERVE garantiert, dass der Block auf derselben Seite direkt
+    // unter dem letzten Vertragstext Platz findet und nie allein umbricht.
+    y += SIGNATURE_GAP;
     let sigY = y;
     if (sigY + SIGNATURE_BLOCK_HEIGHT > PAGE_HEIGHT - BOTTOM_MARGIN) {
         // Sicherheitsnetz: eigene Seite ohne Kopfbalken, vertikal verankert

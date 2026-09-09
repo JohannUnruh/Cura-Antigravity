@@ -28,7 +28,7 @@ export interface UserProfile {
     contractTypes?: ContractType[]; // ALLE aktiven Rechtsverhältnisse (z. B. Minijob + Übungsleiterpauschale)
     entryDate?: string;
     birthDate?: string; // z.B. "TT.MM.JJJJ" für Verträge
-    activityDescription?: string; // z.B. "Organisationsbeauftragte und Kassenprüferin"
+    activityDescription?: string; // z.B. "Leitung des Kinderchors"; optional, leer = geschlechtsneutraler Vorlagen-Default
     tasksDescription?: string; // z.B. Aufgaben für Ehrenamtliche
     contractDocumentUrl?: string; // Links to Firebase Storage for the latest signed copy
     contractDocuments?: UserContractDocument[]; // Historie aller Verträge & Änderungsvereinbarungen

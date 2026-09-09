@@ -121,7 +121,16 @@ describe("Contracts & Amendment Agreements (Minijob & Monthly Hours)", () => {
         }
     });
 
-    it("generates Minijob amendment PDF fitting cleanly onto 1 single page", async () => {
+    it("generates Minijob amendment PDF with airy layout: at most 2 pages, signature never alone", async () => {
+        // Anforderungsänderung durch den Product Owner (Johann) am 09.09.2026, wörtlich:
+        // „Mir ist nur eine einzige Seite auf den Verträgen nicht wichtig. Es können ruhig
+        // 2 Seiten sein. Mir ist wichtig, dass das nicht zugequetscht aussieht, keiner hat
+        // etwas gegen 2 Seiten … beidseitig ausdrucken."
+        // Die frühere Assertion „exakt 1 Seite" ist damit fachlich überholt und wird hier
+        // bewusst durch die neue Vorgabe ersetzt (nicht abgeschwächt). Inhaltlich gilt:
+        // 1) Die Änderungsvereinbarung bleibt kompakt: höchstens 2 Seiten.
+        // 2) Alle Paragraphen bleiben vollständig enthalten (prüft der Template-Texttest oben).
+        // 3) Der Unterschriftsblock steht niemals allein ohne Vertragstext auf einer Seite.
         const { createContractPdf } = await import("@/lib/contracts/generator");
         const data: ContractData = {
             employerName: "Musterverein e.V.",
@@ -143,8 +152,26 @@ describe("Contracts & Amendment Agreements (Minijob & Monthly Hours)", () => {
         };
 
         const doc = createContractPdf(data);
-        if (doc.getNumberOfPages() !== 1) {
-            throw new Error(`Expected 1 page for Minijob amendment, got ${doc.getNumberOfPages()}`);
+        const pageCount = doc.getNumberOfPages();
+        if (pageCount < 1 || pageCount > 2) {
+            throw new Error(`Expected Minijob amendment on 1-2 airy pages (PO-Vorgabe 09.09.2026), got ${pageCount}`);
+        }
+
+        // jsPDF schreibt je Seite einen unkomprimierten Inhaltsstrom. Die letzte Seite muss
+        // neben der Signaturbeschriftung („Unterschrift") auch den Körper des letzten
+        // Paragraphen tragen („Textform" aus § 6 Schlussbestimmungen) – sonst stünde der
+        // Unterschriftsblock allein auf der Seite.
+        const pdf = Buffer.from(doc.output("arraybuffer")).toString("latin1");
+        const streams = [...pdf.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)].map(m => m[1]);
+        if (streams.length !== pageCount) {
+            throw new Error(`Expected ${pageCount} page content stream(s), found ${streams.length}`);
+        }
+        const lastPage = streams[streams.length - 1];
+        if (!lastPage.includes("Unterschrift")) {
+            throw new Error("Signature block missing on the last page of the Minijob amendment");
+        }
+        if (!lastPage.includes("Textform")) {
+            throw new Error("Signature block stands alone on the last page without contract text");
         }
     });
 
@@ -259,6 +286,49 @@ describe("Contracts & Amendment Agreements (Minijob & Monthly Hours)", () => {
         }
         if (!text.includes("Erklärung der tätigen Person zur Inanspruchnahme der sog. Ehrenamtspauschale")) {
             throw new Error("Missing declaration header in Ehrenamtliche contract");
+        }
+    });
+
+    it("formuliert die Rollen-Defaults in § 1 geschlechtsneutral (PO-Vorgabe 09.09.2026)", () => {
+        // Auftrag Johann, 09.09.2026: „Kassenprüferin soll neutral werden."
+        // Die Default-Rolle in § 1 darf keine geschlechtsspezifische Bezeichnung mehr
+        // tragen; die Vorlagen nutzen stattdessen die Sachform. Expliziter Freitext der
+        // Nutzer:innen (z. B. reale Rollenbezeichnung einer Person) wird weiterhin mit
+        // „als …" eingesetzt – gespeicherte Bestandsdaten bleiben unangetastet.
+        const base: ContractData = {
+            employerName: "Musterverein e.V.",
+            employerAddress: "Musterstraße 1",
+            employeeName: "Max Mustermann",
+            employeeAddress: "Beispielweg 2",
+            startDate: "01.10.2026",
+            contractType: "Ehrenamtspauschale",
+            documentKind: "Vertrag",
+            boardSignatureUrl: "",
+            employeeSignatureUrl: ""
+        };
+
+        const ehrenamtText = getContractTemplate(base).text(base);
+        if (!ehrenamtText.includes("eine nebenberufliche Tätigkeit in der Kassenprüfung und Organisation des Vereins wahr")) {
+            throw new Error("Ehrenamtspauschale § 1 does not use the neutral Sachform default");
+        }
+
+        const uebungsleiterData: ContractData = { ...base, contractType: "Übungsleiterpauschale" };
+        const uebungsleiterText = getContractTemplate(uebungsleiterData).text(uebungsleiterData);
+        if (!uebungsleiterText.includes("eine nebenberufliche Tätigkeit in der Kassenprüfung und Organisation des Vereins wahr")) {
+            throw new Error("Übungsleiterpauschale § 1 does not use the neutral Sachform default");
+        }
+
+        // Kein Default-Vertragstext darf noch eine geschlechtsspezifische Rolle enthalten.
+        for (const neutralText of [ehrenamtText, uebungsleiterText]) {
+            if (neutralText.includes("Kassenprüferin") || neutralText.includes("Organisationsbeauftragte")) {
+                throw new Error("Gendered role default still present in contract text");
+            }
+        }
+
+        const explicitData: ContractData = { ...base, activityDescription: "Leitung des Kinderchors" };
+        const explicitText = getContractTemplate(explicitData).text(explicitData);
+        if (!explicitText.includes("eine nebenberufliche Tätigkeit als Leitung des Kinderchors wahr")) {
+            throw new Error("Explicit activity description is no longer rendered with 'als …'");
         }
     });
 

@@ -413,6 +413,9 @@ export default function SettingsPage() {
      * für einen Zusatzvertrag werden stattdessen die Vorlagen-Standardwerte der
      * gewählten Art verwendet, damit z. B. die 36 Stunden eines Minijobs nicht
      * als Monatsstunden im Übungsleitervertrag landen.
+     * Das Tätigkeitsfeld bleibt bei Übungsleiter-/Ehrenamtspauschale bewusst leer:
+     * Die geschlechtsneutrale Standardformulierung kommt dann aus der Vertrags-
+     * vorlage (templates.ts), statt eine Rollenbezeichnung vorzugeben.
      */
     const buildContractFormDefaults = (u: UserProfile, type: ContractType, kind: DocumentKind) => {
         const isPrimaryType = type === getPrimaryContractType(u);
@@ -434,10 +437,8 @@ export default function SettingsPage() {
         } else if (type === 'Übungsleiterpauschale') {
             lumpSumAmount = monthlyHours && hourlyRate ? (monthlyHours * hourlyRate) : 125;
             monthlyHours = monthlyHours || 8.6;
-            activityDescription = activityDescription || "Organisationsbeauftragte und Kassenprüferin";
         } else if (type === 'Ehrenamtspauschale') {
             lumpSumAmount = 840;
-            activityDescription = activityDescription || "Organisationsbeauftragte und Kassenprüferin des Vereins";
             tasksDescription = tasksDescription || "Kassenprüfung\nOrganisation der Unterkünfte bei Freizeiten und Vorträgen\nBeratende Funktion";
         } else { // Ehrenamtlich
             lumpSumAmount = 0;
@@ -1366,7 +1367,7 @@ export default function SettingsPage() {
                                         <div className="col-span-2 sm:col-span-1">
                                             <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tätigkeit / Funktion</label>
                                             <input type="text" title="Tätigkeit" value={contractForm.activityDescription} onChange={e => setContractForm({ ...contractForm, activityDescription: e.target.value })}
-                                                placeholder={contractWizardType === 'Übungsleiterpauschale' ? 'z. B. Organisationsbeauftragte und Kassenprüferin' : 'z. B. ehrenamtliche/r Mitarbeiter/in des Vereins'}
+                                                placeholder={contractWizardType === 'Übungsleiterpauschale' ? 'z. B. kassenprüfende und organisationsbeauftragte Person' : 'z. B. ehrenamtliche/r Mitarbeiter/in des Vereins'}
                                                 className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white text-sm" />
                                         </div>
                                         {contractWizardType === 'Minijob' && (

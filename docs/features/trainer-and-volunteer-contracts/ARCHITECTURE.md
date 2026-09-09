@@ -30,7 +30,7 @@ export interface ContractData {
     vacationDaysPerYear?: number;
     contractType: ContractType;
     documentKind?: DocumentKind;        // 'Vertrag' | 'Änderungsvereinbarung'
-    activityDescription?: string;      // z. B. "Organisationsbeauftragte und Kassenprüferin"
+    activityDescription?: string;      // Freitext-Rolle; leer = geschlechtsneutraler Default aus der Vorlage
     tasksDescription?: string;         // Aufgabenliste bei Ehrenamtlichen
     boardSignatureUrl: string;
     employeeSignatureUrl: string;
@@ -45,7 +45,7 @@ export interface ContractData {
 * Titel: `Vertrag für „Übungsleiter“`
 * Wording exakt nach `Vorlage Vertrag Übungsleiter.docx`:
   * Parteien: Verein („Einrichtung“) vs. tätige Person mit optionalem Geburtsdatum.
-  * § 1 Tätigkeit & Beginn (`ab dem ${startDate} eine nebenberufliche Tätigkeit als ${activityDescription}`)
+  * § 1 Tätigkeit & Beginn (`ab dem ${startDate} eine nebenberufliche Tätigkeit als ${activityDescription}`; ohne Freitext geschlechtsneutrale Sachform: `in der Kassenprüfung und Organisation des Vereins`, PO-Vorgabe 09.09.2026)
   * § 2 Arbeitszeit (`arbeitet ${monthlyHours} Stunden im Monat`)
   * § 3 Aufwandsentschädigung (`monatlich ${lumpSumAmount} € steuer- und sozialversicherungsfrei gemäß § 3 Nr. 26 EStG`)
   * § 4 Höchstgrenze (`maximal 3.000 € betragen darf...`)
@@ -76,11 +76,11 @@ export interface ContractData {
   * **Bei Übungsleiterpauschale:**
     * Monatliche Arbeitszeit (Std./Monat, Default: `8.6`)
     * Monatliche Aufwandsentschädigung (€/Monat, Default: `125`)
-    * Tätigkeit (Default: `Organisationsbeauftragte und Kassenprüferin` oder Benutzerrolle)
+    * Tätigkeit (kein Formular-Default; leer rendert die geschlechtsneutrale Vorlagen-Formulierung, sonst Benutzerrolle/Freitext)
     * Geburtsdatum (optional)
   * **Bei Ehrenamtlich / Ehrenamtspauschale:**
     * Aufwandsentschädigung (€, z. B. `840` oder `440`, `0` für rein unentgeltlich)
-    * Tätigkeit (Default: `ehrenamtliche/r Mitarbeiter/in des Vereins`)
+    * Tätigkeit (Ehrenamtlich: Default `ehrenamtliche/r Mitarbeiter/in des Vereins`; Ehrenamtspauschale: leer = geschlechtsneutraler Vorlagen-Default)
     * Aufgabenbereich (mehrzeiliges Textfeld mit vorausgefüllten Standardaufgaben)
     * Geburtsdatum (optional)
   * **Bei Minijob:**
