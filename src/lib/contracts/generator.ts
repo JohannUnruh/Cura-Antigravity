@@ -28,10 +28,7 @@ const CHECK_BOX_SIZE = 3.4;       // Kantenlänge des Kästchens
 const CHECK_TEXT_INDENT = 13;     // Textspalte hinter dem Kästchen
 const CHECK_GAP_BEFORE = 3.4;     // Abstand vor jeder Ankreuzzeile
 const SIGNATURE_GAP = 10;         // Abstand zwischen letzter Textzeile und Unterschriftsblock
-const SIGNATURE_RESERVE = 52;     // Umbruch-Reserve ≥ SIGNATURE_BLOCK_HEIGHT + SIGNATURE_GAP + LINE_HEIGHT,
-                                  // damit die Signatur immer unter Text auf dieselbe Seite passt
 const SIGNATURE_BLOCK_HEIGHT = 36;
-const SIGNATURE_PAGE_ANCHOR_Y = 60;
 
 /* ── ZEFABIKO-Farbwelt (aus public/zefabiko_logo.png gemessen) ─────────
    Herz/Hand: Ziegelrot-Verlauf #650200 → #8D0E02 → #CE1F04
@@ -150,9 +147,11 @@ export function createContractPdf(data: ContractData, logoBase64?: string): jsPD
     const normalizedText = textContent.replace(/\r\n/g, '\n');
     const rawLines = normalizedText.split('\n');
 
-    // Der Umbruch hält auf jeder Seite Platz für den Unterschriftsblock frei,
-    // damit die Unterschriften niemals allein auf einer Leerseite landen.
-    const bodyBottom = PAGE_HEIGHT - BOTTOM_MARGIN - SIGNATURE_RESERVE;
+    // Der Textbereich reicht auf JEDER Seite bis zum normalen unteren Rand.
+    // Nur die Seite, die am Ende tatsächlich den Unterschriftsblock trägt,
+    // wird entsprechend geplant (siehe Umbruchplanung unten) – statt präventiv
+    // alle Seiten um die Blockhöhe zu verkürzen und halbvolle Seiten zu erzeugen.
+    const bodyBottom = PAGE_HEIGHT - BOTTOM_MARGIN;
 
     let y = BODY_TOP_Y + titleHeight;
 
@@ -224,123 +223,170 @@ export function createContractPdf(data: ContractData, logoBase64?: string): jsPD
     };
 
     const usableHeight = bodyBottom - BODY_TOP_Y;
+    const SIGNATURE_HEIGHT = SIGNATURE_GAP + SIGNATURE_BLOCK_HEIGHT;
+
+    // ── Umbruchplanung (Pass 1) ─────────────────────────────────────────
+    // Jede Seite darf bis zum normalen unteren Rand gefüllt werden. Der
+    // Unterschriftsblock wird als unteilbare Schlusseinheit geplant: passt er
+    // nicht mehr auf die letzte Textseite, zieht er den letzten vollständigen
+    // Absatz mit auf die neue Seite – so steht er niemals allein.
+    type PlannedBlock = { kind: "group"; index: number } | { kind: "signature" };
+    const plannedPages: PlannedBlock[][] = [[]];
+    let planY = BODY_TOP_Y + titleHeight;
+    const openPlannedPage = () => {
+        plannedPages.push([]);
+        planY = BODY_TOP_Y;
+    };
 
     groups.forEach((lines, groupIndex) => {
-        if (groupIndex > 0) y += PARAGRAPH_GAP;
         const height = blockHeight(lines);
-        if (y + height > bodyBottom && height <= usableHeight) newContentPage();
-
-        let prevList = false;
-        let prevSection = false;
-        for (const trimmed of lines) {
-            const c = classify(trimmed);
-            if (c.isSection) {
-                y += SECTION_GAP;
-                prevList = false;
-            } else if (c.isBullet) {
-                y += prevList ? LIST_LEADING : LIST_GAP_BEFORE;
-                prevList = true;
-            } else if (c.isCheckbox) {
-                y += CHECK_GAP_BEFORE;
-                prevList = true;
-            } else {
-                if (prevSection) y += HEADING_GAP_AFTER;
-                prevList = false;
-            }
-            prevSection = c.isSection;
-
-            if (c.isCheckbox) {
-                const checked = /^\[[Xx]\]/.test(trimmed);
-                const wrapped = wrappedFor(trimmed, c);
-                for (let i = 0; i < wrapped.length; i++) {
-                    if (y > bodyBottom) newContentPage();
-                    if (i === 0) {
-                        doc.setDrawColor(...COLOR_BOX);
-                        doc.setLineWidth(0.35);
-                        doc.rect(MARGIN_X + CHECK_INDENT, y - CHECK_BOX_SIZE + 0.8, CHECK_BOX_SIZE, CHECK_BOX_SIZE, 'S');
-                        if (checked) {
-                            doc.setLineWidth(0.5);
-                            const bx = MARGIN_X + CHECK_INDENT;
-                            doc.line(bx + 0.7, y - 1.3, bx + 1.4, y - 0.5);
-                            doc.line(bx + 1.4, y - 0.5, bx + 2.7, y - 2.5);
-                        }
-                    }
-                    applyStyle("body");
-                    doc.text(wrapped[i], MARGIN_X + CHECK_TEXT_INDENT, y);
-                    y += LINE_HEIGHT;
-                }
-                continue;
-            }
-
-            const indent = c.isBullet ? LIST_INDENT : 0;
-            const kind: "heading" | "party" | "body" =
-                c.isSection || c.isPartyLine ? "heading" : "body";
-            const wrapped = wrappedFor(trimmed, c);
-            for (const line of wrapped) {
-                if (y > bodyBottom) newContentPage();
-                applyStyle(kind);
-                doc.text(line, MARGIN_X + indent, y);
-                y += LINE_HEIGHT;
-            }
+        const firstOnPage = plannedPages[plannedPages.length - 1].length === 0;
+        const gap = firstOnPage ? 0 : PARAGRAPH_GAP;
+        // Absätze bleiben als Ganzes beisammen (Keep-together). Blöcke, die
+        // höher als eine Seite wären (kommt in den Vorlagen nicht vor), fallen
+        // beim Zeichnen auf den zeilenweisen Notumbruch zurück.
+        if (planY + gap + height > bodyBottom && height <= usableHeight) {
+            openPlannedPage();
+        } else {
+            planY += gap;
         }
+        plannedPages[plannedPages.length - 1].push({ kind: "group", index: groupIndex });
+        planY += height;
     });
 
-    // ── Unterschriftsblock ─────────────────────────────────────────────
-    // SIGNATURE_RESERVE garantiert, dass der Block auf derselben Seite direkt
-    // unter dem letzten Vertragstext Platz findet und nie allein umbricht.
-    y += SIGNATURE_GAP;
-    let sigY = y;
-    if (sigY + SIGNATURE_BLOCK_HEIGHT > PAGE_HEIGHT - BOTTOM_MARGIN) {
-        // Sicherheitsnetz: eigene Seite ohne Kopfbalken, vertikal verankert
-        doc.addPage();
-        sigY = SIGNATURE_PAGE_ANCHOR_Y;
+    if (planY + SIGNATURE_HEIGHT > bodyBottom) openPlannedPage();
+    plannedPages[plannedPages.length - 1].push({ kind: "signature" });
+
+    // Unterschrift allein auf ihrer Seite? Dann wandert der letzte vollständige
+    // Absatz mit hinüber (Keep-together mit dem Block).
+    if (plannedPages[plannedPages.length - 1].every(block => block.kind === "signature")) {
+        const previousPage = plannedPages[plannedPages.length - 2];
+        if (previousPage && previousPage.length > 0) {
+            const moved = previousPage[previousPage.length - 1];
+            previousPage.pop();
+            plannedPages[plannedPages.length - 1].unshift(moved);
+            if (previousPage.length === 0) plannedPages.splice(plannedPages.length - 2, 1);
+        }
     }
 
-    const dateStr = data.startDate && /^\d{2}\.\d{2}\.\d{4}$/.test(data.startDate)
-        ? data.startDate
-        : new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const ortStr = data.employerCity || '________________';
+    // ── Unterschriftsblock (Zeichner) ────────────────────────────────────
+    const drawSignatureBlock = (sigY: number) => {
+        const dateStr = data.startDate && /^\d{2}\.\d{2}\.\d{4}$/.test(data.startDate)
+            ? data.startDate
+            : new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const ortStr = data.employerCity || '________________';
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9.5);
-    doc.setTextColor(...COLOR_META);
-    doc.text(`Ort, Datum: ${ortStr}, den ${dateStr}`, MARGIN_X, sigY);
-    doc.text(`Ort, Datum: ${ortStr}, den ${dateStr}`, 110, sigY);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9.5);
+        doc.setTextColor(...COLOR_META);
+        doc.text(`Ort, Datum: ${ortStr}, den ${dateStr}`, MARGIN_X, sigY);
+        doc.text(`Ort, Datum: ${ortStr}, den ${dateStr}`, 110, sigY);
 
-    const lineY = sigY + 26;
+        const lineY = sigY + 26;
 
-    // Signaturen maßstabsgetreu und oberhalb der Signaturlinie platzieren
-    const drawSignature = (signatureUrl: string, colX: number) => {
-        if (!signatureUrl) return;
-        const colWidth = 60;
-        const maxW = 56;
-        const maxH = 18;
-        const size = readPngSize(signatureUrl);
-        let w = maxW;
-        let h = maxH;
-        if (size) {
-            const scale = Math.min(maxW / size.width, maxH / size.height);
-            w = size.width * scale;
-            h = size.height * scale;
-        }
-        try {
-            doc.addImage(signatureUrl, 'PNG', colX + (colWidth - w) / 2, lineY - 1.5 - h, w, h);
-        } catch {
-            // Ignore signature rendering error if dummy image
-        }
+        // Signaturen maßstabsgetreu und oberhalb der Signaturlinie platzieren
+        const drawSignature = (signatureUrl: string, colX: number) => {
+            if (!signatureUrl) return;
+            const colWidth = 60;
+            const maxW = 56;
+            const maxH = 18;
+            const size = readPngSize(signatureUrl);
+            let w = maxW;
+            let h = maxH;
+            if (size) {
+                const scale = Math.min(maxW / size.width, maxH / size.height);
+                w = size.width * scale;
+                h = size.height * scale;
+            }
+            try {
+                doc.addImage(signatureUrl, 'PNG', colX + (colWidth - w) / 2, lineY - 1.5 - h, w, h);
+            } catch {
+                // Ignore signature rendering error if dummy image
+            }
+        };
+        drawSignature(data.boardSignatureUrl, MARGIN_X);
+        drawSignature(data.employeeSignatureUrl, 110);
+
+        doc.setDrawColor(...COLOR_LINE);
+        doc.setLineWidth(0.3);
+        doc.line(MARGIN_X, lineY, 80, lineY);
+        doc.line(110, lineY, 170, lineY);
+
+        doc.setFontSize(9);
+        doc.setTextColor(...COLOR_META);
+        doc.text("Unterschrift Verein / Träger", MARGIN_X, lineY + 4.5);
+        doc.text("Unterschrift Vertragspartner", 110, lineY + 4.5);
     };
-    drawSignature(data.boardSignatureUrl, MARGIN_X);
-    drawSignature(data.employeeSignatureUrl, 110);
 
-    doc.setDrawColor(...COLOR_LINE);
-    doc.setLineWidth(0.3);
-    doc.line(MARGIN_X, lineY, 80, lineY);
-    doc.line(110, lineY, 170, lineY);
+    // ── Zeichnen (Pass 2) ────────────────────────────────────────────────
+    plannedPages.forEach((blocks, pageIndex) => {
+        if (pageIndex > 0) newContentPage();
 
-    doc.setFontSize(9);
-    doc.setTextColor(...COLOR_META);
-    doc.text("Unterschrift Verein / Träger", MARGIN_X, lineY + 4.5);
-    doc.text("Unterschrift Vertragspartner", 110, lineY + 4.5);
+        blocks.forEach((block, blockPos) => {
+            if (block.kind === "signature") {
+                y += SIGNATURE_GAP;
+                drawSignatureBlock(y);
+                return;
+            }
+
+            if (blockPos > 0) y += PARAGRAPH_GAP;
+            const lines = groups[block.index];
+
+            let prevList = false;
+            let prevSection = false;
+            for (const trimmed of lines) {
+                const c = classify(trimmed);
+                if (c.isSection) {
+                    y += SECTION_GAP;
+                    prevList = false;
+                } else if (c.isBullet) {
+                    y += prevList ? LIST_LEADING : LIST_GAP_BEFORE;
+                    prevList = true;
+                } else if (c.isCheckbox) {
+                    y += CHECK_GAP_BEFORE;
+                    prevList = true;
+                } else {
+                    if (prevSection) y += HEADING_GAP_AFTER;
+                    prevList = false;
+                }
+                prevSection = c.isSection;
+
+                if (c.isCheckbox) {
+                    const checked = /^\[[Xx]\]/.test(trimmed);
+                    const wrapped = wrappedFor(trimmed, c);
+                    for (let i = 0; i < wrapped.length; i++) {
+                        if (y > bodyBottom) newContentPage();
+                        if (i === 0) {
+                            doc.setDrawColor(...COLOR_BOX);
+                            doc.setLineWidth(0.35);
+                            doc.rect(MARGIN_X + CHECK_INDENT, y - CHECK_BOX_SIZE + 0.8, CHECK_BOX_SIZE, CHECK_BOX_SIZE, 'S');
+                            if (checked) {
+                                doc.setLineWidth(0.5);
+                                const bx = MARGIN_X + CHECK_INDENT;
+                                doc.line(bx + 0.7, y - 1.3, bx + 1.4, y - 0.5);
+                                doc.line(bx + 1.4, y - 0.5, bx + 2.7, y - 2.5);
+                            }
+                        }
+                        applyStyle("body");
+                        doc.text(wrapped[i], MARGIN_X + CHECK_TEXT_INDENT, y);
+                        y += LINE_HEIGHT;
+                    }
+                    continue;
+                }
+
+                const indent = c.isBullet ? LIST_INDENT : 0;
+                const kind: "heading" | "party" | "body" =
+                    c.isSection || c.isPartyLine ? "heading" : "body";
+                const wrapped = wrappedFor(trimmed, c);
+                for (const line of wrapped) {
+                    if (y > bodyBottom) newContentPage();
+                    applyStyle(kind);
+                    doc.text(line, MARGIN_X + indent, y);
+                    y += LINE_HEIGHT;
+                }
+            }
+        });
+    });
 
     // Fußbalken + Seitenzahlen auf allen Seiten
     const totalPages = doc.getNumberOfPages();
