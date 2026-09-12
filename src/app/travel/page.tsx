@@ -14,6 +14,7 @@ import { Car, Plus, Calendar, MapPin, CheckCircle2, XCircle, Clock3, RefreshCcw,
 import QRCode from "qrcode";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { fitLogoBox, readPngSize } from "@/lib/contracts/headerLayout";
 
 export default function TravelPage() {
     const { user, userProfile } = useAuth();
@@ -254,8 +255,10 @@ export default function TravelPage() {
                     reader.readAsDataURL(blob);
                 });
             };
-            const logoBase64 = await getBase64Image("/zefabiko_logo.png");
-            doc.addImage(logoBase64, 'PNG', 14, 12, 16, 16);
+            const logoBase64 = await getBase64Image("/logo.png");
+            const px = readPngSize(logoBase64);
+            const box = fitLogoBox(px?.width, px?.height, 16, 16);
+            doc.addImage(logoBase64, 'PNG', 14, 12, box.width, box.height);
             doc.setFontSize(18);
             doc.setFont("helvetica", "bold");
             doc.text("Fahrtkostenabrechnung", 34, 23);
