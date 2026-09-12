@@ -25,10 +25,19 @@ export function SignaturePad({ onSave, onClear, label }: SignaturePadProps) {
     return (
         <div className="flex flex-col space-y-2">
             <label className="text-sm font-medium text-gray-700">{label}</label>
-            <div className="border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 overflow-hidden h-[150px] touch-none">
+            <div
+                className="border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 overflow-hidden h-[150px] touch-none"
+                onPointerDown={() => {
+                    // Mobil: ein zuvor fokussiertes Eingabefeld verliert den Fokus,
+                    // damit die Tastatur beim Unterschreiben nicht im Weg steht.
+                    const active = document.activeElement as HTMLElement | null;
+                    if (active && active !== document.body) active.blur();
+                }}
+            >
                 <SignatureCanvas
                     ref={padRef}
                     penColor="black"
+                    clearOnResize={false}
                     canvasProps={{ className: "w-full h-full" }}
                     onEnd={handleSave}
                 />

@@ -5,13 +5,14 @@
  *  - Die Titel-Regel lief bis x = 190 und querte damit die Logo-Box
  *    (x 160–192, y 10–34). Bei einzeiligem Titel lag sie auf y ≈ 23,5 –
  *    sichtbar mitten durch die Herz-Oberkante.
- *  - Das quadratische Quell-Logo (public/zefabiko_logo.png, 822 × 828 px)
- *    wurde in eine 32 × 24-mm-Box gezwungen und wirkte dadurch horizontal
- *    gestaucht und matschig.
+ *  - Das alte Logo mit Schriftzug (zefabiko_logo.png, 822 × 828 px) wurde in
+ *    eine 32 × 24-mm-Box gezwungen und wirkte dadurch horizontal gestaucht
+ *    und matschig. Johanns Ersatz: public/logo.png (646 × 489 px, ohne Schrift).
  *
  * Deshalb gilt jetzt:
- *  - Logo quadratisch ( Breite = Höhe ), rechtsbündig an der Inhaltkante und
- *    vollständig unterhalb des Markenbalkens mit klarer Luft dazwischen.
+ *  - Logo seitenverhältnistreu eingepasst (`fitLogoBox`), rechtsbündig an der
+ *    Inhaltkante und vollständig unterhalb des Markenbalkens mit klarer Luft
+ *    dazwischen.
  *  - Die Titel-Regel der ersten Seite endet VOR der Logo-Box.
  *  - Auf Seiten ohne Logo (Folgeseiten) dürfte eine Regel über die volle
  *    Inhaltbreite laufen (`fullRuleEndX`); Folgeseiten zeichnen bewusst gar
@@ -116,4 +117,26 @@ export function buildContractHeaderLayout(titleLineCount: number): ContractHeade
         bodyTopY: titleRuleY + CONTRACT_BODY_GAP_AFTER_RULE,
         continuationBodyTopY: CONTRACT_CONTINUATION_BODY_TOP_Y
     };
+}
+
+/**
+ * Passt das Quell-Logo seitenverhältnistreu in die Box (Johann 12.09.: das
+ * PDF-Logo trägt keine Schrift mehr und ist 646 × 489 px, also breiter als
+ * hoch). Breite Bilder nutzen die volle Boxbreite; schmalere/höhere werden
+ * über `offsetX` rechtsbündig an der Inhaltkante gehalten. Unbekannte Maße
+ * fallen auf die eckige Box zurück (alter Stand).
+ */
+export function fitLogoBox(
+    pixelWidth: number | undefined,
+    pixelHeight: number | undefined,
+    boxWidth: number = CONTRACT_LOGO_SIZE,
+    boxHeight: number = CONTRACT_LOGO_SIZE
+): { width: number; height: number; offsetX: number } {
+    if (!pixelWidth || !pixelHeight || pixelWidth <= 0 || pixelHeight <= 0) {
+        return { width: boxWidth, height: boxHeight, offsetX: 0 };
+    }
+    const scale = Math.min(boxWidth / pixelWidth, boxHeight / pixelHeight);
+    const width = pixelWidth * scale;
+    const height = pixelHeight * scale;
+    return { width, height, offsetX: boxWidth - width };
 }

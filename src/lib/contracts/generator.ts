@@ -5,7 +5,8 @@ import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import {
     CONTRACT_MARGIN_X,
     CONTRACT_TITLE_MAX_WIDTH,
-    buildContractHeaderLayout
+    buildContractHeaderLayout,
+    fitLogoBox
 } from "./headerLayout";
 
 /* ── Seitenraster (alle Maße in mm) ───────────────────────────────────
@@ -129,11 +130,13 @@ export function createContractPdf(data: ContractData, logoBase64?: string): jsPD
     const titleLines = doc.splitTextToSize(template.title, CONTRACT_TITLE_MAX_WIDTH) as string[];
     const header = buildContractHeaderLayout(titleLines.length);
 
-    // Erste Seite: Kopfbalken + frei stehendes, quadratisches Logo
+    // Erste Seite: Kopfbalken + frei stehendes Logo, seitenverhältnistreu
     drawBrandBar(0, header.brandBarHeight);
     if (logoBase64) {
         try {
-            doc.addImage(logoBase64, 'PNG', header.logoX, header.logoY, header.logoWidth, header.logoHeight);
+            const px = readPngSize(logoBase64);
+            const box = fitLogoBox(px?.width, px?.height, header.logoWidth, header.logoHeight);
+            doc.addImage(logoBase64, 'PNG', header.logoX + box.offsetX, header.logoY, box.width, box.height);
         } catch (error) {
             console.error("Could not render logo in PDF", error);
         }
@@ -415,7 +418,7 @@ export async function generateAndUploadContract(data: ContractData, userId: stri
     let logoBase64: string | undefined;
     if (typeof window !== "undefined" && typeof fetch !== "undefined") {
         try {
-            const res = await fetch("/zefabiko_logo.png");
+            const res = await fetch("/logo.png");
             if (res.ok) {
                 const blob = await res.blob();
                 logoBase64 = await new Promise<string>((resolve, reject) => {
