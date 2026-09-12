@@ -1,4 +1,5 @@
 import { ContractType, DocumentKind, UserContractDocument, UserProfile } from "@/types";
+import { filterActiveContracts, isRelationshipActive } from "@/lib/contracts/archive";
 
 /**
  * Reine Logik für die Rechtsverhältnisse eines Mitglieds.
@@ -82,6 +83,18 @@ export function getCoveredContractTypes(documents?: UserContractDocument[] | nul
     return covered;
 }
 
+/**
+ * Alle AKTIVEN Rechtsverhältnisse (archivierte Vertragsstränge ausgeblendet).
+ * `getContractRelationships` selbst bleibt bewusst archiv-frei: Es wird von
+ * `buildContractProfileUpdate` genutzt (Schutzzone Abrechnung) — `contractTypes`
+ * darf durch Archivieren nie umgeschrieben werden (ARCHITECTURE.md §2/§3).
+ */
+export function getActiveContractRelationships(
+    profile?: (RelationshipProfile & Pick<UserProfile, 'archivedContractTypes'>) | null
+): ContractType[] {
+    return getContractRelationships(profile).filter(type => isRelationshipActive(profile, type));
+}
+
 export interface ContractTypeCoverage {
     contractType: ContractType;
     /** Anzahl reiner Verträge (ohne Änderungsvereinbarungen). */
@@ -100,14 +113,19 @@ export interface ContractTypeCoverage {
 /**
  * Deckungsgrad je Vertragsart: erkannte Verhältnisse zuerst, danach die übrigen
  * Vertragsarten in fester Reihenfolge (für die Auswahl im Vertrags-Wizard).
+ *
+ * Archive-aware (SPEC employee-contract-archive, AC2): Archivierte Verhältnisse
+ * erscheinen gar nicht, archivierte Dokumente zählen nicht mit — alle aktiven
+ * Views (Karten-Badges, Kacheln, Wizard Schritt 1) filtern zentral hier.
+ * Für Profile ohne Archiv-Felder ist das Ergebnis unverändert (AC9).
  */
-export function getContractCoverage(profile: RelationshipProfile & Pick<UserProfile, 'contractDocuments'>): ContractTypeCoverage[] {
-    const relationships = getContractRelationships(profile);
+export function getContractCoverage(profile: RelationshipProfile & Pick<UserProfile, 'contractDocuments' | 'archivedContractTypes'>): ContractTypeCoverage[] {
+    const relationships = getActiveContractRelationships(profile);
     const primary = getPrimaryContractType(profile);
-    const documents = profile.contractDocuments ?? [];
+    const documents = filterActiveContracts(profile, profile.contractDocuments);
     const ordered: ContractType[] = [
         ...relationships,
-        ...CONTRACT_TYPE_ORDER.filter(type => !relationships.includes(type))
+        ...CONTRACT_TYPE_ORDER.filter(type => !relationships.includes(type) && isRelationshipActive(profile, type))
     ];
 
     return ordered.map(contractType => {
@@ -153,7 +171,7 @@ const SUGGESTION_ORDER: Record<ContractType, ContractType[]> = {
  * deshalb wird vorrangig das primäre Verhältnis mit Dokumenten vorgeschlagen.
  */
 export function suggestContractType(
-    profile: RelationshipProfile & Pick<UserProfile, 'contractDocuments'>,
+    profile: RelationshipProfile & Pick<UserProfile, 'contractDocuments' | 'archivedContractTypes'>,
     documentKind: DocumentKind = 'Vertrag'
 ): ContractType {
     const coverage = getContractCoverage(profile);
@@ -313,11 +331,15 @@ export function contractDocumentDateLabel(document: UserContractDocument): strin
  * Verhältnisse ohne Dokument tauchen nicht auf – die Karte zeigt nur, was
  * wirklich hinterlegt ist; der leere Zustand ("Kein Vertrag hinterlegt")
  * bleibt der UI überlassen.
+ *
+ * Archive-aware (AC2): archivierte Verhältnisse und archivierte Dokumente
+ * erscheinen nicht (auch der synthetische Ursprungseintrag aus
+ * `contractDocumentUrl` wird bei archiviertem Primär-Verhältnis ausgeblendet).
  */
 export function buildContractOverviewRows(
-    profile: RelationshipProfile & Pick<UserProfile, 'id' | 'contractDocuments' | 'contractDocumentUrl' | 'entryDate' | 'monthlyHours' | 'weeklyHours' | 'hourlyRate'>
+    profile: RelationshipProfile & Pick<UserProfile, 'id' | 'contractDocuments' | 'contractDocumentUrl' | 'entryDate' | 'monthlyHours' | 'weeklyHours' | 'hourlyRate' | 'archivedContractTypes'>
 ): ContractOverviewRow[] {
-    const documents = ensureContractHistory(profile);
+    const documents = filterActiveContracts(profile, ensureContractHistory(profile));
     return getContractCoverage(profile)
         .map(entry => ({
             contractType: entry.contractType,

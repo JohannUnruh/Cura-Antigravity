@@ -2,6 +2,23 @@ export type Role = 'Mitarbeiter' | 'Kassenwart' | 'Admin';
 export type ContractType = 'Ehrenamtlich' | 'Ehrenamtspauschale' | 'Übungsleiterpauschale' | 'Minijob';
 export type DocumentKind = 'Vertrag' | 'Änderungsvereinbarung';
 
+/**
+ * Archiv-Status eines Benutzerkontos (SPEC employee-contract-archive, D2).
+ * Lazy Migration: ein fehlendes `status`-Feld bedeutet immer 'aktiv' (AC9).
+ */
+export type UserStatus = 'aktiv' | 'archiviert';
+
+/**
+ * Ein archiviertes Rechtsverhältnis (Vertragsstrang einer Art, D4).
+ * Objektliste statt reinem Typ-Array, damit der Archiv-Tab je Eintrag
+ * Datum und Urheber zeigen kann (D3) — ohne neue Collection (DSGVO).
+ */
+export interface ArchivedContractTypeEntry {
+    contractType: ContractType;
+    archivedAt: string; // ISO 8601
+    archivedBy: string; // Admin-UID
+}
+
 export interface UserContractDocument {
     id: string;
     documentKind: DocumentKind;
@@ -17,6 +34,8 @@ export interface UserContractDocument {
     activityDescription?: string;
     tasksDescription?: string; // Aufgabenliste bei Ehrenamtsverträgen
     primary?: boolean; // bezieht sich das Dokument auf das abrechnungsrelevante Verhältnis?
+    archivedAt?: string | null; // ISO 8601; fehlend/null = aktiv (Dokument-Ebene, D4)
+    archivedBy?: string | null; // Admin-UID der Archivierung
 }
 
 export interface UserProfile {
@@ -26,6 +45,11 @@ export interface UserProfile {
     role: Role;
     contractType?: ContractType; // PRIMÄRES, abrechnungsrelevantes Rechtsverhältnis
     contractTypes?: ContractType[]; // ALLE aktiven Rechtsverhältnisse (z. B. Minijob + Übungsleiterpauschale)
+    // Archiv (SPEC employee-contract-archive): fehlende Felder = aktiv (AC9 Lazy Migration)
+    status?: UserStatus; // 'archiviert' = Mitarbeiter ausgeschieden, Login entzogen (D2)
+    archivedAt?: string | null; // ISO 8601 (Mitarbeiter-Ebene)
+    archivedBy?: string | null; // Admin-UID (Mitarbeiter-Ebene)
+    archivedContractTypes?: ArchivedContractTypeEntry[]; // archivierte Vertragsstränge (D4)
     entryDate?: string;
     birthDate?: string; // z.B. "TT.MM.JJJJ" für Verträge
     activityDescription?: string; // z.B. "Leitung des Kinderchors"; optional, leer = geschlechtsneutraler Vorlagen-Default

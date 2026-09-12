@@ -21,6 +21,7 @@ async function main() {
         await import("./contracts.test");
         await import("./contractHeaderLayout.test");
         await import("./contractOverview.test");
+        await import("./employeeContractArchive.test");
         await import("./firestoreValues.test");
 
 

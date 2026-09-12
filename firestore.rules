@@ -20,6 +20,12 @@ service cloud.firestore {
       let data = getUserData();
       return isAuthenticated() && data != null && data.role == 'Admin';
     }
+
+    // Archiv-Felder des Benutzerdokuments (SPEC employee-contract-archive, D5/AC6)
+    function touchesUserArchive() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['status', 'archivedAt', 'archivedBy', 'archivedContractTypes']);
+    }
     
     function isKassenwart() {
       let data = getUserData();
@@ -75,9 +81,14 @@ service cloud.firestore {
     match /users/{userId} {
       // Jeder sieht sein eigenes Profil, Kassenwart und Admin sehen alle
       allow read: if isOwner(userId) || isKassenwart() || isAdmin();
-      allow delete: if isAdmin();
+      // D1 (SPEC employee-contract-archive): Hartes Löschen von Benutzern ist
+      // serverseitig verboten — Austritt = Archivierung (status-Feld), kein delete.
       allow create: if (isOwner(userId) && request.resource.data.role == 'Mitarbeiter') || isAdmin();
-      allow update: if (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'contractType', 'vacationDaysPerYear', 'contractDocumentUrl', 'entryDate', 'hasFamilyHelperAccess', 'hasFosterCareAccess', 'hasClientAccess', 'hasConsultationAccess', 'hasShortConsultationAccess', 'hasLectureAccess', 'hasRetreatAccess', 'hasTravelAccess', 'hasTimeTrackingAccess'])) || isAdmin();
+      // Archiv-Felder (status/archivedAt/archivedBy/archivedContractTypes):
+      //  - der Eigentümer selbst darf sie NIE ändern,
+      //  - ein Admin nur an FREMDEN Dokumenten (Selbst-Sperr-Schutz D5/AC6:
+      //    Archivierung des eigenen Kontos ist ausgeschlossen, uid != resource).
+      allow update: if (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'contractType', 'vacationDaysPerYear', 'contractDocumentUrl', 'entryDate', 'status', 'archivedAt', 'archivedBy', 'archivedContractTypes', 'hasFamilyHelperAccess', 'hasFosterCareAccess', 'hasClientAccess', 'hasConsultationAccess', 'hasShortConsultationAccess', 'hasLectureAccess', 'hasRetreatAccess', 'hasTravelAccess', 'hasTimeTrackingAccess'])) || (isAdmin() && !(isOwner(userId) && touchesUserArchive()));
 
       // Favoriten-Subcollection
       match /favorites/{favoriteId} {
