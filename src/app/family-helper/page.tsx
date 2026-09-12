@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { familyHelperService } from "@/lib/firebase/services/familyHelperService";
 import { userService } from "@/lib/firebase/services/userService";
+import { filterActiveUsers } from "@/lib/contracts/archive";
 import { FamilyCase, UserProfile } from "@/types";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
@@ -97,10 +98,11 @@ export default function FamilyHelperDashboard() {
             );
             setCases(casesWithHoursData);
 
-            // Fetch users list (only for Admins)
+            // Fetch users list (only for Admins) — nur AKTIVE Benutzer dürfen
+            // neuen Fällen zugeordnet werden (SPEC employee-contract-archive, AC2)
             if (userProfile.role === 'Admin') {
                 const allUsers = await userService.getAllUsers();
-                setUsers(allUsers);
+                setUsers(filterActiveUsers(allUsers));
             }
         } catch (error) {
             console.error("Error loading SPFH dashboard data:", error);

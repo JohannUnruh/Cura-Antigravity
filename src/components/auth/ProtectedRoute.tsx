@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { Role } from "@/types";
 import { ShieldAlert } from "lucide-react";
+import { isUserArchived } from "@/lib/contracts/archive";
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
@@ -13,7 +14,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles, requiredPermission }: ProtectedRouteProps) {
-    const { user, userProfile, loading } = useAuth();
+    const { user, userProfile, loading, logout } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
 
@@ -44,6 +45,31 @@ export function ProtectedRoute({ children, allowedRoles, requiredPermission }: P
 
     if (!user) {
         return null; // Will redirect
+    }
+
+    // Archiv-Gate (SPEC employee-contract-archive, D2/AC4): Archivierte Konten
+    // sehen keine App-Inhalte. Die Meldung bleibt bewusst neutral (keine Details
+    // über Archivierung oder Daten); der einzige Ausweg ist das Abmelden.
+    if (isUserArchived(userProfile)) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50/50 dark:bg-slate-950 p-4">
+                <div className="max-w-md w-full p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-xl text-center border border-gray-100 dark:border-white/10">
+                    <div className="w-16 h-16 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <ShieldAlert className="w-8 h-8 text-gray-500 dark:text-slate-400" />
+                    </div>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">Konto nicht aktiv</h1>
+                    <p className="text-gray-600 dark:text-slate-400 mb-6 text-sm">
+                        Dieses Konto ist nicht aktiv. Bitte wende dich an den Verein.
+                    </p>
+                    <button
+                        onClick={() => { void logout(); }}
+                        className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all shadow-md text-sm"
+                    >
+                        Abmelden
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     // Check custom permissions if provided

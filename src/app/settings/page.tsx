@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { TagInput } from "@/components/ui/TagInput";
 import { UserProfile, Role, AppSettings, ContractType, DocumentKind } from "@/types";
-import { Settings, User, MapPin, CreditCard, ShieldCheck, Users, Key, AppWindow, Plus, Pencil, Trash2, FileSignature, FileText, Moon, Sun, Cloud, Eye, EyeOff, Bell, CheckCircle2, AlertCircle, Calendar, Copy, RefreshCw, Check } from "lucide-react";
+import { Settings, User, MapPin, CreditCard, ShieldCheck, Users, Key, AppWindow, Plus, Pencil, Archive, ArchiveRestore, FileSignature, FileText, Moon, Sun, Cloud, Eye, EyeOff, Bell, CheckCircle2, AlertCircle, Calendar, Copy, RefreshCw, Check } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePushNotification } from "@/contexts/PushNotificationContext";
 import { updatePassword } from "firebase/auth";
@@ -31,17 +31,32 @@ import {
     isPrimaryContractDocument,
     suggestContractType
 } from "@/lib/contracts/relationships";
+import {
+    buildArchiveContractEntries,
+    canManageUserArchive,
+    filterActiveUsers,
+    isUserArchived
+} from "@/lib/contracts/archive";
 import { getAuth, createUserWithEmailAndPassword, signOut, updateProfile } from "firebase/auth";
 import { firebaseConfig, db } from "@/lib/firebase/config";
 import { doc, setDoc } from "firebase/firestore";
 import { getMonthlyBillingInfo, type CloudBillingSummary } from "@/app/actions/billing";
+
+/**
+ * Bestätigungs-Ziel einer Archiv-Aktion (SPEC employee-contract-archive, D4):
+ * kompletter Mitarbeiter, Vertragsstrang einer Art oder Einzeldokument.
+ */
+type ArchiveConfirmTarget =
+    | { kind: 'user'; user: UserProfile }
+    | { kind: 'relationship'; user: UserProfile; contractType: ContractType }
+    | { kind: 'document'; user: UserProfile; documentId: string; documentTitle: string; contractType: ContractType };
 
 export default function SettingsPage() {
     const { user, userProfile } = useAuth();
     const { theme, setTheme } = useTheme();
     const { refreshSettings } = useSettings();
     const push = usePushNotification();
-    const [activeTab, setActiveTab] = useState<'profil' | 'benutzer' | 'app' | 'benachrichtigungen'>('profil');
+    const [activeTab, setActiveTab] = useState<'profil' | 'benutzer' | 'app' | 'benachrichtigungen' | 'archiv'>('profil');
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [copied, setCopied] = useState(false);
@@ -135,7 +150,8 @@ export default function SettingsPage() {
         hasTimeTrackingAccess: true
     });
     const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
-    const [isDeleteUserModalOpen, setIsDeleteUserModalOpen] = useState(false);
+    // Archiv: Bestätigungs-Dialog für alle drei Ebenen (Mitarbeiter/Verhältnis/Dokument)
+    const [archiveConfirm, setArchiveConfirm] = useState<ArchiveConfirmTarget | null>(null);
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
     const [editUserForm, setEditUserForm] = useState({
         firstName: "",
@@ -392,21 +408,71 @@ export default function SettingsPage() {
         }
     };
 
-    const handleDeleteUser = async () => {
-        if (!selectedUser) return;
+    /**
+     * Archiv-Aktionen (SPEC employee-contract-archive): Es wird NIE hart gelöscht (D1).
+     * Nach jeder Aktion wird die Benutzerliste komplett neu geladen — eine Quelle
+     * für Benutzer-Tab (aktive) und Archiv-Tab (archivierte).
+     */
+    const refreshUsers = async () => {
+        const updatedUsers = await userService.getAllUsers();
+        setUsers(updatedUsers);
+    };
+
+    const handleArchiveConfirm = async () => {
+        if (!archiveConfirm || !user) return;
+        const target = archiveConfirm.user;
+        // Self-Lockout-Guard (D5) — die UI sperrt zusätzlich, der Service wirft.
+        if (!canManageUserArchive(user.uid, target.id)) {
+            showMessage('error', 'Der eigene Account kann nicht archiviert werden.');
+            setArchiveConfirm(null);
+            return;
+        }
         setIsSaving(true);
         try {
-            await userService.deleteUserProfile(selectedUser.id);
-            setUsers(users.filter(u => u.id !== selectedUser.id));
-            setIsDeleteUserModalOpen(false);
-            showMessage('success', 'Benutzer erfolgreich gelöscht.');
+            if (archiveConfirm.kind === 'user') {
+                await userService.archiveUser(target.id, user.uid);
+                showMessage('success', `${target.firstName} ${target.lastName} wurde archiviert. Der Login ist deaktiviert – Wiederherstellung im Tab „Archiv“. `);
+            } else if (archiveConfirm.kind === 'relationship') {
+                await userService.archiveContractRelationship(target.id, archiveConfirm.contractType, user.uid);
+                showMessage('success', `Vertragsstrang „${archiveConfirm.contractType}“ von ${target.firstName} ${target.lastName} wurde archiviert.`);
+            } else {
+                await userService.archiveContractDocument(target.id, archiveConfirm.documentId, user.uid);
+                showMessage('success', `Dokument „${archiveConfirm.documentTitle}“ wurde archiviert.`);
+            }
+            setArchiveConfirm(null);
+            await refreshUsers();
         } catch (err) {
             console.error(err);
-            showMessage('error', 'Fehler beim Löschen des Benutzers.');
+            showMessage('error', 'Fehler beim Archivieren.');
         } finally {
             setIsSaving(false);
         }
     };
+
+    /** Wiederherstellen (AC5): stellt den exakten Vorzustand wieder her. */
+    const runRestore = async (action: () => Promise<void>, successText: string) => {
+        setIsSaving(true);
+        try {
+            await action();
+            await refreshUsers();
+            showMessage('success', successText);
+        } catch (err) {
+            console.error(err);
+            showMessage('error', 'Fehler beim Wiederherstellen.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    /** UID → Anzeigename über die geladene Benutzerliste (Archiv-Tab: „archiviert von"). */
+    const resolveUserName = (uid?: string | null): string => {
+        if (!uid) return 'Unbekannt';
+        const found = users.find(u => u.id === uid);
+        return found ? `${found.firstName} ${found.lastName}` : 'Unbekannt';
+    };
+
+    /** Archiv-Zeitstempel (ISO) als deutsches Datum für die Anzeige. */
+    const archiveDateLabel = (iso?: string | null): string => (iso ? formatIsoToGermanDate(iso.slice(0, 10)) : '');
 
     /**
      * Vorbelegung der Vertragsmaske für die GEWÄHLTE Vertragsart.
@@ -614,6 +680,12 @@ export default function SettingsPage() {
         setAppForm({ ...appForm, [field]: arr });
     };
 
+    // Aktive/archivierte Sichten auf dieselbe Benutzerliste (AC2/D3) — Filter
+    // ausschließlich über die reinen Helpers, nie inline kopiert.
+    const activeUsers = filterActiveUsers(users);
+    const archivedUsers = users.filter(isUserArchived);
+    const archiveContractEntries = users.flatMap(u => buildArchiveContractEntries(u));
+
     return (
         <ProtectedRoute>
             <div className="animate-in fade-in duration-500 flex flex-col h-full space-y-6 max-w-4xl mx-auto w-full pb-10">
@@ -641,6 +713,9 @@ export default function SettingsPage() {
                                 </button>
                                 <button onClick={() => setActiveTab('app')} className={`flex items-center gap-2 px-4 py-2 ${activeTab === 'app' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 dark:text-slate-400 dark:hover:bg-white/5 hover:bg-gray-100'} rounded-lg transition-all text-sm font-medium whitespace-nowrap`}>
                                     <AppWindow className="w-4 h-4" /> Dropdowns & App
+                                </button>
+                                <button onClick={() => setActiveTab('archiv')} className={`flex items-center gap-2 px-4 py-2 ${activeTab === 'archiv' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 dark:text-slate-400 dark:hover:bg-white/5 hover:bg-gray-100'} rounded-lg transition-all text-sm font-medium whitespace-nowrap`}>
+                                    <Archive className="w-4 h-4" /> Archiv
                                 </button>
                             </>
                         )}
@@ -867,7 +942,7 @@ export default function SettingsPage() {
                             <div className="flex flex-wrap justify-between items-center gap-3 bg-white/40 dark:bg-slate-900/40 p-4 rounded-xl shadow-sm border border-white/60 dark:border-white/10 backdrop-blur-sm">
                                 <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                                     <Users className="w-5 h-5 text-indigo-500" />
-                                    Alle Benutzer ({users.length})
+                                    Aktive Benutzer ({activeUsers.length})
                                 </h2>
                                 <Button variant="primary" size="sm" onClick={() => setIsUserModalOpen(true)} className="gap-2">
                                     <Plus className="w-4 h-4" /> Benutzer anlegen
@@ -875,14 +950,17 @@ export default function SettingsPage() {
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {users.map(u => {
+                                {activeUsers.map(u => {
                                     const contractRows = buildContractOverviewRows(u);
                                     return (
                                     <Card key={u.id} className="border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm hover:shadow-md transition-shadow">
                                         <CardContent className="p-4 flex flex-col justify-between">
                                             <div className="min-w-0 mb-2">
-                                                <h3 className="font-bold text-gray-900 dark:text-white truncate" title={`${u.firstName} ${u.lastName}`}>
-                                                    {u.firstName} {u.lastName}
+                                                <h3 className="font-bold text-gray-900 dark:text-white truncate flex items-center gap-1.5" title={`${u.firstName} ${u.lastName}`}>
+                                                    <span className="truncate">{u.firstName} {u.lastName}</span>
+                                                    {u.id === user?.uid && (
+                                                        <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300" title="Das ist dein eigenes Konto">Sie</span>
+                                                    )}
                                                 </h3>
                                                 <div className="text-xs text-gray-500 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-1.5">
                                                         <span className={`px-2 py-0.5 rounded-full font-medium ${u.role === 'Admin' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300' : u.role === 'Kassenwart' ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' : 'bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-slate-300'}`}>
@@ -915,27 +993,50 @@ export default function SettingsPage() {
                                                                         {row.isPrimary && (
                                                                             <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 shrink-0">primär</span>
                                                                         )}
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => { if (canManageUserArchive(user?.uid, u.id)) setArchiveConfirm({ kind: 'relationship', user: u, contractType: row.contractType }); }}
+                                                                            disabled={!canManageUserArchive(user?.uid, u.id)}
+                                                                            className="ml-auto p-1 rounded-md text-gray-400 dark:text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                                                            title={u.id === user?.uid
+                                                                                ? 'Eigener Account (Sie) – Archivieren nicht möglich'
+                                                                                : `Kompletten Vertragsstrang „${row.contractType}“ archivieren (${row.documents.length} Dokument${row.documents.length === 1 ? '' : 'e'})`}
+                                                                        >
+                                                                            <Archive className="w-3.5 h-3.5" />
+                                                                        </button>
                                                                     </div>
                                                                     <div className="mt-1.5 flex flex-wrap gap-1.5 min-w-0">
                                                                         {row.documents.map(contractDoc => (
-                                                                            <a
-                                                                                key={contractDoc.id}
-                                                                                href={contractDoc.url}
-                                                                                target="_blank"
-                                                                                rel="noopener noreferrer"
-                                                                                className="px-2 py-1 text-xs text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/30 dark:hover:bg-rose-900/40 rounded-lg border border-rose-200/70 dark:border-rose-800/40 flex items-center gap-1.5 transition-colors font-medium shadow-xs min-w-0"
-                                                                                title={`${row.contractType}: ${contractDoc.title} ansehen`}
-                                                                            >
-                                                                                {contractDoc.documentKind === 'Änderungsvereinbarung' ? (
-                                                                                    <FileText className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                                                                                ) : (
-                                                                                    <FileSignature className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                                                                                )}
-                                                                                <span className="truncate max-w-[110px]">{contractDoc.documentKind}</span>
-                                                                                {contractDoc.effectiveDateLabel && (
-                                                                                    <span className="text-gray-500 dark:text-slate-400 font-normal whitespace-nowrap">· {contractDoc.effectiveDateLabel}</span>
-                                                                                )}
-                                                                            </a>
+                                                                            <span key={contractDoc.id} className="inline-flex items-center gap-0.5 min-w-0">
+                                                                                <a
+                                                                                    href={contractDoc.url}
+                                                                                    target="_blank"
+                                                                                    rel="noopener noreferrer"
+                                                                                    className="px-2 py-1 text-xs text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/30 dark:hover:bg-rose-900/40 rounded-lg border border-rose-200/70 dark:border-rose-800/40 flex items-center gap-1.5 transition-colors font-medium shadow-xs min-w-0"
+                                                                                    title={`${row.contractType}: ${contractDoc.title} ansehen`}
+                                                                                >
+                                                                                    {contractDoc.documentKind === 'Änderungsvereinbarung' ? (
+                                                                                        <FileText className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                                                                    ) : (
+                                                                                        <FileSignature className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                                                                                    )}
+                                                                                    <span className="truncate max-w-[110px]">{contractDoc.documentKind}</span>
+                                                                                    {contractDoc.effectiveDateLabel && (
+                                                                                        <span className="text-gray-500 dark:text-slate-400 font-normal whitespace-nowrap">· {contractDoc.effectiveDateLabel}</span>
+                                                                                    )}
+                                                                                </a>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => { if (canManageUserArchive(user?.uid, u.id)) setArchiveConfirm({ kind: 'document', user: u, documentId: contractDoc.id, documentTitle: contractDoc.title, contractType: row.contractType }); }}
+                                                                                    disabled={!canManageUserArchive(user?.uid, u.id)}
+                                                                                    className="p-1 rounded-md text-gray-400 dark:text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                                                                    title={u.id === user?.uid
+                                                                                        ? 'Eigener Account (Sie) – Archivieren nicht möglich'
+                                                                                        : `Dokument „${contractDoc.title}“ archivieren`}
+                                                                                >
+                                                                                    <Archive className="w-3 h-3" />
+                                                                                </button>
+                                                                            </span>
                                                                         ))}
                                                                     </div>
                                                                 </div>
@@ -988,15 +1089,16 @@ export default function SettingsPage() {
                                                 >
                                                     <Pencil className="w-4 h-4" />
                                                 </button>
-                                                {u.id !== user?.uid && (
-                                                    <button
-                                                        onClick={() => { setSelectedUser(u); setIsDeleteUserModalOpen(true); }}
-                                                        className="p-3 text-gray-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                                        title="Löschen"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                )}
+                                                <button
+                                                    onClick={() => { if (canManageUserArchive(user?.uid, u.id)) setArchiveConfirm({ kind: 'user', user: u }); }}
+                                                    disabled={!canManageUserArchive(user?.uid, u.id)}
+                                                    className="p-3 text-gray-400 dark:text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                                                    title={u.id === user?.uid
+                                                        ? 'Eigener Account (Sie) – kann nicht archiviert werden'
+                                                        : 'Mitarbeiter archivieren (statt Löschen: Login deaktiviert, Daten bleiben erhalten, wiederherstellbar)'}
+                                                >
+                                                    <Archive className="w-4 h-4" />
+                                                </button>
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -1216,18 +1318,56 @@ export default function SettingsPage() {
                                 </form>
                             </Modal>
 
-                            <Modal isOpen={isDeleteUserModalOpen} onClose={() => setIsDeleteUserModalOpen(false)} title="Benutzer löschen">
+                            <Modal
+                                isOpen={archiveConfirm !== null}
+                                onClose={() => setArchiveConfirm(null)}
+                                title={archiveConfirm?.kind === 'user'
+                                    ? 'Mitarbeiter archivieren'
+                                    : archiveConfirm?.kind === 'relationship'
+                                        ? 'Vertragsstrang archivieren'
+                                        : 'Dokument archivieren'}
+                            >
                                 <div className="space-y-4">
-                                    <p className="text-gray-600">
-                                        Möchtest du den Benutzer <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong> wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
-                                    </p>
-                                    <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm border border-red-100">
-                                        Hinweis: Die zugehörigen Daten des Benutzers bleiben erhalten, der Login wird jedoch in diese Ansicht nicht mehr übernommen.
-                                    </div>
-                                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                                        <Button type="button" variant="ghost" onClick={() => setIsDeleteUserModalOpen(false)}>Abbrechen</Button>
-                                        <Button type="button" variant="danger" disabled={isSaving} onClick={handleDeleteUser}>
-                                            {isSaving ? "Wird gelöscht..." : "Unwiderruflich löschen"}
+                                    {archiveConfirm?.kind === 'user' && (
+                                        <>
+                                            <p className="text-gray-600 dark:text-slate-300">
+                                                Möchtest du <strong>{archiveConfirm.user.firstName} {archiveConfirm.user.lastName}</strong> archivieren statt löschen?
+                                            </p>
+                                            <div className="bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 p-3 rounded-lg text-sm border border-amber-100 dark:border-amber-800/40 space-y-1">
+                                                <p>• Der Login wird deaktiviert, das Konto verschwindet aus allen aktiven Listen.</p>
+                                                <p>• Vertragsunterlagen und Seelsorge-Daten bleiben unverändert erhalten (Aufbewahrungspflicht).</p>
+                                                <p>• Wiederherstellbar jederzeit im Tab „Archiv“.</p>
+                                            </div>
+                                        </>
+                                    )}
+                                    {archiveConfirm?.kind === 'relationship' && (
+                                        <>
+                                            <p className="text-gray-600 dark:text-slate-300">
+                                                Möchtest du den kompletten Vertragsstrang <strong>„{archiveConfirm.contractType}“</strong> von <strong>{archiveConfirm.user.firstName} {archiveConfirm.user.lastName}</strong> archivieren?
+                                            </p>
+                                            <div className="bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 p-3 rounded-lg text-sm border border-amber-100 dark:border-amber-800/40 space-y-1">
+                                                <p>• Alle Dokumente dieses Verhältnisses verschwinden aus den aktiven Ansichten (Karte, Wizard, Auswahlen).</p>
+                                                <p>• Abrechnungsdaten des Profils bleiben unberührt{archiveConfirm.contractType === archiveConfirm.user.contractType ? ' – das Verhältnis ist primär; die Abrechnungsbasis änderst du bei Bedarf über „Bearbeiten“' : ''}.</p>
+                                                <p>• Wiederherstellbar jederzeit im Tab „Archiv“.</p>
+                                            </div>
+                                        </>
+                                    )}
+                                    {archiveConfirm?.kind === 'document' && (
+                                        <>
+                                            <p className="text-gray-600 dark:text-slate-300">
+                                                Möchtest du das Dokument <strong>„{archiveConfirm.documentTitle}“</strong> ({archiveConfirm.contractType}) von <strong>{archiveConfirm.user.firstName} {archiveConfirm.user.lastName}</strong> archivieren?
+                                            </p>
+                                            <div className="bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 p-3 rounded-lg text-sm border border-amber-100 dark:border-amber-800/40 space-y-1">
+                                                <p>• Nur dieses Dokument verschwindet aus den aktiven Ansichten – der Rest des Verhältnisses bleibt aktiv.</p>
+                                                <p>• Das PDF und alle Daten bleiben erhalten.</p>
+                                                <p>• Wiederherstellbar jederzeit im Tab „Archiv“.</p>
+                                            </div>
+                                        </>
+                                    )}
+                                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-white/10">
+                                        <Button type="button" variant="ghost" onClick={() => setArchiveConfirm(null)}>Abbrechen</Button>
+                                        <Button type="button" variant="danger" disabled={isSaving} onClick={handleArchiveConfirm}>
+                                            {isSaving ? "Wird archiviert..." : "Archivieren"}
                                         </Button>
                                     </div>
                                 </div>
@@ -1500,6 +1640,129 @@ export default function SettingsPage() {
                         </div>
                     )
                 }
+
+                {/* --- ARCHIV TAB (nur Admin, SPEC employee-contract-archive D3) --- */}
+                {activeTab === 'archiv' && userProfile?.role === 'Admin' && (
+                    <div className="space-y-6">
+                        <div className="bg-white/40 dark:bg-slate-900/40 p-4 rounded-xl shadow-sm border border-white/60 dark:border-white/10 backdrop-blur-sm">
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <Archive className="w-5 h-5 text-amber-500" />
+                                Archiv
+                            </h2>
+                            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+                                Archivierte Mitarbeiter und Verträge statt gelöschter Daten. Wiederherstellen stellt den Zustand vor der Archivierung wieder her.
+                            </p>
+                        </div>
+
+                        {/* Bereich Mitarbeiter */}
+                        <Card className="border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm shadow-sm">
+                            <CardContent className="p-5">
+                                <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
+                                    <Users className="w-4 h-4 text-indigo-500" />
+                                    Archivierte Mitarbeiter ({archivedUsers.length})
+                                </h3>
+                                {archivedUsers.length === 0 ? (
+                                    <p className="text-sm text-gray-400 dark:text-slate-500">Keine Mitarbeiter archiviert.</p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {archivedUsers.map(u => (
+                                            <div key={u.id} className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10">
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="font-semibold text-sm text-gray-900 dark:text-white truncate">
+                                                        {u.firstName} {u.lastName}
+                                                        <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-medium ${u.role === 'Admin' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300' : u.role === 'Kassenwart' ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-slate-300'}`}>
+                                                            {u.role}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                                                        Archiviert am {archiveDateLabel(u.archivedAt) || '–'} von {resolveUserName(u.archivedBy)} · Login deaktiviert, Seelsorge-Daten unberührt
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => runRestore(
+                                                        () => userService.restoreUser(u.id, user?.uid ?? ''),
+                                                        `${u.firstName} ${u.lastName} wurde wiederhergestellt und kann sich wieder einloggen.`
+                                                    )}
+                                                    disabled={isSaving || !canManageUserArchive(user?.uid, u.id)}
+                                                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-slate-800/60 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-500/50 transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    title="Mitarbeiter wiederherstellen (Login wieder aktiv)"
+                                                >
+                                                    <ArchiveRestore className="w-3.5 h-3.5 text-indigo-500" />
+                                                    Wiederherstellen
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Bereich Verträge */}
+                        <Card className="border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm shadow-sm">
+                            <CardContent className="p-5">
+                                <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
+                                    <FileSignature className="w-4 h-4 text-rose-500" />
+                                    Archivierte Verträge ({archiveContractEntries.length})
+                                </h3>
+                                {archiveContractEntries.length === 0 ? (
+                                    <p className="text-sm text-gray-400 dark:text-slate-500">Keine Verträge archiviert.</p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {archiveContractEntries.map(entry => {
+                                            const entryUser = users.find(x => x.id === entry.userId);
+                                            const entryKey = entry.level === 'Verhältnis'
+                                                ? `${entry.userId}_rel_${entry.contractType}`
+                                                : `${entry.userId}_doc_${entry.documentId}`;
+                                            return (
+                                                <div key={entryKey} className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10">
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="font-semibold text-sm text-gray-900 dark:text-white truncate flex flex-wrap items-center gap-1.5">
+                                                            {entryUser ? `${entryUser.firstName} ${entryUser.lastName}` : 'Unbekannt'}
+                                                            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border border-rose-100 dark:border-rose-800/40">
+                                                                {entry.level}
+                                                            </span>
+                                                            <span className="text-gray-700 dark:text-slate-200">{entry.label}</span>
+                                                            {entry.isPrimary && (
+                                                                <span
+                                                                    className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300"
+                                                                    title="Primäres Verhältnis: Die Abrechnungsbasis (contractType) bleibt unverändert, bis sie in der Benutzer-Bearbeitung geändert wird."
+                                                                >
+                                                                    primär
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                                                            Archiviert am {archiveDateLabel(entry.archivedAt) || '–'} von {resolveUserName(entry.archivedBy)}
+                                                            {entry.level === 'Verhältnis' && ` · ${entry.documentCount} Dokument${entry.documentCount === 1 ? '' : 'e'} im Strang`}
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => runRestore(
+                                                            entry.level === 'Verhältnis'
+                                                                ? () => userService.restoreContractRelationship(entry.userId, entry.contractType, user?.uid ?? '')
+                                                                : () => userService.restoreContractDocument(entry.userId, entry.documentId ?? '', user?.uid ?? ''),
+                                                            entry.level === 'Verhältnis'
+                                                                ? `Vertragsstrang „${entry.contractType}“ wurde wiederhergestellt.`
+                                                                : `Dokument „${entry.label}“ wurde wiederhergestellt.`
+                                                        )}
+                                                        disabled={isSaving || !canManageUserArchive(user?.uid, entry.userId)}
+                                                        className="px-3 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-slate-800/60 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-500/50 transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        title={entry.level === 'Verhältnis' ? 'Kompletten Vertragsstrang wiederherstellen' : 'Einzelnes Dokument wiederherstellen'}
+                                                    >
+                                                        <ArchiveRestore className="w-3.5 h-3.5 text-indigo-500" />
+                                                        Wiederherstellen
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
 
                 {/* --- APP EINSTELLUNGEN TAB --- */}
                 {activeTab === 'app' && (
