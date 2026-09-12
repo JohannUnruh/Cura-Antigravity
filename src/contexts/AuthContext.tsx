@@ -5,6 +5,7 @@ import { onAuthStateChanged, User, signOut } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/config";
 import { UserProfile } from "@/types";
+import { toFirestoreDate } from "@/lib/firebase/firestoreValues";
 import { useRouter } from "next/navigation";
 
 interface AuthContextType {
@@ -33,7 +34,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 // Fetch custom user profile from Firestore with realtime updates
                 unsubscribeSnapshot = onSnapshot(doc(db, "users", firebaseUser.uid), (userDoc) => {
                     if (userDoc.exists()) {
-                        setUserProfile(userDoc.data() as UserProfile);
+                        // Datumsfelder zu echten Date-Objekten normalisieren: `data()`
+                        // liefert Timestamps, und ein unbedarfter Spread zurück nach
+                        // Firestore machte daraus einst eine {seconds,nanoseconds}-Map.
+                        const data = userDoc.data();
+                        setUserProfile({
+                            ...data,
+                            id: userDoc.id,
+                            createdAt: toFirestoreDate(data.createdAt) ?? new Date(),
+                            updatedAt: toFirestoreDate(data.updatedAt) ?? undefined,
+                        } as UserProfile);
                     } else {
                         console.warn("User profile not found in Firestore");
                         setUserProfile(null);
