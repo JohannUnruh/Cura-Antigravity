@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { FamilyCase, FamilyGoal, FamilyJournalEntry } from "@/types/familyHelper";
+import { fitLogoBox, readPngSize } from "@/lib/contracts/headerLayout";
 
 /**
  * Utility: Logo als Base64 laden
@@ -39,8 +40,10 @@ async function addPdfHeader(
 ): Promise<number> {
     let startY = 35;
     try {
-        const logoBase64 = await getBase64Image("/zefabiko_logo.png");
-        doc.addImage(logoBase64, "PNG", 14, 10, 18, 18);
+        const logoBase64 = await getBase64Image("/logo.png");
+        const px = readPngSize(logoBase64);
+        const box = fitLogoBox(px?.width, px?.height, 18, 18);
+        doc.addImage(logoBase64, "PNG", 14, 10, box.width, box.height);
         doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
         doc.text(title, 36, 20);

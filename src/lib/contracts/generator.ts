@@ -6,7 +6,8 @@ import {
     CONTRACT_MARGIN_X,
     CONTRACT_TITLE_MAX_WIDTH,
     buildContractHeaderLayout,
-    fitLogoBox
+    fitLogoBox,
+    readPngSize
 } from "./headerLayout";
 
 /* ── Seitenraster (alle Maße in mm) ───────────────────────────────────
@@ -73,27 +74,6 @@ function brandBarColor(ratio: number): [number, number, number] {
         }
     }
     return BRAND_BAR_STOPS[BRAND_BAR_STOPS.length - 1].rgb;
-}
-
-/** Liest die Pixelmaße eines PNG-Data-URLs aus dem IHDR-Chunk. */
-function readPngSize(dataUrl: string): { width: number; height: number } | null {
-    if (!dataUrl.startsWith("data:image/png")) return null;
-    const comma = dataUrl.indexOf(",");
-    if (comma < 0) return null;
-    try {
-        const bin = atob(dataUrl.slice(comma + 1));
-        if (bin.length < 24) return null;
-        const u32 = (offset: number) =>
-            ((bin.charCodeAt(offset) << 24) |
-                (bin.charCodeAt(offset + 1) << 16) |
-                (bin.charCodeAt(offset + 2) << 8) |
-                bin.charCodeAt(offset + 3)) >>> 0;
-        const width = u32(16);
-        const height = u32(20);
-        return width > 0 && height > 0 ? { width, height } : null;
-    } catch {
-        return null;
-    }
 }
 
 export function createContractPdf(data: ContractData, logoBase64?: string): jsPDF {

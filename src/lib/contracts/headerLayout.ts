@@ -140,3 +140,27 @@ export function fitLogoBox(
     const height = pixelHeight * scale;
     return { width, height, offsetX: boxWidth - width };
 }
+
+/**
+ * Liest die Pixelmaße eines PNG-Data-URLs aus dem IHDR-Chunk.
+ * Rein (nur `atob`), daher aus allen PDF-Generatoren nutzbar.
+ */
+export function readPngSize(dataUrl: string): { width: number; height: number } | null {
+    if (!dataUrl.startsWith("data:image/png")) return null;
+    const comma = dataUrl.indexOf(",");
+    if (comma < 0) return null;
+    try {
+        const bin = atob(dataUrl.slice(comma + 1));
+        if (bin.length < 24) return null;
+        const u32 = (offset: number) =>
+            ((bin.charCodeAt(offset) << 24) |
+                (bin.charCodeAt(offset + 1) << 16) |
+                (bin.charCodeAt(offset + 2) << 8) |
+                bin.charCodeAt(offset + 3)) >>> 0;
+        const width = u32(16);
+        const height = u32(20);
+        return width > 0 && height > 0 ? { width, height } : null;
+    } catch {
+        return null;
+    }
+}
