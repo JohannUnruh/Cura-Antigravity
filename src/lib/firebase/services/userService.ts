@@ -1,6 +1,16 @@
 import { db } from "@/lib/firebase/config";
 import { doc, getDoc, setDoc, getDocs, collection } from "firebase/firestore";
 import { UserProfile } from "@/types";
+import { cleanFirestoreData, toFirestoreDate } from "@/lib/firebase/firestoreValues";
+
+/**
+ * Liest einen Datums-Feldwert robust: nativer Timestamp, ISO-String,
+ * Zahl oder die durch einen Alt-Bug entstandene Map {seconds,nanoseconds}.
+ * Fällt uninterpretierbar aus, wird das Fallback genutzt statt ein
+ * Invalid Date zu erzeugen (Ursache des RangeError beim Speichern, 12.09.).
+ */
+const readDate = (value: unknown, fallback: Date): Date => toFirestoreDate(value) ?? fallback;
+const readDateOrUndefined = (value: unknown): Date | undefined => toFirestoreDate(value) ?? undefined;
 
 export const userService = {
     async getUserProfile(userId: string): Promise<UserProfile | null> {
@@ -11,8 +21,8 @@ export const userService = {
                 const data = docSnap.data();
                 return {
                     ...data,
-                    createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
-                    updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : undefined,
+                    createdAt: readDate(data.createdAt, new Date()),
+                    updatedAt: readDateOrUndefined(data.updatedAt),
                 } as UserProfile;
             }
             return null;
@@ -25,25 +35,6 @@ export const userService = {
     async saveUserProfile(profile: UserProfile): Promise<void> {
         try {
             const docRef = doc(db, "users", profile.id);
-            const cleanFirestoreData = (val: unknown): unknown => {
-                if (val === null || val === undefined) return null;
-                if (Array.isArray(val)) {
-                    return val
-                        .filter(item => item !== undefined)
-                        .map(item => cleanFirestoreData(item));
-                }
-                if (typeof val === 'object' && !(val instanceof Date)) {
-                    const res: Record<string, unknown> = {};
-                    for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
-                        if (v !== undefined) {
-                            res[k] = cleanFirestoreData(v);
-                        }
-                    }
-                    return res;
-                }
-                return val;
-            };
-
             const cleanData = cleanFirestoreData(profile) as Record<string, unknown>;
             await setDoc(docRef, { ...cleanData, updatedAt: new Date() }, { merge: true });
         } catch (error) {
@@ -61,8 +52,8 @@ export const userService = {
                 users.push({
                     ...data,
                     id: doc.id,
-                    createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
-                    updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : undefined,
+                    createdAt: readDate(data.createdAt, new Date()),
+                    updatedAt: readDateOrUndefined(data.updatedAt),
                 } as UserProfile);
             });
             return users;

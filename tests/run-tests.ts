@@ -21,6 +21,7 @@ async function main() {
         await import("./contracts.test");
         await import("./contractHeaderLayout.test");
         await import("./contractOverview.test");
+        await import("./firestoreValues.test");
 
 
         const { runAllSuites } = await import("./test-framework");
