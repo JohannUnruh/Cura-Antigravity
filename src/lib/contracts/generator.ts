@@ -2,6 +2,11 @@ import jsPDF from "jspdf";
 import { ContractData, getContractTemplate } from "./templates";
 import { storage } from "../firebase/config";
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
+import {
+    CONTRACT_MARGIN_X,
+    CONTRACT_TITLE_MAX_WIDTH,
+    buildContractHeaderLayout
+} from "./headerLayout";
 
 /* ── Seitenraster (alle Maße in mm) ───────────────────────────────────
    Ein gemeinsames Raster für alle vier Vertragstypen und die
@@ -12,9 +17,8 @@ import { ref, uploadString, getDownloadURL } from "firebase/storage";
    Verträge dürfen auf 2 Seiten umbrechen, statt Abstände zusammenzurücken;
    nur der Unterschriftsblock darf niemals allein auf einer Seite stehen. */
 const PAGE_HEIGHT = 297;
-const MARGIN_X = 20;
+const MARGIN_X = CONTRACT_MARGIN_X;
 const CONTENT_WIDTH = 170;
-const BODY_TOP_Y = 22;
 const BOTTOM_MARGIN = 22;
 const LINE_HEIGHT = 4.9;          // Durchschuss einer Fließtextzeile (10 pt, ~1,4-fach)
 const PARAGRAPH_GAP = 6.0;        // Absatzabstand, deutlich mehr als eine Leerzeile
@@ -118,26 +122,29 @@ export function createContractPdf(data: ContractData, logoBase64?: string): jsPD
         }
     };
 
-    // Erste Seite: Kopfbalken + Logo
-    drawBrandBar(0, 5);
+    // Titelzeilen zuerst zerlegen: die Header-Geometrie hängt an der Zeilenzahl.
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(...COLOR_TITLE);
+    const titleLines = doc.splitTextToSize(template.title, CONTRACT_TITLE_MAX_WIDTH) as string[];
+    const header = buildContractHeaderLayout(titleLines.length);
+
+    // Erste Seite: Kopfbalken + frei stehendes, quadratisches Logo
+    drawBrandBar(0, header.brandBarHeight);
     if (logoBase64) {
         try {
-            doc.addImage(logoBase64, 'PNG', 160, 10, 32, 24);
+            doc.addImage(logoBase64, 'PNG', header.logoX, header.logoY, header.logoWidth, header.logoHeight);
         } catch (error) {
             console.error("Could not render logo in PDF", error);
         }
     }
 
     // Titel
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.setTextColor(...COLOR_TITLE);
-    const titleLines = doc.splitTextToSize(template.title, 135);
-    doc.text(titleLines, MARGIN_X, BODY_TOP_Y);
-    const titleHeight = titleLines.length * 7.5;
+    doc.text(titleLines, header.titleX, header.titleFirstBaselineY);
     doc.setDrawColor(...COLOR_RULE);
     doc.setLineWidth(0.5);
-    doc.line(MARGIN_X, 16 + titleHeight, 190, 16 + titleHeight);
+    // Die Titel-Regel endet vor der Logo-Box – sonst quert sie das Herz.
+    doc.line(MARGIN_X, header.titleRuleY, header.titleRuleEndX, header.titleRuleY);
 
     // Fließtext mit einheitlichem Raster
     doc.setFont("helvetica", "normal");
@@ -153,12 +160,12 @@ export function createContractPdf(data: ContractData, logoBase64?: string): jsPD
     // alle Seiten um die Blockhöhe zu verkürzen und halbvolle Seiten zu erzeugen.
     const bodyBottom = PAGE_HEIGHT - BOTTOM_MARGIN;
 
-    let y = BODY_TOP_Y + titleHeight;
+    let y = header.bodyTopY;
 
     const newContentPage = () => {
         doc.addPage();
-        drawBrandBar(0, 5);
-        y = BODY_TOP_Y;
+        drawBrandBar(0, header.brandBarHeight);
+        y = header.continuationBodyTopY;
     };
 
     const classify = (trimmed: string) => {
@@ -222,7 +229,7 @@ export function createContractPdf(data: ContractData, logoBase64?: string): jsPD
         return h;
     };
 
-    const usableHeight = bodyBottom - BODY_TOP_Y;
+    const usableHeight = bodyBottom - header.continuationBodyTopY;
     const SIGNATURE_HEIGHT = SIGNATURE_GAP + SIGNATURE_BLOCK_HEIGHT;
 
     // ── Umbruchplanung (Pass 1) ─────────────────────────────────────────
@@ -232,10 +239,10 @@ export function createContractPdf(data: ContractData, logoBase64?: string): jsPD
     // Absatz mit auf die neue Seite – so steht er niemals allein.
     type PlannedBlock = { kind: "group"; index: number } | { kind: "signature" };
     const plannedPages: PlannedBlock[][] = [[]];
-    let planY = BODY_TOP_Y + titleHeight;
+    let planY = header.bodyTopY;
     const openPlannedPage = () => {
         plannedPages.push([]);
-        planY = BODY_TOP_Y;
+        planY = header.continuationBodyTopY;
     };
 
     groups.forEach((lines, groupIndex) => {
