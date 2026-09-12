@@ -23,6 +23,7 @@ import {
     type ContractFormValues,
     type ContractTypeCoverage,
     buildContractDocument,
+    buildContractOverviewRows,
     buildContractProfileUpdate,
     formatIsoToGermanDate,
     getContractCoverage,
@@ -874,7 +875,9 @@ export default function SettingsPage() {
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {users.map(u => (
+                                {users.map(u => {
+                                    const contractRows = buildContractOverviewRows(u);
+                                    return (
                                     <Card key={u.id} className="border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm hover:shadow-md transition-shadow">
                                         <CardContent className="p-4 flex flex-col justify-between">
                                             <div className="min-w-0 mb-2">
@@ -899,46 +902,46 @@ export default function SettingsPage() {
                                                             </span>
                                                         ))}
                                                 </div>
-                                                <div className="mt-2 space-y-1.5 min-w-0">
-                                                    {getContractCoverage(u).filter(entry => entry.total > 0).map(entry => (
-                                                        <div key={entry.contractType} className="flex flex-wrap items-center gap-1.5 min-w-0">
-                                                            <span
-                                                                className="px-1.5 py-1 text-xs font-bold rounded bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-slate-300 shrink-0"
-                                                                title={entry.contractType}
-                                                            >
-                                                                {CONTRACT_TYPE_BADGE[entry.contractType]}
-                                                            </span>
-                                                            {entry.documents.map((doc, idx) => (
-                                                                <a
-                                                                    key={doc.id || idx}
-                                                                    href={doc.url}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="px-2 py-1 text-xs text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/30 dark:hover:bg-rose-900/40 rounded-lg border border-rose-200/70 dark:border-rose-800/40 flex items-center gap-1.5 transition-colors font-medium shadow-xs"
-                                                                    title={`${entry.contractType}: ${doc.title} ansehen`}
-                                                                >
-                                                                    {doc.documentKind === 'Änderungsvereinbarung' ? (
-                                                                        <FileText className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                                                                    ) : (
-                                                                        <FileSignature className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                                                                    )}
-                                                                    <span className="truncate max-w-[110px]">{doc.title}</span>
-                                                                </a>
+                                                <div className="mt-3 min-w-0">
+                                                    <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500 mb-1.5">Verträge</span>
+                                                    {contractRows.length === 0 ? (
+                                                        <p className="text-xs text-gray-400 dark:text-slate-500">Kein Vertrag hinterlegt</p>
+                                                    ) : (
+                                                        <div className="space-y-2 min-w-0">
+                                                            {contractRows.map(row => (
+                                                                <div key={row.contractType} className="rounded-lg border border-gray-100 dark:border-white/10 bg-white/60 dark:bg-white/5 p-2 min-w-0">
+                                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                                        <span className="text-xs font-semibold text-gray-700 dark:text-slate-200 truncate">{row.contractType}</span>
+                                                                        {row.isPrimary && (
+                                                                            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 shrink-0">primär</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="mt-1.5 flex flex-wrap gap-1.5 min-w-0">
+                                                                        {row.documents.map(contractDoc => (
+                                                                            <a
+                                                                                key={contractDoc.id}
+                                                                                href={contractDoc.url}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                className="px-2 py-1 text-xs text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/30 dark:hover:bg-rose-900/40 rounded-lg border border-rose-200/70 dark:border-rose-800/40 flex items-center gap-1.5 transition-colors font-medium shadow-xs min-w-0"
+                                                                                title={`${row.contractType}: ${contractDoc.title} ansehen`}
+                                                                            >
+                                                                                {contractDoc.documentKind === 'Änderungsvereinbarung' ? (
+                                                                                    <FileText className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                                                                ) : (
+                                                                                    <FileSignature className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                                                                                )}
+                                                                                <span className="truncate max-w-[110px]">{contractDoc.documentKind}</span>
+                                                                                {contractDoc.effectiveDateLabel && (
+                                                                                    <span className="text-gray-500 dark:text-slate-400 font-normal whitespace-nowrap">· {contractDoc.effectiveDateLabel}</span>
+                                                                                )}
+                                                                            </a>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
                                                             ))}
                                                         </div>
-                                                    ))}
-                                                    {(!u.contractDocuments || u.contractDocuments.length === 0) && u.contractDocumentUrl ? (
-                                                        <a
-                                                            href={u.contractDocumentUrl}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="px-2 py-1 text-xs text-rose-600 dark:text-rose-400 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/30 dark:hover:bg-rose-900/40 rounded-lg border border-rose-200/70 dark:border-rose-800/40 flex items-center gap-1.5 transition-colors font-medium shadow-xs"
-                                                            title="Vertrag ansehen"
-                                                        >
-                                                            <FileSignature className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                                                            <span>Vertrag</span>
-                                                        </a>
-                                                    ) : null}
+                                                    )}
                                                 </div>
                                             </div>
                                             <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-white/5">
@@ -997,7 +1000,8 @@ export default function SettingsPage() {
                                             </div>
                                         </CardContent>
                                     </Card>
-                                ))}
+                                    );
+                                })}
                             </div>
 
                             <Modal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} title="Neuen Benutzer anlegen">

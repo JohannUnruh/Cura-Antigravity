@@ -19,6 +19,8 @@ async function main() {
         await import("./fosterCare.test");
         await import("./dataScope.test");
         await import("./contracts.test");
+        await import("./contractHeaderLayout.test");
+        await import("./contractOverview.test");
 
 
         const { runAllSuites } = await import("./test-framework");

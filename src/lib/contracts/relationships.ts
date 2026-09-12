@@ -278,6 +278,64 @@ export function ensureContractHistory(
     return history;
 }
 
+/** Eine Zeile der Dokumentenliste je Rechtsverhältnis (read-only-Ansicht). */
+export interface ContractDocumentRow {
+    id: string;
+    documentKind: DocumentKind;
+    /** Wirksamkeitsdatum als "TT.MM.JJJJ"; leer, wenn keines bekannt ist. */
+    effectiveDateLabel: string;
+    url: string;
+    title: string;
+}
+
+/** Eine Kachel je Rechtsverhältnis in der Benutzeransicht. */
+export interface ContractOverviewRow {
+    contractType: ContractType;
+    isPrimary: boolean;
+    documents: ContractDocumentRow[];
+}
+
+/**
+ * Wirksamkeitsdatum eines Dokuments in deutscher Schreibweise.
+ * Fehlt `effectiveDate`, fällt die Anzeige auf das Erstellungsdatum zurück;
+ * ist beides unbekannt, bleibt das Label leer – die UI erfindet keine Daten.
+ */
+export function contractDocumentDateLabel(document: UserContractDocument): string {
+    if (document.effectiveDate) return formatIsoToGermanDate(document.effectiveDate);
+    return formatIsoToGermanDate(document.createdAt.slice(0, 10));
+}
+
+/**
+ * Read-only-Übersicht "Verträge" für die Benutzerkarte: je Rechtsverhältnis
+ * eine Zeile mit Art, Primär-Kennzeichnung und den hinterlegten Dokumenten
+ * (Ursprungsvertrag und Änderungsvereinbarungen) inkl. Datum und PDF-Link.
+ * Altprofile ohne Historie werden über `ensureContractHistory` einbezogen.
+ * Verhältnisse ohne Dokument tauchen nicht auf – die Karte zeigt nur, was
+ * wirklich hinterlegt ist; der leere Zustand ("Kein Vertrag hinterlegt")
+ * bleibt der UI überlassen.
+ */
+export function buildContractOverviewRows(
+    profile: RelationshipProfile & Pick<UserProfile, 'id' | 'contractDocuments' | 'contractDocumentUrl' | 'entryDate' | 'monthlyHours' | 'weeklyHours' | 'hourlyRate'>
+): ContractOverviewRow[] {
+    const documents = ensureContractHistory(profile);
+    return getContractCoverage(profile)
+        .map(entry => ({
+            contractType: entry.contractType,
+            isPrimary: entry.isPrimary,
+            documents: documents
+                .filter(document => document.contractType === entry.contractType)
+                .sort((a, b) => (b.effectiveDate || '').localeCompare(a.effectiveDate || ''))
+                .map(document => ({
+                    id: document.id,
+                    documentKind: document.documentKind,
+                    effectiveDateLabel: contractDocumentDateLabel(document),
+                    url: document.url,
+                    title: document.title
+                }))
+        }))
+        .filter(row => row.documents.length > 0);
+}
+
 /**
  * Berechnet, was nach dem Generieren auf das Benutzer-Profil geschrieben wird.
  *
