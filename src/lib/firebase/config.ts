@@ -2,9 +2,6 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { initializeFirestore, memoryLocalCache } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import { getVertexAI } from "@firebase/vertexai-preview";
-// App Check暂时 nicht verwenden für Development
-// import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
 export const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -22,23 +19,5 @@ const db = initializeFirestore(app, {
     localCache: memoryLocalCache()
 });
 const storage = getStorage(app);
-const ai = getVertexAI(app, { location: "europe-west3" }); // Serverstandort: Frankfurt
 
-// App Check暂时 deaktiviert für Development (reCAPTCHA 403 Fehler)
-// Kann später wieder aktiviert werden, wenn reCAPTCHA korrekt konfiguriert ist
-/*
-if (typeof window !== "undefined") {
-    if (process.env.NODE_ENV === 'development') {
-        (window as Window & { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean | string }).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-    }
-
-    if (process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY && process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY !== 'MISSING_SITE_KEY') {
-        initializeAppCheck(app, {
-            provider: new ReCaptchaV3Provider(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY),
-            isTokenAutoRefreshEnabled: true
-        });
-    }
-}
-*/
-
-export { app, auth, db, storage, ai };
+export { app, auth, db, storage };

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { cn } from './Card';
-import { appendChunk, processVoiceCommands, capitalizeSentences } from '@/lib/utils/voiceCommands';
+import { appendChunk, processVoiceCommands, capitalizeSentences, normalizeForDeduplication } from '@/lib/utils/voiceCommands';
 
 interface VoiceInputProps {
     onResult: (text: string) => void;
@@ -45,6 +45,9 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
     // Akkumulierter Gesamttext über die gesamte Aufnahmedauer
     const accumulatedTextRef = useRef<string>(value);
 
+    // Letzter final verarbeiteter Index der AKTUELLEN WebSpeech-Session (verhindert Mehrfach-Übernahme!)
+    const lastCommittedIndexRef = useRef<number>(-1);
+
     const onResultRef = useRef(onResult);
     const onErrorRef = useRef(onError);
     const onListeningChangeRef = useRef(onListeningChange);
@@ -70,6 +73,7 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
         console.warn(`[VoiceInput #${id}] startRecording (mobile=${isMobileRef.current})`);
 
         accumulatedTextRef.current = value;
+        lastCommittedIndexRef.current = -1;
         hadFatalErrorRef.current = false;
         updateListeningState(true);
         try {
@@ -118,42 +122,55 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
         rec.onstart = () => {
             console.warn(`[VoiceInput #${id}] onstart`);
             hadFatalErrorRef.current = false;
+            lastCommittedIndexRef.current = -1;
             updateListeningState(true);
         };
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rec.onresult = (event: any) => {
-            // Gesamten Session-Transkript aufbauen (final + interim getrennt)
-            let finalText = '';
+            let hasNewFinal = false;
             let interimText = '';
 
             for (let i = 0; i < event.results.length; ++i) {
                 const result = event.results[i];
                 if (!result || !result[0]) continue;
+
                 if (result.isFinal) {
-                    finalText += result[0].transcript;
+                    // Nur Indizes verarbeiten, die noch NICHT in den Akkumulator übernommen wurden!
+                    if (i > lastCommittedIndexRef.current) {
+                        const rawChunk = result[0].transcript;
+                        if (rawChunk && rawChunk.trim()) {
+                            // Doppel-Schutz: Replay-Chunks (z. B. durch Browser-Restarts) ignorieren
+                            const normChunk = normalizeForDeduplication(rawChunk);
+                            const normAccumulated = normalizeForDeduplication(accumulatedTextRef.current);
+
+                            if (normChunk && normAccumulated.endsWith(normChunk)) {
+                                console.warn(`[VoiceInput #${id}] Ignoriere Replay-Chunk:`, rawChunk);
+                            } else {
+                                accumulatedTextRef.current = appendChunk(accumulatedTextRef.current, rawChunk);
+                                hasNewFinal = true;
+                            }
+                        }
+                        lastCommittedIndexRef.current = i;
+                    }
                 } else {
                     interimText += result[0].transcript;
                 }
             }
 
-            // Finale Ergebnisse direkt in den Akkumulator übernehmen
-            if (finalText.trim()) {
-                const newAccumulated = appendChunk(accumulatedTextRef.current, finalText);
-                accumulatedTextRef.current = newAccumulated;
+            // Text an Callback emitten:
+            // Wenn neue finale Sätze da sind ODER flüchtiger Interim-Text vorliegt
+            if (hasNewFinal || interimText.trim()) {
+                let textToEmit = accumulatedTextRef.current;
+                if (interimText.trim()) {
+                    const { text: processedInterim } = processVoiceCommands(interimText.trim());
+                    const capitalizedInterim = capitalizeSentences(processedInterim, accumulatedTextRef.current);
+                    const isNewline = capitalizedInterim.startsWith("\n");
+                    const separator = accumulatedTextRef.current.endsWith("\n") || accumulatedTextRef.current.endsWith(" ") || isNewline ? "" : " ";
+                    textToEmit = accumulatedTextRef.current + separator + capitalizedInterim;
+                }
+                onResultRef.current(textToEmit);
             }
-
-            // Interim-Text nur als flüchtige Live-Vorschau anhängen
-            let textToEmit = accumulatedTextRef.current;
-            if (interimText.trim()) {
-                const { text: processedInterim } = processVoiceCommands(interimText.trim());
-                const capitalizedInterim = capitalizeSentences(processedInterim, accumulatedTextRef.current);
-                const isNewline = capitalizedInterim.startsWith("\n");
-                const separator = accumulatedTextRef.current.endsWith("\n") || accumulatedTextRef.current.endsWith(" ") || isNewline ? "" : " ";
-                textToEmit = accumulatedTextRef.current + separator + capitalizedInterim;
-            }
-
-            onResultRef.current(textToEmit);
         };
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -203,6 +220,7 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
                             return;
                         }
                         try {
+                            lastCommittedIndexRef.current = -1;
                             recognitionRef.current.start();
                         } catch (e) {
                             console.warn(`[VoiceInput #${id}] Mobile Restart fehlgeschlagen:`, e);
@@ -221,6 +239,7 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
             // ── DESKTOP: Auto-Restart bei Sprechpausen ──
             if (!isListeningRef.current || hadFatalErrorRef.current) {
                 updateListeningState(false);
+                onResultRef.current(accumulatedTextRef.current);
                 return;
             }
 
@@ -229,6 +248,7 @@ export function VoiceInput({ onResult, value = "", className, onError, onListeni
             const tryRestart = () => {
                 if (!isListeningRef.current || !recognitionRef.current) return;
                 try {
+                    lastCommittedIndexRef.current = -1;
                     recognitionRef.current.start();
                     console.warn(`[VoiceInput #${id}] Restart OK nach Versuch ${attempts + 1}`);
                 } catch (e) {

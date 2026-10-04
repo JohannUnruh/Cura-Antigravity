@@ -23,6 +23,8 @@ async function main() {
         await import("./contractOverview.test");
         await import("./employeeContractArchive.test");
         await import("./firestoreValues.test");
+        await import("./voiceDeduplication.test");
+        await import("./aiAnalysis.test");
 
 
         const { runAllSuites } = await import("./test-framework");
