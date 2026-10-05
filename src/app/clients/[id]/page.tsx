@@ -7,6 +7,7 @@ import { consultationService } from "@/lib/firebase/services/consultationService
 import { timeTrackingService } from "@/lib/firebase/services/timeTrackingService";
 import { calendarService } from "@/lib/firebase/services/calendarService";
 import { downloadICS } from "@/lib/utils/icsExport";
+import { sanitizeAiPrefill } from "@/lib/utils/aiPrefill";
 import { Client, Consultation, SkbConsultation } from "@/types";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
@@ -358,9 +359,14 @@ export default function ClientDetailPage() {
                 // Remove the _source marker
                 delete parsed._source;
 
+                // KI liefert fehlende Felder als null (Prompt-Vorgabe). null-Werte
+                // dürfen nicht in den Formular-State: die Stunden-Sync-Effekte der
+                // Forms crashen sonst mit null.toString() (Befund 05.10.2026).
+                const sanitized = sanitizeAiPrefill(parsed);
+
                 if (aiPrefill === "consultation") {
                     // Convert date strings to Date objects
-                    const prefill: Record<string, unknown> = { ...parsed };
+                    const prefill: Record<string, unknown> = { ...sanitized };
                     if (prefill.dateFrom) prefill.dateFrom = new Date(prefill.dateFrom as string);
                     if (prefill.dateTo) prefill.dateTo = new Date(prefill.dateTo as string);
                     if (prefill.smartCheck && typeof prefill.smartCheck === 'object') {
@@ -371,7 +377,7 @@ export default function ClientDetailPage() {
                     setSelectedConsultation(null);
                     setIsConsultationModalOpen(true);
                 } else if (aiPrefill === "skb") {
-                    const prefill: Record<string, unknown> = { ...parsed };
+                    const prefill: Record<string, unknown> = { ...sanitized };
                     if (prefill.dateFrom) prefill.dateFrom = new Date(prefill.dateFrom as string);
                     if (prefill.dateTo) prefill.dateTo = new Date(prefill.dateTo as string);
                     if (prefill.expectedDeliveryDate) prefill.expectedDeliveryDate = new Date(prefill.expectedDeliveryDate as string);

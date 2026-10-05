@@ -141,14 +141,15 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
     const [showAdvanced, setShowAdvanced] = useState(isEdit);
 
     React.useEffect(() => {
-        if (formData.unitsInHours !== undefined && parseFloat(unitsStr) !== formData.unitsInHours) {
+        // `!= null` schützt auch vor null (Firestore/KI-Prefill) – nicht nur undefined (Crash-Fix 05.10.2026)
+        if (formData.unitsInHours != null && parseFloat(unitsStr) !== formData.unitsInHours) {
             setUnitsStr(formData.unitsInHours.toString());
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formData.unitsInHours]);
 
     React.useEffect(() => {
-        if (formData.prepTimeInHours !== undefined && parseFloat(prepStr) !== formData.prepTimeInHours) {
+        if (formData.prepTimeInHours != null && parseFloat(prepStr) !== formData.prepTimeInHours) {
             setPrepStr(formData.prepTimeInHours.toString());
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps

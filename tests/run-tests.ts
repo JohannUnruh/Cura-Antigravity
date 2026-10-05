@@ -25,6 +25,7 @@ async function main() {
         await import("./firestoreValues.test");
         await import("./voiceDeduplication.test");
         await import("./aiAnalysis.test");
+        await import("./aiPrefill.test");
 
 
         const { runAllSuites } = await import("./test-framework");

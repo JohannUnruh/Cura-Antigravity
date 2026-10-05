@@ -118,7 +118,8 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
     }, [dates, totalHours, distributionType]);
 
     React.useEffect(() => {
-        if (formData.durationInHours !== undefined && parseFloat(durationStr) !== formData.durationInHours) {
+        // `!= null` schützt auch vor null (Firestore/KI-Prefill) – nicht nur undefined (Crash-Fix 05.10.2026)
+        if (formData.durationInHours != null && parseFloat(durationStr) !== formData.durationInHours) {
             setDurationStr(formData.durationInHours.toString());
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
