@@ -428,6 +428,7 @@ export const timeTrackingService = {
                 ...data,
                 id: d.id,
                 date: data.date?.toDate ? data.date.toDate() : new Date(data.date),
+                endDate: data.endDate?.toDate ? data.endDate.toDate() : (data.endDate ? new Date(data.endDate) : undefined),
                 createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
             } as TimeEntry;
         });
@@ -452,6 +453,7 @@ export const timeTrackingService = {
                 ...data,
                 id: d.id,
                 date: data.date?.toDate ? data.date.toDate() : new Date(data.date),
+                endDate: data.endDate?.toDate ? data.endDate.toDate() : (data.endDate ? new Date(data.endDate) : undefined),
                 createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
             } as TimeEntry;
         });
@@ -572,6 +574,7 @@ export const timeTrackingService = {
                 ...data,
                 id: d.id,
                 date: data.date?.toDate ? data.date.toDate() : new Date(data.date),
+                endDate: data.endDate?.toDate ? data.endDate.toDate() : (data.endDate ? new Date(data.endDate) : undefined),
                 createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
             } as TimeEntry;
         }).filter(entry => {
