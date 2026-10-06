@@ -3,13 +3,16 @@
 import { useEffect, useState, useCallback } from "react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { shortConsultationService } from "@/lib/firebase/services/shortConsultationService";
+import { consultationService } from "@/lib/firebase/services/consultationService";
+import { clientService } from "@/lib/firebase/services/clientService";
 import { timeTrackingService } from "@/lib/firebase/services/timeTrackingService";
-import { ShortConsultation, ShortConsultationType } from "@/types";
+import { ShortConsultation, ShortConsultationType, Consultation, Client, PersonGroup } from "@/types";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { Coffee, Plus, Calendar, Clock, Trash2, Pencil } from "lucide-react";
+import { Coffee, Plus, Calendar, Clock, Trash2, Pencil, UserPlus, CheckCircle2 } from "lucide-react";
 
 const consultationTypes: ShortConsultationType[] = [
     'Glaubensstärkung (Stehcafé)',
@@ -18,13 +21,38 @@ const consultationTypes: ShortConsultationType[] = [
     'Gebetszeit für Frauen'
 ];
 
+// Fallback, falls in den App-Settings keine Personengruppen gepflegt sind
+const PERSON_GROUPS: PersonGroup[] = [
+    'Ehepaar', 'Erwachsene', 'Familie', 'Jugendliche',
+    'Teeny', 'Kind', 'Paar', 'Senior', 'Verwitwet'
+];
+
 export default function ShortConsultationsPage() {
-    const { user } = useAuth();
+    const { user, userProfile } = useAuth();
+    const { settings } = useSettings();
     const [consultations, setConsultations] = useState<ShortConsultation[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+
+    // Transfer "Kurzgespräch → Akte" (P2-④)
+    const [transferItem, setTransferItem] = useState<ShortConsultation | null>(null);
+    const [transferMode, setTransferMode] = useState<'new' | 'existing'>('new');
+    const [clients, setClients] = useState<Client[]>([]);
+    const [clientsLoading, setClientsLoading] = useState(false);
+    const [clientSearch, setClientSearch] = useState("");
+    const [selectedClientId, setSelectedClientId] = useState("");
+    const [newClient, setNewClient] = useState({
+        name: "",
+        personGroup: "Erwachsene" as PersonGroup,
+        gender: "Männlich" as 'Männlich' | 'Weiblich'
+    });
+    const [transferSuccess, setTransferSuccess] = useState(false);
+
+    // Gleiche Default-true-Semantik wie ProtectedRoute (Backward Compatibility)
+    const canAccessClients = !!userProfile && (userProfile.role === 'Admin' || userProfile.hasClientAccess !== false);
+    const personGroups = settings?.personGroups?.length ? settings.personGroups : PERSON_GROUPS;
 
     const [form, setForm] = useState({
         date: "",
@@ -147,6 +175,86 @@ export default function ShortConsultationsPage() {
         }
     };
 
+    const openTransfer = async (item: ShortConsultation) => {
+        setTransferItem(item);
+        setTransferMode('new');
+        setTransferSuccess(false);
+        setClientSearch("");
+        setSelectedClientId("");
+        setNewClient({ name: "", personGroup: "Erwachsene" as PersonGroup, gender: "Männlich" });
+
+        if (user && clients.length === 0) {
+            setClientsLoading(true);
+            try {
+                const data = await clientService.getClientsByAuthor(user.uid);
+                setClients(data.filter(c => !c.archived));
+            } catch (error) {
+                console.error("Error loading clients:", error);
+            } finally {
+                setClientsLoading(false);
+            }
+        }
+    };
+
+    const handleTransfer = async () => {
+        if (!user || !transferItem) return;
+        const targetIsNew = transferMode === 'new';
+        if (targetIsNew && !newClient.name.trim()) return;
+        if (!targetIsNew && !selectedClientId) return;
+
+        setIsSaving(true);
+        try {
+            let clientId = selectedClientId;
+            if (targetIsNew) {
+                clientId = await clientService.addClient({
+                    authorId: user.uid,
+                    name: newClient.name.trim(),
+                    personGroup: newClient.personGroup,
+                    gender: newClient.gender,
+                    isChurchMember: false
+                });
+                // Neu angelegten Klienten für weitere Überführungen in dieser Session vormerken
+                const created = await clientService.getClientById(clientId);
+                if (created) setClients(prev => [created, ...prev]);
+            }
+
+            const dateFrom = new Date(transferItem.date);
+            const dateTo = new Date(dateFrom.getTime() + transferItem.durationInHours * 3600000);
+
+            // Kein neuer Zeiteintrag: Das Kurzgespräch ist bereits in der Zeiterfassung
+            // erfasst (referenceId) — ein zweiter Eintrag würde die Stunden doppeln.
+            // Partielle Beratung (ohne lifeStage/Problemfelder) — gleicher Cast wie im Klienten-Formular.
+            const payload: Partial<Consultation> = {
+                clientId,
+                authorId: transferItem.authorId,
+                dateFrom,
+                dateTo,
+                type: 'Beratung',
+                unitsInHours: transferItem.durationInHours,
+                prepTimeInHours: 0,
+                notes: transferItem.notes || "",
+                problemOriginId: "",
+                subProblemsIds: [],
+                goalTypeId: "",
+                goalAgreement: "",
+                causeFromCounselor: ""
+            };
+            await consultationService.addConsultation(payload as Omit<Consultation, "id" | "createdAt">);
+
+            setTransferSuccess(true);
+            setTimeout(() => setTransferItem(null), 1500);
+        } catch (error) {
+            console.error("Error transferring short consultation:", error);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const filteredClients = clients.filter(c =>
+        c.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
+        c.personGroup.toLowerCase().includes(clientSearch.toLowerCase())
+    );
+
     return (
         <ProtectedRoute requiredPermission="hasShortConsultationAccess">
             <div className="animate-in fade-in duration-500 flex flex-col h-full space-y-6 max-w-5xl mx-auto w-full pb-10">
@@ -204,6 +312,15 @@ export default function ShortConsultationsPage() {
                                     </div>
 
                                     <div className="flex items-center justify-end gap-2">
+                                        {canAccessClients && (
+                                            <button
+                                                onClick={() => openTransfer(item)}
+                                                className="p-2 text-gray-400 hover:text-emerald-500 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-all"
+                                                title="In Akte überführen"
+                                            >
+                                                <UserPlus className="w-5 h-5" />
+                                            </button>
+                                        )}
                                         <button
                                             onClick={() => openEdit(item)}
                                             className="p-2 text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all"
@@ -313,6 +430,150 @@ export default function ShortConsultationsPage() {
                             </Button>
                         </div>
                     </div>
+                </Modal>
+
+                <Modal
+                    isOpen={!!transferItem}
+                    onClose={() => setTransferItem(null)}
+                    title="Kurzgespräch in Akte überführen"
+                >
+                    {transferItem && (transferSuccess ? (
+                        <div className="flex flex-col items-center gap-3 py-8 text-center">
+                            <CheckCircle2 className="w-12 h-12 text-emerald-500" />
+                            <p className="text-gray-700 font-medium">Als Beratung in die Akte übernommen.</p>
+                            <p className="text-gray-500 text-sm">Das Kurzgespräch bleibt erhalten.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
+                                <span className="font-medium">{transferItem.type}</span>
+                                {" • "}
+                                {new Date(transferItem.date).toLocaleDateString("de-DE")}
+                                {" • "}
+                                {transferItem.durationInHours}h
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setTransferMode('new')}
+                                    className={`p-3 rounded-lg border text-sm font-medium transition-all ${transferMode === 'new'
+                                        ? 'border-orange-500 bg-orange-50 text-orange-700'
+                                        : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                                >
+                                    Neuen Klient anlegen
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setTransferMode('existing')}
+                                    className={`p-3 rounded-lg border text-sm font-medium transition-all ${transferMode === 'existing'
+                                        ? 'border-orange-500 bg-orange-50 text-orange-700'
+                                        : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                                >
+                                    Bestehendem Klient zuordnen
+                                </button>
+                            </div>
+
+                            {transferMode === 'new' ? (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label htmlFor="transfer-client-name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                                        <input
+                                            id="transfer-client-name"
+                                            type="text"
+                                            required
+                                            value={newClient.name}
+                                            onChange={e => setNewClient({ ...newClient, name: e.target.value })}
+                                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20"
+                                            placeholder="Vor- und Nachname"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label htmlFor="transfer-person-group" className="block text-sm font-medium text-gray-700 mb-1">Personengruppe</label>
+                                            <select
+                                                id="transfer-person-group"
+                                                value={newClient.personGroup}
+                                                onChange={e => setNewClient({ ...newClient, personGroup: e.target.value as PersonGroup })}
+                                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20"
+                                            >
+                                                {personGroups.map(group => (
+                                                    <option key={group} value={group}>{group}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label htmlFor="transfer-gender" className="block text-sm font-medium text-gray-700 mb-1">Geschlecht</label>
+                                            <select
+                                                id="transfer-gender"
+                                                value={newClient.gender}
+                                                onChange={e => setNewClient({ ...newClient, gender: e.target.value as 'Männlich' | 'Weiblich' })}
+                                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20"
+                                            >
+                                                <option value="Männlich">Männlich</option>
+                                                <option value="Weiblich">Weiblich</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <input
+                                        type="text"
+                                        value={clientSearch}
+                                        onChange={e => setClientSearch(e.target.value)}
+                                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20"
+                                        placeholder="Klient suchen..."
+                                        aria-label="Klient suchen"
+                                    />
+                                    {clientsLoading ? (
+                                        <div className="flex justify-center p-4">
+                                            <div className="w-6 h-6 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+                                        </div>
+                                    ) : filteredClients.length === 0 ? (
+                                        <p className="text-sm text-gray-500 p-2">
+                                            {clients.length === 0
+                                                ? "Noch keine Klienten angelegt. Wechsle zu „Neuen Klient anlegen“."
+                                                : "Keine Treffer für diese Suche."}
+                                        </p>
+                                    ) : (
+                                        <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+                                            {filteredClients.map(c => (
+                                                <button
+                                                    key={c.id}
+                                                    type="button"
+                                                    onClick={() => setSelectedClientId(c.id)}
+                                                    className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-all ${selectedClientId === c.id
+                                                        ? 'border-orange-500 bg-orange-50 text-orange-700 font-medium'
+                                                        : 'border-gray-200 text-gray-700 hover:border-gray-300'}`}
+                                                >
+                                                    {c.name}
+                                                    <span className="ml-2 text-xs text-gray-400">{c.personGroup}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="flex items-center gap-3 p-3 bg-blue-50 text-blue-800 rounded-lg border border-blue-100 text-sm">
+                                <Clock className="w-5 h-5 text-blue-500 shrink-0" />
+                                <p>Das Kurzgespräch bleibt erhalten. Die Stunden werden <strong>nicht</strong> doppelt in der Zeiterfassung verbucht.</p>
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                                <Button type="button" variant="ghost" onClick={() => setTransferItem(null)} disabled={isSaving}>Abbrechen</Button>
+                                <Button
+                                    type="button"
+                                    variant="primary"
+                                    disabled={isSaving || (transferMode === 'new' ? !newClient.name.trim() : !selectedClientId)}
+                                    onClick={handleTransfer}
+                                >
+                                    {isSaving ? "Wird überführt..." : "In Akte überführen"}
+                                </Button>
+                            </div>
+                        </div>
+                    ))}
                 </Modal>
             </div>
         </ProtectedRoute>

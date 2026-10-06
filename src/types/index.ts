@@ -134,6 +134,8 @@ export interface Client {
     personGroup: PersonGroup;
     gender: 'Männlich' | 'Weiblich';
     isChurchMember: boolean;
+    archived?: boolean;
+    archivedAt?: Date;
     createdAt: Date;
 }
 
@@ -282,16 +284,17 @@ export interface TimeEntry {
     id: string;
     authorId: string;
     date: Date;
+    endDate?: Date;
     timeOfDay?: 'Vormittags' | 'Nachmittags' | 'Abends' | 'Ganztägig';
     description: string;
     durationInHours: number;
     type: TimeEntryType;
-    referenceId?: string; // ID of the consultation, lecture, or retreat if auto-generated
-    status: 'active' | 'overtime-pool'; // Status: aktiv oder im Überstundenpool
-    originalMonth?: string; // "YYYY-MM" des ursprünglichen Eintrags wenn im Pool
-    transferredFrom?: string; // "YYYY-MM" wenn aus anderem Monat übertragen
-    transferredAt?: Date; // Zeitpunkt der Übertragung
-    transferredBy?: string; // userId der übertragen hat
+    referenceId?: string;
+    status: 'active' | 'overtime-pool';
+    originalMonth?: string;
+    transferredFrom?: string;
+    transferredAt?: Date;
+    transferredBy?: string;
     createdAt: Date;
 }
 

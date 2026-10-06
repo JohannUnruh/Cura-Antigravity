@@ -54,6 +54,7 @@ describe("Feature 5: Case Details Tabs", () => {
         assignedWorkerId: "worker_1",
         status: "aktiv",
         members: [],
+        asdContacts: [],
         createdAt: new Date()
     };
 

@@ -129,6 +129,7 @@ export default function TimeTrackingPage() {
     function getEmptyForm() {
         return {
             date: new Date().toISOString().slice(0, 10),
+            endDate: "",
             description: "",
             durationInHours: 1,
             timeOfDay: "Ganztägig" as "Vormittags" | "Nachmittags" | "Abends" | "Ganztägig",
@@ -136,6 +137,18 @@ export default function TimeTrackingPage() {
             authorId: "",
         };
     }
+
+    const getWorkingDays = (startStr: string, endStr: string): number => {
+        let count = 0;
+        const d = new Date(startStr);
+        const end = new Date(endStr);
+        while (d <= end) {
+            const day = d.getDay();
+            if (day !== 0 && day !== 6) count++;
+            d.setDate(d.getDate() + 1);
+        }
+        return count;
+    };
 
     const formatDate = (d: Date) => {
         return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -434,6 +447,7 @@ export default function TimeTrackingPage() {
         setSelected(item);
         setForm({
             date: formatDate(new Date(item.date)),
+            endDate: item.endDate ? formatDate(new Date(item.endDate)) : "",
             description: item.description || "",
             durationInHours: item.durationInHours,
             timeOfDay: item.timeOfDay || "Ganztägig",
@@ -466,9 +480,20 @@ export default function TimeTrackingPage() {
         e.preventDefault();
         setIsSaving(true);
         try {
+            // Bei Urlaub mit Zeitraum: Arbeitstage berechnen
+            let durationInHours = form.durationInHours;
+            let endDate: Date | undefined;
+            if (form.type === "Urlaub" && form.endDate && form.endDate >= form.date) {
+                const workingDays = getWorkingDays(form.date, form.endDate);
+                durationInHours = workingDays * hoursPerVacationDay;
+                endDate = new Date(form.endDate);
+            }
+
             const payload = {
                 ...form,
                 date: new Date(form.date),
+                endDate,
+                durationInHours,
                 authorId: user?.uid || "",
             };
 
@@ -1016,6 +1041,7 @@ export default function TimeTrackingPage() {
                                             <span className="flex items-center gap-1.5 font-medium text-rose-600/80 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30 px-2 py-0.5 rounded-full">
                                                 <Calendar className="w-3.5 h-3.5" />
                                                 {new Date(item.date).toLocaleDateString("de-DE")}
+                                                {item.endDate && item.type === "Urlaub" && ` – ${new Date(item.endDate).toLocaleDateString("de-DE")}`}
                                             </span>
                                             {item.timeOfDay && (
                                                 <span className="flex items-center gap-1.5 text-gray-600 dark:text-slate-300">
@@ -1056,21 +1082,32 @@ export default function TimeTrackingPage() {
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                             <div>
-                                                                <label htmlFor="timeEntryDate" className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+                                                                <label htmlFor="timeEntryDate" className="block text-sm font-medium text-gray-700 mb-1">Datum{form.type === "Urlaub" ? " (von)" : ""}</label>
                                                                 <input id="timeEntryDate" type="date" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
                                                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20" />
                                                             </div>
+                                                            {form.type === "Urlaub" ? (
+                                                            <div>
+                                                                <label htmlFor="timeEntryEndDate" className="block text-sm font-medium text-gray-700 mb-1">bis Datum <span className="text-gray-400 font-normal">(optional)</span></label>
+                                                                <input id="timeEntryEndDate" type="date" value={form.endDate} min={form.date}
+                                                                    onChange={e => setForm({ ...form, endDate: e.target.value })}
+                                                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20" />
+                                                                {form.endDate && form.endDate >= form.date && (
+                                                                    <p className="text-xs text-gray-500 mt-1">{getWorkingDays(form.date, form.endDate)} Arbeitstage × {hoursPerVacationDay}h = {getWorkingDays(form.date, form.endDate) * hoursPerVacationDay}h</p>
+                                                                )}
+                                                            </div>
+                                                            ) : (
                                                             <div>
                                                                 <label htmlFor="timeEntryTimeOfDay" className="block text-sm font-medium text-gray-700 mb-1">Tageszeit</label>
                                                                 <select id="timeEntryTimeOfDay" required title="Tageszeit auswählen" value={form.timeOfDay} onChange={e => setForm({ ...form, timeOfDay: e.target.value as "Vormittags" | "Nachmittags" | "Abends" | "Ganztägig" })}
-                                                                    disabled={form.type === "Urlaub"}
-                                                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 disabled:opacity-60 disabled:cursor-not-allowed">
+                                                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20">
                                                                     <option value="Ganztägig">Ganztägig</option>
                                                                     <option value="Vormittags">Vormittags</option>
                                                                     <option value="Nachmittags">Nachmittags</option>
                                                                     <option value="Abends">Abends</option>
                                                                 </select>
                                                             </div>
+                                                            )}
                                                             <div>
                                                                 <label htmlFor="timeEntryDuration" className="block text-sm font-medium text-gray-700 mb-1">Dauer (Std.)</label>
                                                                 <input id="timeEntryDuration" type="number" step="0.25" min="0" required value={form.durationInHours}

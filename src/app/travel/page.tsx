@@ -319,7 +319,7 @@ export default function TravelPage() {
             ["Fahrttyp", expense.isRoundTrip ? "Hin- und Rückfahrt" : "Einfache Fahrt"],
             ["Kilometerstand Start", `${expense.kmStart.toLocaleString("de-DE")} km`],
             ["Kilometerstand Ende", `${expense.kmEnd.toLocaleString("de-DE")} km`],
-            ["Gefahrene Distanz", `${expense.kmDriven.toLocaleString("de-DE")} km`],
+            ["Gefahrene Distanz", `${(expense.kmDriven ?? 0).toLocaleString("de-DE")} km`],
             ["Erstattungssatz", `${(settings?.travelExpenseRate || 0.30).toFixed(2).replace(".", ",")} €/km`],
         ];
 
@@ -367,6 +367,16 @@ export default function TravelPage() {
         setSubmitError(null);
 
         // Plausibilitätsprüfung
+        if (!form.startDate) {
+            setSubmitError("Bitte ein Datum für die Fahrt angeben.");
+            setIsSaving(false);
+            return;
+        }
+        if (!form.startLocation || !form.endLocation) {
+            setSubmitError("Bitte Start- und Zielort angeben.");
+            setIsSaving(false);
+            return;
+        }
         if (form.kmEnd <= form.kmStart) {
             setSubmitError("Der Kilometerstand am Ende muss größer sein als der Kilometerstand am Start.");
             setIsSaving(false);

@@ -54,6 +54,7 @@ describe("Feature 6: PDF Export", () => {
             { firstName: "Clara", lastName: "Schumann", relation: "Mutter" },
             { firstName: "Robert", lastName: "Schumann", relation: "Vater" }
         ],
+        asdContacts: [],
         createdAt: new Date()
     };
 

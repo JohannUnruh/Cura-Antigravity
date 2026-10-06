@@ -19,7 +19,9 @@ import {
     Trash2,
     ChevronRight,
     SearchX,
-    Calendar
+    Calendar,
+    Archive,
+    ArchiveRestore
 } from "lucide-react";
 
 export default function ClientsPage() {
@@ -29,6 +31,7 @@ export default function ClientsPage() {
     const [filteredClients, setFilteredClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
+    const [archiveFilter, setArchiveFilter] = useState<'active' | 'archived' | 'all'>('active');
 
     // Modal states
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -61,12 +64,16 @@ export default function ClientsPage() {
     useEffect(() => {
         const query = searchQuery.toLowerCase();
         setFilteredClients(
-            clients.filter(c =>
-                c.name.toLowerCase().includes(query) ||
-                c.personGroup.toLowerCase().includes(query)
-            )
+            clients.filter(c => {
+                const matchesSearch = c.name.toLowerCase().includes(query) ||
+                    c.personGroup.toLowerCase().includes(query);
+                const matchesArchive = archiveFilter === 'all' ||
+                    (archiveFilter === 'active' && !c.archived) ||
+                    (archiveFilter === 'archived' && c.archived);
+                return matchesSearch && matchesArchive;
+            })
         );
-    }, [searchQuery, clients]);
+    }, [searchQuery, clients, archiveFilter]);
 
     const handleAddClient = async (data: ClientFormSubmission) => {
         if (!user) return;
@@ -139,6 +146,19 @@ export default function ClientsPage() {
             console.error(error);
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleArchiveToggle = async (client: Client) => {
+        try {
+            if (client.archived) {
+                await clientService.restoreClient(client.id);
+            } else {
+                await clientService.archiveClient(client.id);
+            }
+            await fetchClients();
+        } catch (error) {
+            console.error("Fehler beim Archivieren/Wiederherstellen:", error);
         }
     };
 
@@ -216,15 +236,31 @@ export default function ClientsPage() {
                 {/* Filters & Controls */}
                 <Card className="shadow-sm border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40">
                     <CardContent className="p-4">
-                        <div className="relative w-full md:w-96">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="Klienten oder Gruppe suchen..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium text-gray-900 dark:text-white"
-                            />
+                        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                            <div className="relative w-full sm:w-96">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Klienten oder Gruppe suchen..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-2 bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium text-gray-900 dark:text-white"
+                                />
+                            </div>
+                            <div className="flex rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden text-sm">
+                                {(['active', 'archived', 'all'] as const).map(f => (
+                                    <button
+                                        key={f}
+                                        onClick={() => setArchiveFilter(f)}
+                                        className={`px-3 py-1.5 transition-colors ${archiveFilter === f
+                                            ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold'
+                                            : 'text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-white/5'
+                                        }`}
+                                    >
+                                        {f === 'active' ? 'Aktiv' : f === 'archived' ? 'Archiviert' : 'Alle'}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
@@ -261,7 +297,7 @@ export default function ClientsPage() {
                                                         router.push(`/clients/${client.id}`);
                                                     }
                                                 }}
-                                                className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors group cursor-pointer focus:outline-none focus:bg-blue-50/50 dark:focus:bg-blue-900/20"
+                                                className={`hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors group cursor-pointer focus:outline-none focus:bg-blue-50/50 dark:focus:bg-blue-900/20 ${client.archived ? 'opacity-50' : ''}`}
                                             >
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-3">
@@ -294,34 +330,48 @@ export default function ClientsPage() {
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                setEditingClient(client);
+                                                                handleArchiveToggle(client);
                                                             }}
-                                                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-white rounded-lg transition-all"
-                                                            title="Bearbeiten"
+                                                            className={`p-2 rounded-lg transition-all ${client.archived ? 'text-amber-500 hover:text-amber-700 hover:bg-white' : 'text-gray-400 hover:text-amber-500 hover:bg-white'}`}
+                                                            title={client.archived ? "Wiederherstellen" : "Archivieren"}
                                                         >
-                                                            <Edit2 className="w-4 h-4" />
+                                                            {client.archived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
                                                         </button>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setIsDeleteModalOpen(client.id);
-                                                            }}
-                                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-white rounded-lg transition-all"
-                                                            title="Löschen"
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setCalendarClientName(client.name);
-                                                                setIsCalendarModalOpen(true);
-                                                            }}
-                                                            className="p-2 text-gray-400 hover:text-green-600 hover:bg-white rounded-lg transition-all"
-                                                            title="Kalendereintrag"
-                                                        >
-                                                            <Calendar className="w-4 h-4" />
-                                                        </button>
+                                                        {!client.archived && (
+                                                            <>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setEditingClient(client);
+                                                                    }}
+                                                                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-white rounded-lg transition-all"
+                                                                    title="Bearbeiten"
+                                                                >
+                                                                    <Edit2 className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setIsDeleteModalOpen(client.id);
+                                                                    }}
+                                                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-white rounded-lg transition-all"
+                                                                    title="Löschen"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setCalendarClientName(client.name);
+                                                                        setIsCalendarModalOpen(true);
+                                                                    }}
+                                                                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-white rounded-lg transition-all"
+                                                                    title="Kalendereintrag"
+                                                                >
+                                                                    <Calendar className="w-4 h-4" />
+                                                                </button>
+                                                            </>
+                                                        )}
                                                         <button className="p-2 text-gray-400 hover:text-gray-900 hover:bg-white rounded-lg transition-all">
                                                             <ChevronRight className="w-4 h-4" />
                                                         </button>

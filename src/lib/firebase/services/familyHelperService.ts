@@ -1,6 +1,6 @@
 import { db } from "@/lib/firebase/config";
 import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where } from "firebase/firestore";
-import { FamilyCase, FamilyJournalEntry, HazardAssessment8a } from "@/types/familyHelper";
+import { AsdContact, FamilyCase, FamilyJournalEntry, HazardAssessment8a } from "@/types/familyHelper";
 import { timeTrackingService } from "./timeTrackingService";
 
 let isMockMode = false;
@@ -66,6 +66,27 @@ function parseDateOptional(val: unknown): Date | undefined {
     return d;
 }
 
+// Altfälle liegen ggf. noch mit dem Einzel-Feld `asdContact` (Singular) in Firestore.
+// Der Lese-Pfad migriert sie automatisch in das neue Array `asdContacts`.
+interface LegacyAsdContactData {
+    asdContacts?: unknown;
+    asdContact?: unknown;
+}
+
+export function normalizeAsdContacts(data: LegacyAsdContactData): AsdContact[] {
+    if (Array.isArray(data.asdContacts)) {
+        return data.asdContacts as AsdContact[];
+    }
+    if (data.asdContact && typeof data.asdContact === 'object') {
+        return [data.asdContact as AsdContact];
+    }
+    return [];
+}
+
+export function filterEmptyAsdContacts(contacts: AsdContact[]): AsdContact[] {
+    return contacts.filter(c => c.name && c.name.trim() !== "");
+}
+
 export const familyHelperService = {
     async createCase(caseData: Omit<FamilyCase, 'id'>): Promise<string> {
         const id = `case_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
@@ -89,7 +110,9 @@ export const familyHelperService = {
 
     async getCaseById(id: string): Promise<FamilyCase | null> {
         if (isMockMode) {
-            return mockCases.get(id) || null;
+            const mockCase = mockCases.get(id);
+            if (!mockCase) return null;
+            return { ...mockCase, asdContacts: normalizeAsdContacts(mockCase) };
         }
 
         const docSnap = await getDoc(doc(db, "family_cases", id));
@@ -101,13 +124,17 @@ export const familyHelperService = {
             ...data,
             id: docSnap.id,
             createdAt: parseDate(data.createdAt),
-            updatedAt: parseDateOptional(data.updatedAt)
+            updatedAt: parseDateOptional(data.updatedAt),
+            asdContacts: normalizeAsdContacts(data)
         } as FamilyCase;
     },
 
     async getCases(userId?: string): Promise<FamilyCase[]> {
         if (isMockMode) {
-            let list = Array.from(mockCases.values());
+            let list = Array.from(mockCases.values()).map(c => ({
+                ...c,
+                asdContacts: normalizeAsdContacts(c)
+            }));
             if (userId) {
                 list = list.filter(c => c.assignedWorkerId === userId);
             }
@@ -130,7 +157,8 @@ export const familyHelperService = {
                 ...data,
                 id: docSnap.id,
                 createdAt: parseDate(data.createdAt),
-                updatedAt: parseDateOptional(data.updatedAt)
+                updatedAt: parseDateOptional(data.updatedAt),
+                asdContacts: normalizeAsdContacts(data)
             } as FamilyCase);
         });
 

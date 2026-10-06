@@ -178,6 +178,7 @@ export default function FamilyHelperDashboard() {
                     lastName: m.lastName.trim(),
                     relation: m.relation,
                 })),
+                asdContacts: [],
                 fundingCommitment:
                     hasFunding && hoursGranted && startDate && endDate
                         ? {

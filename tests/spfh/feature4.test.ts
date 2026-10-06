@@ -11,6 +11,7 @@ describe("Feature 4: Case Dashboard", () => {
             assignedWorkerId: "worker_1",
             status: "aktiv",
             members: [],
+            asdContacts: [],
             createdAt: new Date("2026-01-01T12:00:00Z")
         },
         {
@@ -20,6 +21,7 @@ describe("Feature 4: Case Dashboard", () => {
             assignedWorkerId: "worker_2",
             status: "inaktiv",
             members: [],
+            asdContacts: [],
             createdAt: new Date("2026-02-15T12:00:00Z")
         },
         {
@@ -29,6 +31,7 @@ describe("Feature 4: Case Dashboard", () => {
             assignedWorkerId: "worker_1",
             status: "beendet",
             members: [],
+            asdContacts: [],
             createdAt: new Date("2026-03-10T12:00:00Z")
         },
         {
@@ -38,6 +41,7 @@ describe("Feature 4: Case Dashboard", () => {
             assignedWorkerId: "worker_3",
             status: "aktiv",
             members: [],
+            asdContacts: [],
             createdAt: new Date("2026-04-01T12:00:00Z")
         }
     ];

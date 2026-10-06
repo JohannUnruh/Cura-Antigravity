@@ -16,6 +16,7 @@ describe("Feature 1: Datatypes & AppSettings", () => {
                 { firstName: "Sabine", lastName: "Müller", relation: "Mutter" },
                 { firstName: "Lukas", lastName: "Müller", relation: "Kind" }
             ],
+            asdContacts: [],
             createdAt: new Date()
         };
         const errors = validateFamilyCase(validCase);
@@ -72,19 +73,21 @@ describe("Feature 1: Datatypes & AppSettings", () => {
         expect(settings.familyMemberRelations!.length).toBe(4);
     });
 
-    it("should validate a FamilyCase containing optional fields like fundingCommitment and asdContact", () => {
+    it("should validate a FamilyCase containing optional fields like fundingCommitment and asdContacts", () => {
         const complexCase: FamilyCase = {
             familyName: "Schmidt",
             caseNumber: "SPFH-2026-002",
             assignedWorkerId: "user_worker_2",
             status: "aktiv",
             members: [{ firstName: "Max", lastName: "Schmidt", relation: "Vater" }],
-            asdContact: {
-                name: "Frau Jugendamt",
-                email: "jugendamt@stadt.de",
-                phone: "0123-45678",
-                institution: "ASD Stadt Mitte"
-            },
+            asdContacts: [
+                {
+                    name: "Frau Jugendamt",
+                    email: "jugendamt@stadt.de",
+                    phone: "0123-45678",
+                    institution: "ASD Stadt Mitte"
+                }
+            ],
             fundingCommitment: {
                 hoursGranted: 80,
                 startDate: "2026-01-01",
