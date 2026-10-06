@@ -54,6 +54,7 @@ describe("Feature 2: Administrative Settings", () => {
             assignedWorkerId: "worker_1",
             status: "aktiv",
             members: [{ firstName: "Klaus", lastName: "Weber", relation: "Vormund" }],
+            asdContacts: [],
             createdAt: new Date()
         };
 
@@ -107,6 +108,7 @@ describe("Feature 2: Administrative Settings", () => {
             assignedWorkerId: "worker_1",
             status: "aktiv",
             members: [{ firstName: "Klaus", lastName: "Weber", relation: "Cousin" }], // Cousin not in allowed
+            asdContacts: [],
             createdAt: new Date()
         };
 
@@ -185,6 +187,7 @@ describe("Feature 2: Administrative Settings", () => {
             assignedWorkerId: "worker_1",
             status: "aktiv",
             members: [{ firstName: "Klaus", lastName: "Weber", relation: longRelation }],
+            asdContacts: [],
             createdAt: new Date()
         };
 

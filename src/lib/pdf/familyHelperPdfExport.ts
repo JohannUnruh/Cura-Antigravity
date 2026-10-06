@@ -115,6 +115,9 @@ export async function exportDevelopmentReport(
         body: [
             ["Familienname", familyCase.familyName],
             ["Aktenzeichen", familyCase.caseNumber],
+            ...(familyCase.externalCaseNumber
+                ? [["Externes Aktenzeichen (Jugendamt)", familyCase.externalCaseNumber]]
+                : []),
             ["Status", familyCase.status === "aktiv" ? "Aktiv" : familyCase.status === "inaktiv" ? "Inaktiv" : "Beendet"],
             ["Zuständige Fachkraft", workerName],
             ["Fallbeginn", formatDate(familyCase.createdAt)],
@@ -147,25 +150,26 @@ export async function exportDevelopmentReport(
         y = (doc as any).lastAutoTable?.finalY + 8 || y + 40;
     }
 
-    // ASD-Kontakt
-    if (familyCase.asdContact) {
+    // ASD-Kontakte
+    if (familyCase.asdContacts && familyCase.asdContacts.length > 0) {
         if (y > 250) { doc.addPage(); y = 20; }
         doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
-        doc.text("3. ASD-Kontakt", 14, y);
+        doc.text("3. ASD-Kontakte", 14, y);
         y += 7;
 
         autoTable(doc, {
             startY: y,
-            theme: "plain",
-            styles: { fontSize: 10, cellPadding: 2 },
-            columnStyles: { 0: { fontStyle: "bold", cellWidth: 55 } },
-            body: [
-                ["Name", familyCase.asdContact.name],
-                ["Institution", familyCase.asdContact.institution || "–"],
-                ["E-Mail", familyCase.asdContact.email || "–"],
-                ["Telefon", familyCase.asdContact.phone || "–"],
-            ],
+            head: [["Name", "Institution", "E-Mail", "Telefon"]],
+            body: familyCase.asdContacts.map((c) => [
+                c.name,
+                c.institution || "–",
+                c.email || "–",
+                c.phone || "–",
+            ]),
+            theme: "grid",
+            headStyles: { fillColor: [99, 102, 241] },
+            styles: { fontSize: 10 },
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         y = (doc as any).lastAutoTable?.finalY + 8 || y + 40;
@@ -301,6 +305,9 @@ export async function exportPerformanceRecord(
         columnStyles: { 0: { fontStyle: "bold", cellWidth: 55 } },
         body: [
             ["Aktenzeichen", familyCase.caseNumber],
+            ...(familyCase.externalCaseNumber
+                ? [["Externes Aktenzeichen (Jugendamt)", familyCase.externalCaseNumber]]
+                : []),
             ["Zuständige Fachkraft", workerName],
             ["Berichtszeitraum", monthName],
         ],

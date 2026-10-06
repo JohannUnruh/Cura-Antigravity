@@ -20,6 +20,7 @@ describe("Feature 3: familyHelperService CRUD & Time Coupling", () => {
             assignedWorkerId: "worker_1",
             status: "aktiv",
             members: [{ firstName: "Anna", lastName: "Fischer", relation: "Mutter" }],
+            asdContacts: [],
             createdAt: new Date()
         };
 
@@ -39,6 +40,7 @@ describe("Feature 3: familyHelperService CRUD & Time Coupling", () => {
             assignedWorkerId: "worker_1",
             status: "aktiv",
             members: [{ firstName: "Anna", lastName: "Fischer", relation: "Mutter" }],
+            asdContacts: [],
             createdAt: new Date()
         };
 
@@ -56,6 +58,7 @@ describe("Feature 3: familyHelperService CRUD & Time Coupling", () => {
             assignedWorkerId: "worker_1",
             status: "aktiv",
             members: [{ firstName: "Anna", lastName: "Fischer", relation: "Mutter" }],
+            asdContacts: [],
             createdAt: new Date()
         };
 
@@ -73,6 +76,7 @@ describe("Feature 3: familyHelperService CRUD & Time Coupling", () => {
             assignedWorkerId: "worker_1",
             status: "aktiv",
             members: [{ firstName: "Anna", lastName: "Fischer", relation: "Mutter" }],
+            asdContacts: [],
             createdAt: new Date()
         });
 
@@ -100,6 +104,7 @@ describe("Feature 3: familyHelperService CRUD & Time Coupling", () => {
             assignedWorkerId: "worker_1",
             status: "aktiv",
             members: [{ firstName: "Anna", lastName: "Fischer", relation: "Mutter" }],
+            asdContacts: [],
             createdAt: new Date()
         });
 
@@ -159,6 +164,7 @@ describe("Feature 3: familyHelperService CRUD & Time Coupling", () => {
             assignedWorkerId: "worker_1",
             status: "aktiv",
             members: [{ firstName: "Anna", lastName: "Fischer", relation: "Mutter" }],
+            asdContacts: [],
             createdAt: new Date()
         });
 
@@ -176,6 +182,7 @@ describe("Feature 3: familyHelperService CRUD & Time Coupling", () => {
             assignedWorkerId: "worker_1",
             status: "aktiv",
             members: [{ firstName: "Anna", lastName: "Fischer", relation: "Mutter" }],
+            asdContacts: [],
             createdAt: new Date()
         });
 
@@ -209,6 +216,7 @@ describe("Feature 3: familyHelperService CRUD & Time Coupling", () => {
             assignedWorkerId: "worker_1",
             status: "aktiv",
             members: [{ firstName: "Anna", lastName: "Fischer", relation: "Mutter" }],
+            asdContacts: [],
             createdAt: new Date()
         });
 
@@ -246,6 +254,7 @@ describe("Feature 3: familyHelperService CRUD & Time Coupling", () => {
             assignedWorkerId: "worker_1",
             status: "aktiv",
             members: [{ firstName: "Anna", lastName: "Fischer", relation: "Mutter" }],
+            asdContacts: [],
             createdAt: new Date()
         });
 
@@ -278,6 +287,7 @@ describe("Feature 3: familyHelperService CRUD & Time Coupling", () => {
             assignedWorkerId: "worker_1",
             status: "aktiv",
             members: [{ firstName: "Anna", lastName: "Fischer", relation: "Mutter" }],
+            asdContacts: [],
             createdAt: new Date()
         });
 

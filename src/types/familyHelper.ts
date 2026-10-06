@@ -54,10 +54,11 @@ export interface FamilyCase {
     id?: string;
     familyName: string;
     caseNumber: string;
+    externalCaseNumber?: string;
     assignedWorkerId: string;
     status: 'aktiv' | 'inaktiv' | 'beendet';
     members: FamilyMember[];
-    asdContact?: AsdContact;
+    asdContacts: AsdContact[];
     fundingCommitment?: FundingCommitment;
     goals?: FamilyGoal[];
     mandate?: string;

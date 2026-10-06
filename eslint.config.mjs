@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "public/firebase-messaging-sw.js",
     "next-env.d.ts",
+    // Agent-Worktrees (git-ignored) bringen eigene .next-Builds mit, die sonst das Lint-Gate fluten
+    ".qwen/**",
   ]),
 ]);
 

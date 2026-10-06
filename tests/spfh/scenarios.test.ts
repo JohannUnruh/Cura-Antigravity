@@ -56,6 +56,7 @@ describe("Tier 3 & 4: Cross-Feature Combinations & Real-World Scenarios", () => 
             assignedWorkerId: "worker_1",
             status: "aktiv",
             members: [{ firstName: "Karl", lastName: "Hansen", relation: "Kind" }],
+            asdContacts: [],
             fundingCommitment: {
                 hoursGranted: 50,
                 startDate: "2026-01-01",
@@ -94,6 +95,7 @@ describe("Tier 3 & 4: Cross-Feature Combinations & Real-World Scenarios", () => 
             assignedWorkerId: "worker_1",
             status: "aktiv",
             members: [{ firstName: "Karl", lastName: "Hansen", relation: "Kind" }],
+            asdContacts: [],
             createdAt: new Date()
         });
 
@@ -149,6 +151,7 @@ describe("Tier 3 & 4: Cross-Feature Combinations & Real-World Scenarios", () => 
                 { firstName: "Maria", lastName: "Kruse", relation: "Mutter" },
                 { firstName: "Leon", lastName: "Kruse", relation: "Kind" }
             ],
+            asdContacts: [],
             fundingCommitment: {
                 hoursGranted: 100,
                 startDate: "2026-06-01",
@@ -182,6 +185,7 @@ describe("Tier 3 & 4: Cross-Feature Combinations & Real-World Scenarios", () => 
             members: [
                 { firstName: "Maria", lastName: "Kruse", relation: "Mutter" }
             ],
+            asdContacts: [],
             createdAt: new Date()
         });
 
@@ -233,6 +237,7 @@ describe("Tier 3 & 4: Cross-Feature Combinations & Real-World Scenarios", () => 
             assignedWorkerId: "worker_1",
             status: "aktiv",
             members: [{ firstName: "Lea", lastName: "Münch", relation: "Kind" }],
+            asdContacts: [],
             createdAt: new Date()
         });
 
@@ -299,6 +304,7 @@ describe("Tier 3 & 4: Cross-Feature Combinations & Real-World Scenarios", () => 
                 { firstName: "Helga", lastName: "Sommer", relation: "Mutter" },
                 { firstName: "Nils", lastName: "Sommer", relation: "Kind" }
             ],
+            asdContacts: [],
             createdAt: new Date()
         });
 
@@ -346,6 +352,7 @@ describe("Tier 3 & 4: Cross-Feature Combinations & Real-World Scenarios", () => 
             assignedWorkerId: "worker_1",
             status: "aktiv",
             members: [{ firstName: "Jan", lastName: "Winter", relation: "Kind" }],
+            asdContacts: [],
             createdAt: new Date()
         });
 

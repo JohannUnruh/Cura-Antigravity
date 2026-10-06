@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
-import { familyHelperService } from "@/lib/firebase/services/familyHelperService";
+import { familyHelperService, filterEmptyAsdContacts } from "@/lib/firebase/services/familyHelperService";
 import { FamilyCase, FamilyMember, AsdContact, FundingCommitment, FamilyGoal, FamilyJournalEntry, HazardAssessment8a } from "@/types";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -87,9 +87,10 @@ export default function CaseDetailPage() {
     // Editable form state for Stammdaten
     const [editFamilyName, setEditFamilyName] = useState("");
     const [editCaseNumber, setEditCaseNumber] = useState("");
+    const [editExternalCaseNumber, setEditExternalCaseNumber] = useState("");
     const [editStatus, setEditStatus] = useState<"aktiv" | "inaktiv" | "beendet">("aktiv");
     const [editMembers, setEditMembers] = useState<FamilyMember[]>([]);
-    const [editAsd, setEditAsd] = useState<AsdContact>({ name: "" });
+    const [editAsdContacts, setEditAsdContacts] = useState<AsdContact[]>([]);
     const [editFunding, setEditFunding] = useState<FundingCommitment | null>(null);
     const [editMandate, setEditMandate] = useState("");
 
@@ -150,9 +151,10 @@ export default function CaseDetailPage() {
             // Initialize edit form
             setEditFamilyName(caseData.familyName);
             setEditCaseNumber(caseData.caseNumber);
+            setEditExternalCaseNumber(caseData.externalCaseNumber || "");
             setEditStatus(caseData.status);
             setEditMembers(caseData.members || []);
-            setEditAsd(caseData.asdContact || { name: "" });
+            setEditAsdContacts(caseData.asdContacts || []);
             setEditFunding(caseData.fundingCommitment || null);
             setEditMandate(caseData.mandate || "");
         } catch (error) {
@@ -174,9 +176,11 @@ export default function CaseDetailPage() {
             await familyHelperService.updateCase(caseId, {
                 familyName: editFamilyName,
                 caseNumber: editCaseNumber,
+                // Leerer String statt undefined, damit ein gesetztes Feld auch wieder gelöscht werden kann
+                externalCaseNumber: editExternalCaseNumber.trim(),
                 status: editStatus,
                 members: editMembers,
-                asdContact: editAsd.name ? editAsd : undefined,
+                asdContacts: filterEmptyAsdContacts(editAsdContacts),
                 fundingCommitment: editFunding || undefined,
                 mandate: editMandate.trim() || undefined,
             });
@@ -194,6 +198,11 @@ export default function CaseDetailPage() {
     const removeMember = (idx: number) => setEditMembers(prev => prev.filter((_, i) => i !== idx));
     const updateMember = (idx: number, field: keyof FamilyMember, value: string) =>
         setEditMembers(prev => prev.map((m, i) => i === idx ? { ...m, [field]: value } : m));
+
+    const addAsdContact = () => setEditAsdContacts(prev => [...prev, { name: "" }]);
+    const removeAsdContact = (idx: number) => setEditAsdContacts(prev => prev.filter((_, i) => i !== idx));
+    const updateAsdContact = (idx: number, field: keyof AsdContact, value: string) =>
+        setEditAsdContacts(prev => prev.map((c, i) => i === idx ? { ...c, [field]: value } : c));
 
     // ── Goals Handlers ──
     const addGoal = async () => {
@@ -509,6 +518,10 @@ export default function CaseDetailPage() {
                                         <input className={inputCls} value={editCaseNumber} onChange={e => setEditCaseNumber(e.target.value)} />
                                     </div>
                                     <div>
+                                        <label className={labelCls}>Externes Aktenzeichen (Jugendamt)</label>
+                                        <input className={inputCls} value={editExternalCaseNumber} onChange={e => setEditExternalCaseNumber(e.target.value)} placeholder="Optional" />
+                                    </div>
+                                    <div>
                                         <label className={labelCls}>Status</label>
                                         <select className={inputCls} value={editStatus} onChange={e => setEditStatus(e.target.value as "aktiv" | "inaktiv" | "beendet")}>
                                             <option value="aktiv">Aktiv</option>
@@ -576,15 +589,35 @@ export default function CaseDetailPage() {
                             </CardContent>
                         </Card>
 
-                        {/* ASD-Kontakt */}
+                        {/* ASD-Kontakte */}
                         <Card className="shadow-sm border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40">
                             <CardContent className="p-6 pt-6">
-                                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">ASD-Kontakt</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div><label className={labelCls}>Name</label><input className={inputCls} value={editAsd.name} onChange={e => setEditAsd(p => ({ ...p, name: e.target.value }))} /></div>
-                                    <div><label className={labelCls}>Institution</label><input className={inputCls} value={editAsd.institution || ""} onChange={e => setEditAsd(p => ({ ...p, institution: e.target.value }))} /></div>
-                                    <div><label className={labelCls}>E-Mail</label><input type="email" className={inputCls} value={editAsd.email || ""} onChange={e => setEditAsd(p => ({ ...p, email: e.target.value }))} /></div>
-                                    <div><label className={labelCls}>Telefon</label><input className={inputCls} value={editAsd.phone || ""} onChange={e => setEditAsd(p => ({ ...p, phone: e.target.value }))} /></div>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">ASD-Kontakte</h2>
+                                    <Button variant="ghost" size="sm" onClick={addAsdContact} className="gap-1">
+                                        <Plus className="w-4 h-4" /> Kontakt hinzufügen
+                                    </Button>
+                                </div>
+                                {editAsdContacts.length === 0 && (
+                                    <p className="text-sm text-gray-400 dark:text-slate-500 italic">Noch keine ASD-Kontakte hinterlegt.</p>
+                                )}
+                                <div className="space-y-3">
+                                    {editAsdContacts.map((contact, idx) => (
+                                        <div key={idx} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-gray-50/30 dark:bg-slate-900/30 rounded-xl border border-gray-100 dark:border-white/5">
+                                            <div><label className={labelCls}>Name</label><input className={inputCls} value={contact.name} onChange={e => updateAsdContact(idx, "name", e.target.value)} /></div>
+                                            <div><label className={labelCls}>Institution</label><input className={inputCls} value={contact.institution || ""} onChange={e => updateAsdContact(idx, "institution", e.target.value)} /></div>
+                                            <div><label className={labelCls}>E-Mail</label><input type="email" className={inputCls} value={contact.email || ""} onChange={e => updateAsdContact(idx, "email", e.target.value)} /></div>
+                                            <div className="flex gap-2">
+                                                <div className="flex-1">
+                                                    <label className={labelCls}>Telefon</label>
+                                                    <input className={inputCls} value={contact.phone || ""} onChange={e => updateAsdContact(idx, "phone", e.target.value)} />
+                                                </div>
+                                                <button onClick={() => removeAsdContact(idx)} className="self-end p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors" title="Kontakt entfernen">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </CardContent>
                         </Card>
