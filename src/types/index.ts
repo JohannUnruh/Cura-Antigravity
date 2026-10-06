@@ -134,6 +134,8 @@ export interface Client {
     personGroup: PersonGroup;
     gender: 'Männlich' | 'Weiblich';
     isChurchMember: boolean;
+    archived?: boolean;
+    archivedAt?: Date;
     createdAt: Date;
 }
 

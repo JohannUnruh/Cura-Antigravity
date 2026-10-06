@@ -30,6 +30,8 @@ export const clientService = {
             return {
                 ...data,
                 id: doc.id,
+                archived: data.archived || false,
+                archivedAt: data.archivedAt?.toDate ? data.archivedAt.toDate() : (data.archivedAt ? new Date(data.archivedAt) : undefined),
                 createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt)
             } as Client;
         }).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -66,6 +68,16 @@ export const clientService = {
 
         await consultationService.deleteConsultationsByClientId(clientId, authorId);
         await consultationService.deleteSkbConsultationsByClientId(clientId, authorId);
+    },
+
+    async archiveClient(clientId: string) {
+        const docRef = doc(db, COLLECTION_NAME, clientId);
+        await setDoc(docRef, { archived: true, archivedAt: new Date() }, { merge: true });
+    },
+
+    async restoreClient(clientId: string) {
+        const docRef = doc(db, COLLECTION_NAME, clientId);
+        await setDoc(docRef, { archived: false, archivedAt: null }, { merge: true });
     },
 
     async getAllClients(): Promise<Client[]> {
