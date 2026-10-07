@@ -115,7 +115,11 @@ export default function Dashboard() {
     today.setHours(0, 0, 0, 0);
 
     const clientsMap = new Map<string, Client>();
-    data.clients.forEach(c => clientsMap.set(c.id, c));
+    // Archivierte Klienten sind nicht mehr in Betreuung und tauchen deshalb
+    // in der Überfällig-Liste nicht auf (aktive Zählung: stats.clientCount).
+    data.clients.forEach(c => {
+      if (!c.archived) clientsMap.set(c.id, c);
+    });
 
     const consByClient = new Map<string, Consultation[]>();
     data.consultations.forEach(c => {
@@ -282,7 +286,8 @@ export default function Dashboard() {
       lectureCount: filteredLectures.length,
       retreatCount: filteredRetreats.length,
       consultationCount: filteredCons.length + filteredLegacy.length,
-      clientCount: data.clients.length as number | null
+      // „Aktiv in Betreuung“: archivierte Klienten zählen nicht mit.
+      clientCount: data.clients.filter(c => !c.archived).length as number | null
     };
   }, [associationStats, data, yearFilter, settings?.problemOrigins]);
 
