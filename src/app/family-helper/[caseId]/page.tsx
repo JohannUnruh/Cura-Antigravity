@@ -87,7 +87,6 @@ export default function CaseDetailPage() {
 
     // Editable form state for Stammdaten
     const [editFamilyName, setEditFamilyName] = useState("");
-    const [editCaseNumber, setEditCaseNumber] = useState("");
     const [editExternalCaseNumber, setEditExternalCaseNumber] = useState("");
     const [editStatus, setEditStatus] = useState<"aktiv" | "inaktiv" | "beendet">("aktiv");
     const [editMembers, setEditMembers] = useState<FamilyMember[]>([]);
@@ -151,7 +150,6 @@ export default function CaseDetailPage() {
 
             // Initialize edit form
             setEditFamilyName(caseData.familyName);
-            setEditCaseNumber(caseData.caseNumber);
             setEditExternalCaseNumber(caseData.externalCaseNumber || "");
             setEditStatus(caseData.status);
             setEditMembers(caseData.members || []);
@@ -176,7 +174,8 @@ export default function CaseDetailPage() {
         try {
             await familyHelperService.updateCase(caseId, {
                 familyName: editFamilyName,
-                caseNumber: editCaseNumber,
+                // caseNumber wird bewusst NICHT mitgespeichert: Das interne
+                // Aktenzeichen ist read-only (atomar vergeben, kein Recycling).
                 // Leerer String statt undefined, damit ein gesetztes Feld auch wieder gelöscht werden kann
                 externalCaseNumber: editExternalCaseNumber.trim(),
                 status: editStatus,
@@ -516,7 +515,13 @@ export default function CaseDetailPage() {
                                     </div>
                                     <div>
                                         <label className={labelCls}>Aktenzeichen</label>
-                                        <input className={inputCls} value={editCaseNumber} onChange={e => setEditCaseNumber(e.target.value)} />
+                                        <input
+                                            className={`${inputCls} bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 cursor-not-allowed`}
+                                            value={familyCase.caseNumber}
+                                            disabled
+                                            readOnly
+                                            title="Wird automatisch vergeben und kann nicht geändert werden"
+                                        />
                                     </div>
                                     <div>
                                         <label className={labelCls}>Externes Aktenzeichen (Jugendamt)</label>

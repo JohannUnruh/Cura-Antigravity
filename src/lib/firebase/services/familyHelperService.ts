@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase/config";
-import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where } from "firebase/firestore";
+import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where, runTransaction } from "firebase/firestore";
 import { AsdContact, FamilyCase, FamilyJournalEntry, HazardAssessment8a } from "@/types/familyHelper";
 import { timeTrackingService } from "./timeTrackingService";
 
@@ -11,6 +11,16 @@ const mockJournals = new Map<string, FamilyJournalEntry[]>(); // key: caseId
 const mockAssessments = new Map<string, HazardAssessment8a[]>(); // key: caseId
 const mockTemplates = new Map<string, Record<string, unknown>>(); // key: caseId
 
+// ── SPFH-Fallnummern: atomarer, fortlaufender Counter (kein Recycling) ──
+// Eine einmal vergebene Nummer darf nie wieder an einen anderen Fall gehen.
+// Der Counter lebt in Firestore unter counters/spfhCaseNumbers als { value: number }
+// und wird per Transaction atomar erhöht.
+const CASE_COUNTER_COLLECTION = "counters";
+const CASE_COUNTER_DOC = "spfhCaseNumbers";
+
+// Mock-Modus-Pendant des Firestore-Counters (null = noch nicht initialisiert)
+let mockCaseCounterValue: number | null = null;
+
 export function setFamilyHelperMockMode(mock: boolean) {
     isMockMode = mock;
     if (!mock) {
@@ -18,6 +28,7 @@ export function setFamilyHelperMockMode(mock: boolean) {
         mockJournals.clear();
         mockAssessments.clear();
         mockTemplates.clear();
+        mockCaseCounterValue = null;
     }
 }
 
@@ -26,6 +37,58 @@ export function clearFamilyHelperMockDb() {
     mockJournals.clear();
     mockAssessments.clear();
     mockTemplates.clear();
+    mockCaseCounterValue = null;
+}
+
+/**
+ * Extrahiert die fortlaufende Nummer aus einer SPFH-Fallnummer
+ * (Format: SPFH-<4-stelliges Jahr>-<lfdNr>), z.B. "SPFH-2026-004" → 4.
+ * Gibt null zurück, wenn das Format nicht passt (z.B. Freitext-Altnummern).
+ */
+export function parseCaseNumberSerial(caseNumber: unknown): number | null {
+    if (typeof caseNumber !== "string") return null;
+    const match = /^SPFH-(\d{4})-(\d{3,})$/.exec(caseNumber.trim());
+    if (!match) return null;
+    const serial = parseInt(match[2], 10);
+    return Number.isFinite(serial) ? serial : null;
+}
+
+/**
+ * Migration der Altdaten: ermittelt die höchste je vergebene laufende Nummer
+ * über alle bestehenden Fälle (inkl. inaktiver/beendeter — genau die dürfen
+ * ja nicht recycelt werden). Nicht parsebare Nummern werden ignoriert.
+ */
+export function computeInitialCounterFromCases(caseNumbers: unknown[]): number {
+    let max = 0;
+    for (const caseNumber of caseNumbers) {
+        const serial = parseCaseNumberSerial(caseNumber);
+        if (serial !== null && serial > max) {
+            max = serial;
+        }
+    }
+    return max;
+}
+
+export function formatSpfhCaseNumber(year: number, serial: number): string {
+    return `SPFH-${year}-${String(serial).padStart(3, "0")}`;
+}
+
+function counterValueFromSnapshot(data: unknown): number {
+    const value = (data as { value?: unknown } | undefined)?.value;
+    return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+/**
+ * Migration der Altdaten: liest alle bestehenden Fälle (inkl. inaktiver/
+ * beendeter) und liefert die höchste je vergebene laufende Nummer.
+ * Hinweis: Das Firestore-Web-SDK erlaubt keine Queries innerhalb von
+ * Transactions — das Seeding passiert daher als Vorab-Read.
+ */
+async function fetchSeedFromExistingCases(): Promise<number> {
+    const casesSnap = await getDocs(query(collection(db, "family_cases")));
+    const caseNumbers: unknown[] = [];
+    casesSnap.forEach((d) => caseNumbers.push((d.data() as { caseNumber?: unknown }).caseNumber));
+    return computeInitialCounterFromCases(caseNumbers);
 }
 
 function parseDate(val: unknown): Date {
@@ -88,6 +151,75 @@ export function filterEmptyAsdContacts(contacts: AsdContact[]): AsdContact[] {
 }
 
 export const familyHelperService = {
+    /**
+     * Stellt sicher, dass der Fallnummern-Counter existiert, und gibt seinen
+     * aktuellen Stand zurück. Initialisierung (Migration): Fehlt das Dokument,
+     * wird die höchste je vergebene Nummer aus den bestehenden Fällen geseedet.
+     * Verbraucht selbst keine Nummer.
+     */
+    async initializeCaseCounter(): Promise<number> {
+        if (isMockMode) {
+            if (mockCaseCounterValue === null) {
+                mockCaseCounterValue = computeInitialCounterFromCases(
+                    Array.from(mockCases.values()).map((c) => c.caseNumber)
+                );
+            }
+            return mockCaseCounterValue;
+        }
+
+        const counterRef = doc(db, CASE_COUNTER_COLLECTION, CASE_COUNTER_DOC);
+        const snap = await getDoc(counterRef);
+        if (snap.exists()) {
+            return counterValueFromSnapshot(snap.data());
+        }
+
+        const seed = await fetchSeedFromExistingCases();
+        return runTransaction(db, async (tx) => {
+            const fresh = await tx.get(counterRef);
+            if (fresh.exists()) {
+                // Parallel hat ein anderer Client bereits geseedet — dessen
+                // (höheren oder gleichen) Stand übernehmen, nie überschreiben.
+                return counterValueFromSnapshot(fresh.data());
+            }
+            tx.set(counterRef, { value: seed, updatedAt: new Date() });
+            return seed;
+        });
+    },
+
+    /**
+     * Vergibt die nächste freie Fallnummer atomar (Firestore-Transaction bzw.
+     * seriell im Mock). Der Counter wächst streng monoton — vergebene Nummern
+     * werden nie recycelt, auch nicht nach dem Löschen eines Falls.
+     */
+    async getNextCaseNumber(now: Date = new Date()): Promise<string> {
+        const year = now.getFullYear();
+        let nextSerial: number;
+
+        if (isMockMode) {
+            const current = await this.initializeCaseCounter();
+            nextSerial = current + 1;
+            mockCaseCounterValue = nextSerial;
+        } else {
+            const counterRef = doc(db, CASE_COUNTER_COLLECTION, CASE_COUNTER_DOC);
+            // Einmalig seeden, falls der Counter noch nicht existiert
+            // (idempotent; konkurrierendes Seeding klärt die Transaction).
+            await this.initializeCaseCounter();
+            // Atomarer Increment: Firestore serialisiert Transactions —
+            // jeder Aufrufer erhält garantiert genau eine eigene Nummer.
+            nextSerial = await runTransaction(db, async (tx) => {
+                const snap = await tx.get(counterRef);
+                if (!snap.exists()) {
+                    throw new Error("SPFH case counter is not initialized");
+                }
+                const next = counterValueFromSnapshot(snap.data()) + 1;
+                tx.set(counterRef, { value: next, updatedAt: new Date() }, { merge: true });
+                return next;
+            });
+        }
+
+        return formatSpfhCaseNumber(year, nextSerial);
+    },
+
     async createCase(caseData: Omit<FamilyCase, 'id'>): Promise<string> {
         const id = `case_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
         const now = new Date();

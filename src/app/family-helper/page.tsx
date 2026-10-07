@@ -50,7 +50,6 @@ export default function FamilyHelperDashboard() {
 
     // Modal Form Fields
     const [familyName, setFamilyName] = useState("");
-    const [caseNumber, setCaseNumber] = useState("");
     const [status, setStatus] = useState<'aktiv' | 'inaktiv' | 'beendet'>('aktiv');
     const [assignedWorkerId, setAssignedWorkerId] = useState("");
     const [mandate, setMandate] = useState("");
@@ -119,12 +118,10 @@ export default function FamilyHelperDashboard() {
 
     const handleOpenNewModal = () => {
         setFamilyName("");
-        
-        // Automated case number generation (e.g., SPFH-2026-004)
-        const currentYear = new Date().getFullYear();
-        const nextNumber = String(cases.length + 1).padStart(3, "0");
-        setCaseNumber(`SPFH-${currentYear}-${nextNumber}`);
-        
+
+        // Die Fallnummer wird beim Speichern atomar aus dem Firestore-Counter
+        // vergeben (fortlaufend, kein Recycling, keine Race Conditions).
+
         setStatus("aktiv");
         setAssignedWorkerId(user?.uid || "");
         setMandate("");
@@ -155,7 +152,7 @@ export default function FamilyHelperDashboard() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!familyName.trim() || !caseNumber.trim()) {
+        if (!familyName.trim()) {
             return;
         }
 
@@ -167,9 +164,20 @@ export default function FamilyHelperDashboard() {
 
         setIsSaving(true);
         try {
+            // Atomare Vergabe der fortlaufenden Fallnummer: Der Firestore-Counter
+            // garantiert, dass keine Nummer doppelt oder recycelt vergeben wird.
+            let assignedCaseNumber: string;
+            try {
+                assignedCaseNumber = await familyHelperService.getNextCaseNumber();
+            } catch (numberError) {
+                console.error("Error assigning SPFH case number:", numberError);
+                alert("Die Fallnummer konnte nicht vergeben werden. Bitte versuchen Sie es erneut.");
+                return;
+            }
+
             const payload = {
                 familyName: familyName.trim(),
-                caseNumber: caseNumber.trim(),
+                caseNumber: assignedCaseNumber,
                 assignedWorkerId: workerId,
                 status,
                 mandate: mandate.trim() || undefined,
@@ -514,18 +522,18 @@ export default function FamilyHelperDashboard() {
                                 />
                             </div>
 
-                            {/* Fallnummer */}
+                            {/* Fallnummer — wird automatisch atomar vergeben (read-only) */}
                             <div>
                                 <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-slate-300">
-                                    Fallnummer <span className="text-red-500">*</span>
+                                    Fallnummer
                                 </label>
                                 <input
                                     type="text"
-                                    required
-                                    value={caseNumber}
-                                    onChange={(e) => setCaseNumber(e.target.value)}
-                                    placeholder="z.B. SPFH-2026-004"
-                                    className="w-full px-4 py-2 bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-gray-900 dark:text-white"
+                                    value="Wird automatisch vergeben"
+                                    disabled
+                                    readOnly
+                                    title="Die fortlaufende Fallnummer wird beim Speichern automatisch vergeben"
+                                    className="w-full px-4 py-2 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl font-medium text-gray-500 dark:text-slate-400 cursor-not-allowed"
                                 />
                             </div>
                         </div>
