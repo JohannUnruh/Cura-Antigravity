@@ -11,6 +11,7 @@ import { TimeEntry, TimeEntryType, OvertimeTransfer } from "@/types";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
+import { FormLabel } from "@/components/ui/FormLabel";
 import { Clock, Plus, Calendar, FileText, Briefcase, Car, Tent, Presentation, MessagesSquare, Pencil, Trash2, Download, Sun, AlertCircle, CheckCircle2, ArrowRight, Timer, XCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import jsPDF from "jspdf";
@@ -1082,13 +1083,13 @@ export default function TimeTrackingPage() {
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                             <div>
-                                                                <label htmlFor="timeEntryDate" className="block text-sm font-medium text-gray-700 mb-1">Datum{form.type === "Urlaub" ? " (von)" : ""}</label>
+                                                                <FormLabel htmlFor="timeEntryDate" required>Datum{form.type === "Urlaub" ? " (von)" : ""}</FormLabel>
                                                                 <input id="timeEntryDate" type="date" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
                                                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20" />
                                                             </div>
                                                             {form.type === "Urlaub" ? (
                                                             <div>
-                                                                <label htmlFor="timeEntryEndDate" className="block text-sm font-medium text-gray-700 mb-1">bis Datum <span className="text-gray-400 font-normal">(optional)</span></label>
+                                                                <FormLabel htmlFor="timeEntryEndDate">bis Datum <span className="text-gray-400 font-normal">(optional)</span></FormLabel>
                                                                 <input id="timeEntryEndDate" type="date" value={form.endDate} min={form.date}
                                                                     onChange={e => setForm({ ...form, endDate: e.target.value })}
                                                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20" />
@@ -1098,7 +1099,7 @@ export default function TimeTrackingPage() {
                                                             </div>
                                                             ) : (
                                                             <div>
-                                                                <label htmlFor="timeEntryTimeOfDay" className="block text-sm font-medium text-gray-700 mb-1">Tageszeit</label>
+                                                                <FormLabel htmlFor="timeEntryTimeOfDay" required>Tageszeit</FormLabel>
                                                                 <select id="timeEntryTimeOfDay" required title="Tageszeit auswählen" value={form.timeOfDay} onChange={e => setForm({ ...form, timeOfDay: e.target.value as "Vormittags" | "Nachmittags" | "Abends" | "Ganztägig" })}
                                                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20">
                                                                     <option value="Ganztägig">Ganztägig</option>
@@ -1109,14 +1110,14 @@ export default function TimeTrackingPage() {
                                                             </div>
                                                             )}
                                                             <div>
-                                                                <label htmlFor="timeEntryDuration" className="block text-sm font-medium text-gray-700 mb-1">Dauer (Std.)</label>
+                                                                <FormLabel htmlFor="timeEntryDuration" required>Dauer (Std.)</FormLabel>
                                                                 <input id="timeEntryDuration" type="number" step="0.25" min="0" required value={form.durationInHours}
                                                                     onChange={e => setForm({ ...form, durationInHours: parseFloat(e.target.value) })}
                                                                     disabled={form.type === "Urlaub"}
                                                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 disabled:opacity-60 disabled:cursor-not-allowed" />
                                                             </div>
                                                             <div>
-                                                                <label htmlFor="timeEntryType" className="block text-sm font-medium text-gray-700 mb-1">Kategorie</label>
+                                                                <FormLabel htmlFor="timeEntryType" required>Kategorie</FormLabel>
                                                                 <select id="timeEntryType" required value={form.type} onChange={e => {
                                                                     const val = e.target.value as TimeEntryType;
                                                                     setForm(prev => {
@@ -1138,8 +1139,8 @@ export default function TimeTrackingPage() {
                                                             </div>
                                                         </div>
                                                         <div>
-                                                            <label htmlFor="timeEntryDescription" className="block text-sm font-medium text-gray-700 mb-1">Beschreibung / Notiz</label>
-                                                            <textarea id="timeEntryDescription" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
+                                                            <FormLabel htmlFor="timeEntryDescription" required>Beschreibung / Notiz</FormLabel>
+                                                            <textarea id="timeEntryDescription" required value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
                                                                 className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 min-h-[100px]"
                                                                 placeholder="Details zur erbrachten Leistung..." />
                                                         </div>

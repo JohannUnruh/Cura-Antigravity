@@ -12,6 +12,7 @@ import { ShortConsultation, ShortConsultationType, Consultation, Client, PersonG
 import { Card, CardContent } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
+import { FormLabel } from "@/components/ui/FormLabel";
 import { Coffee, Plus, Calendar, Clock, Trash2, Pencil, UserPlus, CheckCircle2 } from "lucide-react";
 
 const consultationTypes: ShortConsultationType[] = [
@@ -346,12 +347,12 @@ export default function ShortConsultationsPage() {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+                                <FormLabel htmlFor="date" required>Datum</FormLabel>
                                 <input id="date" type="date" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20" />
                             </div>
                             <div>
-                                <label htmlFor="timeOfDay" className="block text-sm font-medium text-gray-700 mb-1">Tageszeit (in Zeiterfassung)</label>
+                                <FormLabel htmlFor="timeOfDay">Tageszeit (in Zeiterfassung)</FormLabel>
                                 <select
                                     id="timeOfDay"
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20"
@@ -368,7 +369,7 @@ export default function ShortConsultationsPage() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">Gesprächsart</label>
+                                <FormLabel htmlFor="type" required>Gesprächsart</FormLabel>
                                 <select
                                     id="type"
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20"
@@ -381,7 +382,7 @@ export default function ShortConsultationsPage() {
                                 </select>
                             </div>
                             <div>
-                                <label htmlFor="durationInHours" className="block text-sm font-medium text-gray-700 mb-1">Dauer (in Stunden)</label>
+                                <FormLabel htmlFor="durationInHours" required>Dauer (in Stunden)</FormLabel>
                                 <input id="durationInHours" type="number" step="0.25" min="0" required value={form.durationInHours}
                                     onChange={e => setForm({ ...form, durationInHours: parseFloat(e.target.value) || 0 })}
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20" />
@@ -389,9 +390,10 @@ export default function ShortConsultationsPage() {
                         </div>
 
                         <div>
-                            <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">Kurze Notiz</label>
+                            <FormLabel htmlFor="notes" required>Kurze Notiz</FormLabel>
                             <textarea
                                 id="notes"
+                                required
                                 value={form.notes}
                                 onChange={e => setForm({ ...form, notes: e.target.value })}
                                 className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20"
@@ -477,7 +479,7 @@ export default function ShortConsultationsPage() {
                             {transferMode === 'new' ? (
                                 <div className="space-y-4">
                                     <div>
-                                        <label htmlFor="transfer-client-name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                                        <FormLabel htmlFor="transfer-client-name" required>Name</FormLabel>
                                         <input
                                             id="transfer-client-name"
                                             type="text"
@@ -490,7 +492,7 @@ export default function ShortConsultationsPage() {
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
-                                            <label htmlFor="transfer-person-group" className="block text-sm font-medium text-gray-700 mb-1">Personengruppe</label>
+                                            <FormLabel htmlFor="transfer-person-group" required>Personengruppe</FormLabel>
                                             <select
                                                 id="transfer-person-group"
                                                 value={newClient.personGroup}
@@ -503,7 +505,7 @@ export default function ShortConsultationsPage() {
                                             </select>
                                         </div>
                                         <div>
-                                            <label htmlFor="transfer-gender" className="block text-sm font-medium text-gray-700 mb-1">Geschlecht</label>
+                                            <FormLabel htmlFor="transfer-gender" required>Geschlecht</FormLabel>
                                             <select
                                                 id="transfer-gender"
                                                 value={newClient.gender}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Client, PersonGroup } from "@/types";
 import { Button } from "../ui/Button";
+import { FormLabel } from "../ui/FormLabel";
 import { useSettings } from "@/contexts/SettingsContext";
 import { Calendar, Clock, Download } from "lucide-react";
 import { downloadICS } from "@/lib/utils/icsExport";
@@ -92,7 +93,7 @@ export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientF
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-                <label htmlFor="clientName" className="text-sm font-medium text-gray-700 dark:text-slate-300">Name / Haushaltsname</label>
+                <FormLabel htmlFor="clientName" required>Name / Haushaltsname</FormLabel>
                 <input
                     type="text"
                     id="clientName"
@@ -106,7 +107,7 @@ export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientF
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <label htmlFor="personGroup" className="text-sm font-medium text-gray-700 dark:text-slate-300">Personengruppe</label>
+                    <FormLabel htmlFor="personGroup" required>Personengruppe</FormLabel>
                     <select
                         id="personGroup"
                         value={formData.personGroup}
@@ -129,7 +130,7 @@ export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientF
 
                 {!['Ehepaar', 'Familie', 'Paar'].includes(formData.personGroup) && (
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Geschlecht (Hauptperson)</label>
+                        <FormLabel required>Geschlecht (Hauptperson)</FormLabel>
                         <div className="flex gap-4 p-1 bg-gray-100 rounded-xl">
                             {(['Männlich', 'Weiblich'] as const).map((g) => (
                                 <button

@@ -11,6 +11,7 @@ import { FamilyCase, FamilyMember, AsdContact, FundingCommitment, FamilyGoal, Fa
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { FormLabel } from "@/components/ui/FormLabel";
 import { exportDevelopmentReport, exportPerformanceRecord } from "@/lib/pdf/familyHelperPdfExport";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
@@ -510,7 +511,7 @@ export default function CaseDetailPage() {
                                 </h2>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
-                                        <label className={labelCls}>Familienname</label>
+                                        <FormLabel required className={labelCls}>Familienname</FormLabel>
                                         <input className={inputCls} value={editFamilyName} onChange={e => setEditFamilyName(e.target.value)} />
                                     </div>
                                     <div>
