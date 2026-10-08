@@ -3,25 +3,49 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Presentation, Tent, Car, Settings, MessagesSquare, Clock, LogOut, Coffee, X, Star, HeartHandshake, Baby } from "lucide-react";
+import { LayoutDashboard, Users, Presentation, Tent, Car, Settings, MessagesSquare, Clock, LogOut, Coffee, X, Star, HeartHandshake, Baby, HelpCircle } from "lucide-react";
 import { cn } from "../ui/Card";
 import { auth } from "@/lib/firebase/config";
 import { signOut } from "firebase/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { clientService } from "@/lib/firebase/services/clientService";
 
-const navItems = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard },
-    { name: "Klienten", href: "/clients", icon: Users },
-    { name: "Familienhilfe", href: "/family-helper", icon: HeartHandshake },
-    { name: "Pflegefamilien", href: "/foster-care", icon: Baby },
-    { name: "Beratungen", href: "/consultations", icon: MessagesSquare },
-    { name: "Kurzgespräche", href: "/short-consultations", icon: Coffee },
-    { name: "Vorträge", href: "/lectures", icon: Presentation },
-    { name: "Freizeiten", href: "/retreats", icon: Tent },
-    { name: "Zeiterfassung", href: "/time-tracking", icon: Clock },
-    { name: "Fahrtkosten", href: "/travel", icon: Car },
-    { name: "Einstellungen", href: "/settings", icon: Settings },
+type NavItem = { name: string; href: string; icon: React.ComponentType<{ className?: string }> };
+type NavGroup = { title?: string; items: NavItem[] };
+
+// U-018 (Usability-Bericht 08.10.2026): Navigation in drei sinnvolle Gruppen
+// gliedern statt elf gleichrangiger Punkte. Dashboard bleibt allein oben.
+const navGroups: NavGroup[] = [
+    {
+        items: [
+            { name: "Dashboard", href: "/", icon: LayoutDashboard },
+        ],
+    },
+    {
+        title: "Menschen",
+        items: [
+            { name: "Klienten", href: "/clients", icon: Users },
+            { name: "Familienhilfe", href: "/family-helper", icon: HeartHandshake },
+            { name: "Pflegefamilien", href: "/foster-care", icon: Baby },
+        ],
+    },
+    {
+        title: "Gespräche & Dienste",
+        items: [
+            { name: "Beratungen", href: "/consultations", icon: MessagesSquare },
+            { name: "Kurzgespräche", href: "/short-consultations", icon: Coffee },
+            { name: "Vorträge", href: "/lectures", icon: Presentation },
+            { name: "Freizeiten", href: "/retreats", icon: Tent },
+        ],
+    },
+    {
+        title: "Verwaltung",
+        items: [
+            { name: "Zeiterfassung", href: "/time-tracking", icon: Clock },
+            { name: "Fahrtkosten", href: "/travel", icon: Car },
+            { name: "Einstellungen", href: "/settings", icon: Settings },
+        ],
+    },
 ];
 
 
@@ -141,8 +165,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </div>
 
             <nav className="flex-1 space-y-1.5 overflow-y-auto px-2 py-1 custom-scrollbar">
-                 {navItems
-                    .filter((item) => {
+                {navGroups.map((group, groupIndex) => {
+                    const visibleItems = group.items.filter((item) => {
                         const role = userProfile?.role;
                         const isAdmin = role === 'Admin';
                         if (item.href === "/family-helper") {
@@ -173,27 +197,59 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                             return userProfile?.hasTimeTrackingAccess !== false || isAdmin;
                         }
                         return true;
-                    })
-                    .map((item) => {
-                    const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href + "/"));
-                    const iconActiveColor = "text-white";
+                    });
+
+                    if (visibleItems.length === 0) return null;
+
                     return (
-                        <Link
-                            key={item.href}
-                            href={item.href}
-                            onClick={onClose}
-                            className={cn(
-                                "flex items-center gap-3.5 px-4 py-3 text-sm transition-all duration-200",
-                                isActive ? "nav-pill-active" : "nav-pill-inactive"
+                        <div key={group.title ?? `group-${groupIndex}`} className={group.title ? "pt-3 first:pt-0" : undefined}>
+                            {group.title && (
+                                <span className="px-4 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500 block">
+                                    {group.title}
+                                </span>
                             )}
-                        >
-                            <item.icon className={cn("w-5 h-5 shrink-0", isActive ? iconActiveColor : "text-gray-500 dark:text-slate-400")} />
-                            <span className={cn(isActive ? "font-bold text-white" : "font-medium text-gray-700 dark:text-slate-300")}>
-                                {item.name}
-                            </span>
-                        </Link>
+                            <div className="space-y-1.5">
+                                {visibleItems.map((item) => {
+                                    const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href + "/"));
+                                    const iconActiveColor = "text-white";
+                                    return (
+                                        <Link
+                                            key={item.href}
+                                            href={item.href}
+                                            onClick={onClose}
+                                            className={cn(
+                                                "flex items-center gap-3.5 px-4 py-3 text-sm transition-all duration-200",
+                                                isActive ? "nav-pill-active" : "nav-pill-inactive"
+                                            )}
+                                        >
+                                            <item.icon className={cn("w-5 h-5 shrink-0", isActive ? iconActiveColor : "text-gray-500 dark:text-slate-400")} />
+                                            <span className={cn(isActive ? "font-bold text-white" : "font-medium text-gray-700 dark:text-slate-300")}>
+                                                {item.name}
+                                            </span>
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     );
                 })}
+
+                {/* Hilfe & FAQ (Usability-Bericht 08.10.2026) */}
+                <div className="pt-3 mt-2 border-t border-gray-100 dark:border-white/5">
+                    <Link
+                        href="/faq"
+                        onClick={onClose}
+                        className={cn(
+                            "flex items-center gap-3.5 px-4 py-3 text-sm transition-all duration-200",
+                            pathname === "/faq" ? "nav-pill-active" : "nav-pill-inactive"
+                        )}
+                    >
+                        <HelpCircle className={cn("w-5 h-5 shrink-0", pathname === "/faq" ? "text-white" : "text-gray-500 dark:text-slate-400")} />
+                        <span className={cn(pathname === "/faq" ? "font-bold text-white" : "font-medium text-gray-700 dark:text-slate-300")}>
+                            Hilfe &amp; FAQ
+                        </span>
+                    </Link>
+                </div>
             </nav>
 
             {favorites.length > 0 && (
@@ -226,6 +282,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             )}
 
             <div className="mt-auto px-5 pt-4 border-t border-gray-100 dark:border-white/5">
+                {/* Profilanker (U-018): „Wer bin ich hier / welche Rolle habe ich?" */}
+                {userProfile && (
+                    <div className="px-3 pb-2" aria-label="Angemeldetes Konto">
+                        <p className="text-sm font-semibold text-gray-800 dark:text-slate-200 truncate">
+                            {userProfile.firstName} {userProfile.lastName}
+                        </p>
+                        <p className="text-xs text-gray-400 dark:text-slate-500 truncate">
+                            Angemeldet als · {userProfile.role}
+                        </p>
+                    </div>
+                )}
                 <button
                     onClick={handleLogout}
                     className="flex w-full items-center gap-4 px-3 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300 rounded-xl transition-all duration-200"
