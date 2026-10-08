@@ -1,9 +1,16 @@
 import React, { useState } from "react";
 import { SkbConsultation } from "@/types";
 import { Button } from "../ui/Button";
+import { FormLabel } from "../ui/FormLabel";
+import { InfoTooltip } from "../ui/InfoTooltip";
 import { VoiceInput } from "../ui/VoiceInput";
 import { PhotoUpload } from "../ui/PhotoUpload";
+import { cn } from "../ui/Card";
 import { useSettings } from "@/contexts/SettingsContext";
+
+// U-014 (Usability-Bericht 08.10.2026): FormLabel-Migration — Pflichtfelder
+// bekommen das einheitliche rote Sternchen, Optik bleibt wie zuvor.
+const skbLabelCls = "text-base font-semibold text-gray-900 dark:text-white";
 
 interface SkbFormProps {
     clientId: string;
@@ -201,7 +208,7 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
             {/* Row 1: Dates + Duration */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                    <label htmlFor="dateFrom" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Datum Von</label>
+                    <FormLabel htmlFor="dateFrom" required className={skbLabelCls}>Datum Von</FormLabel>
                     <input
                         type="date"
                         id="dateFrom"
@@ -221,7 +228,7 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                     />
                 </div>
                 <div>
-                    <label htmlFor="dateTo" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Datum Bis</label>
+                    <FormLabel htmlFor="dateTo" required className={skbLabelCls}>Datum Bis</FormLabel>
                     <input
                         type="date"
                         id="dateTo"
@@ -241,7 +248,11 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                     />
                 </div>
                 <div>
-                    <label htmlFor="timeOfDay" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Tagesabschnitt</label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                        <FormLabel htmlFor="timeOfDay" className={cn(skbLabelCls, "mb-0")}>Tagesabschnitt</FormLabel>
+                        {/* T-2 (Usability-Bericht 08.10.2026) */}
+                        <InfoTooltip text="Gibt an, wann das Gespräch stattfand. Vormittags = ab 8 Uhr, Nachmittags = ab 15 Uhr, Abends = ab 18 Uhr. Wird für die Stundenauswertung und den Belegungsplan genutzt." />
+                    </div>
                     <select
                         id="timeOfDay"
                         title="Tagesabschnitt"
@@ -256,7 +267,7 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                     </select>
                 </div>
                 <div>
-                    <label htmlFor="durationInHours" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Dauer (Std.)</label>
+                    <FormLabel htmlFor="durationInHours" required className={skbLabelCls}>Dauer (Std.)</FormLabel>
                     <input
                         type="text"
                         id="durationInHours"
@@ -281,6 +292,12 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                                 : 'bg-gray-50 dark:bg-slate-800'
                         }`}
                     />
+                    {/* U-013: Erklärung für das gesperrte Feld */}
+                    {distributionType === 'custom' && trackHours && isMultiDay && !isEdit && (
+                        <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                            Wird aus der Tagesverteilung unten berechnet.
+                        </p>
+                    )}
                 </div>
             </div>
 
@@ -376,7 +393,7 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
             {/* Companion */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100 dark:border-white/10">
                 <div>
-                    <label htmlFor="companion" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Begleitperson</label>
+                    <FormLabel htmlFor="companion" className={skbLabelCls}>Begleitperson</FormLabel>
                     <select
                         id="companion"
                         value={formData.companion}
@@ -386,17 +403,45 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                         {companions.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                 </div>
+                {/* U-014: isAnonymous war als Feld tot — jetzt erfassbar.
+                    Kalender-Feed (api/calendar/feed) unterstützt es bereits. */}
+                <div className="flex items-end pb-1">
+                    <label
+                        htmlFor="isAnonymous"
+                        className="flex items-start gap-2.5 p-3 w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg cursor-pointer select-none"
+                    >
+                        <input
+                            type="checkbox"
+                            id="isAnonymous"
+                            checked={formData.isAnonymous ?? false}
+                            onChange={(e) => handleChange('isAnonymous', e.target.checked)}
+                            className="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-white/20 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                            Anonym erfasst
+                            <span className="block text-xs font-normal text-gray-500 dark:text-slate-400 mt-0.5">
+                                Name wird in Kalendern/Kennzahlen durch ID ersetzt
+                            </span>
+                        </span>
+                    </label>
+                </div>
             </div>
 
             {/* Row 3: Pregnancy Data */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-gray-100 dark:border-white/10 pt-4">
                 <div>
-                    <label htmlFor="pregnancyWeek" className="block text-base font-semibold text-gray-900 dark:text-white mb-1 min-h-[3rem] flex items-end pb-1">Schwangerschaftswoche (SSW)</label>
+                    <div className="flex items-end gap-1.5 mb-1 min-h-[3rem] pb-1">
+                        <FormLabel htmlFor="pregnancyWeek" className={cn(skbLabelCls, "mb-0")}>Schwangerschaftswoche (SSW)</FormLabel>
+                        {/* T-11 (Usability-Bericht 08.10.2026) */}
+                        <InfoTooltip text="Ab Woche 0 zählen; bei Unsicherheit ‚Unbekannt' lassen und im Textfeld notieren. Maximalwert 42." />
+                    </div>
                     <input
                         type="number"
                         id="pregnancyWeek"
                         min="0"
                         max="42"
+                        // U-001: Scrollrad darf den Wert nicht unbemerkt verstellen
+                        onWheel={(e) => e.currentTarget.blur()}
                         value={formData.pregnancyWeek !== undefined && formData.pregnancyWeek !== null ? formData.pregnancyWeek : ''}
                         onChange={(e) => {
                             const val = e.target.value;
@@ -411,7 +456,9 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                     />
                 </div>
                 <div>
-                    <label htmlFor="expectedDeliveryDate" className="block text-base font-semibold text-gray-900 dark:text-white mb-1 min-h-[3rem] flex items-end pb-1">Voraussichtl. Entbindungstermin</label>
+                    <div className="flex items-end mb-1 min-h-[3rem] pb-1">
+                        <FormLabel htmlFor="expectedDeliveryDate" className={cn(skbLabelCls, "mb-0")}>Voraussichtl. Entbindungstermin</FormLabel>
+                    </div>
                     <input
                         type="date"
                         id="expectedDeliveryDate"
@@ -430,7 +477,9 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
                     />
                 </div>
                 <div>
-                    <label htmlFor="certificateStatus" className="block text-base font-semibold text-gray-900 dark:text-white mb-1 min-h-[3rem] flex items-end pb-1">Externer Beratungsschein</label>
+                    <div className="flex items-end mb-1 min-h-[3rem] pb-1">
+                        <FormLabel htmlFor="certificateStatus" className={cn(skbLabelCls, "mb-0")}>Externer Beratungsschein</FormLabel>
+                    </div>
                     <select
                         id="certificateStatus"
                         value={formData.certificateStatus}
@@ -444,7 +493,7 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
 
             {/* Conflict Points */}
             <div className="border-t border-gray-100 dark:border-white/10 pt-4">
-                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-2">Haupt-Konfliktpunkte</label>
+                <FormLabel className={cn(skbLabelCls, "mb-2")}>Haupt-Konfliktpunkte</FormLabel>
                 <div className="flex flex-wrap gap-2">
                     {conflictPoints.map(point => {
                         const isSelected = formData.conflictPointsIds?.includes(point);
@@ -467,7 +516,7 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
 
             {/* Interventions */}
             <div className="border-t border-gray-100 dark:border-white/10 pt-4">
-                <label className="block text-base font-semibold text-gray-900 dark:text-white mb-2">Intervention & Hilfsangebote</label>
+                <FormLabel className={cn(skbLabelCls, "mb-2")}>Intervention &amp; Hilfsangebote</FormLabel>
                 <div className="flex flex-wrap gap-2">
                     {interventions.map(item => {
                         const isSelected = formData.interventionsIds?.includes(item);
@@ -492,7 +541,7 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
             <div className="space-y-4 border-t border-gray-100 dark:border-white/10 pt-4">
                 <div>
                     <div className="flex justify-between mb-1">
-                        <label htmlFor="goalAgreement" className="block text-base font-semibold text-gray-900 dark:text-white">Zielvereinbarung / Nächste Schritte</label>
+                        <FormLabel htmlFor="goalAgreement" className={cn(skbLabelCls, "mb-0")}>Zielvereinbarung / Nächste Schritte</FormLabel>
                         <VoiceInput value={formData.goalAgreement} onResult={(text) => handleVoiceInput('goalAgreement', text)} />
                     </div>
                     <textarea
@@ -507,7 +556,7 @@ export function SkbConsultationForm({ clientId, initialData, onSubmit, onCancel,
 
                 <div>
                     <div className="flex justify-between mb-1">
-                        <label htmlFor="notes" className="block text-base font-semibold text-gray-900 dark:text-white">Notizen / Fazit</label>
+                        <FormLabel htmlFor="notes" className={cn(skbLabelCls, "mb-0")}>Notizen / Fazit</FormLabel>
                         <VoiceInput value={formData.notes} onResult={(text) => handleVoiceInput('notes', text)} />
                     </div>
                     <textarea

@@ -12,14 +12,16 @@ import { FamilyCase, UserProfile } from "@/types";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { 
-    Plus, 
-    Search, 
-    Clock, 
-    Users, 
-    User, 
-    FolderOpen, 
-    Trash2, 
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
+import { useToast, ToastContainer } from "@/hooks/useToast";
+import {
+    Plus,
+    Search,
+    Clock,
+    Users,
+    User,
+    FolderOpen,
+    Trash2,
     Calendar,
     SearchX
 } from "lucide-react";
@@ -47,6 +49,9 @@ export default function FamilyHelperDashboard() {
     // Modal creation states
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+
+    // U-002/U-019: Sichtbares Feedback für alle Schreibvorgänge
+    const { toast, showToast, dismissToast } = useToast();
 
     // Modal Form Fields
     const [familyName, setFamilyName] = useState("");
@@ -158,7 +163,8 @@ export default function FamilyHelperDashboard() {
 
         const workerId = userProfile?.role === 'Admin' ? assignedWorkerId : user?.uid;
         if (!workerId) {
-            alert("Bitte wählen Sie einen zugewiesenen Mitarbeiter aus.");
+            // U-007/U-008: du-Form + Toast statt alert()
+            showToast('warning', "Bitte wähle einen zugewiesenen Mitarbeiter aus.");
             return;
         }
 
@@ -171,7 +177,7 @@ export default function FamilyHelperDashboard() {
                 assignedCaseNumber = await familyHelperService.getNextCaseNumber();
             } catch (numberError) {
                 console.error("Error assigning SPFH case number:", numberError);
-                alert("Die Fallnummer konnte nicht vergeben werden. Bitte versuchen Sie es erneut.");
+                showToast('error', "Die Fallnummer konnte nicht vergeben werden. Bitte versuche es erneut.");
                 return;
             }
 
@@ -202,9 +208,12 @@ export default function FamilyHelperDashboard() {
             await familyHelperService.createCase(payload);
             setIsModalOpen(false);
             await loadData();
+            // U-019: Erfolgsfeedback mit vergebener Fallnummer
+            showToast('success', `Fall angelegt — Fallnummer ${assignedCaseNumber}.`);
         } catch (error) {
             console.error("Error creating new SPFH case:", error);
-            alert("Fehler beim Erstellen des Falls.");
+            // U-008: alert() ersetzt durch Toast mit Handlungsweg
+            showToast('error', "Speichern fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.");
         } finally {
             setIsSaving(false);
         }
@@ -424,7 +433,7 @@ export default function FamilyHelperDashboard() {
                         <SearchX className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                         <h3 className="text-lg font-semibold text-gray-950 dark:text-white mb-1">Keine Fälle gefunden</h3>
                         <p className="text-sm text-gray-500 dark:text-slate-400">
-                            Es gibt keine Fälle, die Ihren Filtern entsprechen.
+                            Es gibt keine Fälle, die deinen Filtern entsprechen.
                         </p>
                     </Card>
                 ) : (
@@ -686,15 +695,21 @@ export default function FamilyHelperDashboard() {
                             {hasFunding && (
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-gray-50/30 dark:bg-slate-900/30 rounded-2xl border border-gray-200/50 dark:border-white/5">
                                     <div>
-                                        <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-slate-300">
-                                            Bewilligte Stunden
-                                        </label>
+                                        {/* T-9 (Usability-Bericht 08.10.2026) */}
+                                        <div className="flex items-center gap-1.5 mb-1.5">
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">
+                                                Bewilligte Stunden
+                                            </label>
+                                            <InfoTooltip text="Stundenbudget aus der Bewilligung des Jugendamts. Ist-Stunden aus den Journalen laufen dagegen; der Balken zeigt den Verbrauch." />
+                                        </div>
                                         <input
                                             type="number"
                                             value={hoursGranted}
                                             onChange={(e) => setHoursGranted(e.target.value)}
                                             min="0"
                                             required={hasFunding}
+                                            // U-001: Scrollrad darf die Stunden nicht unbemerkt verstellen
+                                            onWheel={(e) => e.currentTarget.blur()}
                                             className="w-full px-4 py-2 bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-gray-900 dark:text-white"
                                         />
                                     </div>
@@ -748,6 +763,8 @@ export default function FamilyHelperDashboard() {
                     </form>
                 </Modal>
 
+                {/* U-002/U-019: Toast-Feedback für alle Schreibvorgänge */}
+                <ToastContainer toast={toast} onDismiss={dismissToast} />
             </div>
         </ProtectedRoute>
     );

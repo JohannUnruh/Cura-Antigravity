@@ -404,6 +404,36 @@ export const timeTrackingService = {
         await deleteDoc(docRef);
     },
 
+    /**
+     * Aktualisiert alle Zeiteinträge mit einer Referenz-ID.
+     * U-004a (Usability-Bericht 08.10.2026): Beim Bearbeiten eines
+     * Kurzgesprächs bleibt der verknüpfte TimeEntry nicht mehr auf dem
+     * alten Stand, sondern wird synchron aktualisiert.
+     * Gibt die Anzahl der aktualisierten Einträge zurück.
+     */
+    async updateTimeEntriesByReferenceId(referenceId: string, authorId: string, updates: Partial<TimeEntry>): Promise<number> {
+        const cleanData = Object.entries(updates).reduce((acc, [key, value]) => {
+            if (value !== undefined) acc[key] = value;
+            return acc;
+        }, {} as Record<string, unknown>);
+
+        if (isMockMode) {
+            let count = 0;
+            mockTimeEntries.forEach((entry, key) => {
+                if (entry.referenceId === referenceId && entry.authorId === authorId) {
+                    mockTimeEntries.set(key, { ...entry, ...cleanData } as TimeEntry);
+                    count++;
+                }
+            });
+            return count;
+        }
+
+        const q = query(collection(db, COLLECTION_NAME), where("referenceId", "==", referenceId), where("authorId", "==", authorId));
+        const snapshots = await getDocs(q);
+        await Promise.all(snapshots.docs.map(d => updateDoc(d.ref, cleanData)));
+        return snapshots.docs.length;
+    },
+
     async deleteTimeEntriesByReferenceId(referenceId: string, authorId: string): Promise<void> {
         if (isMockMode) {
             mockTimeEntries.forEach((entry, key) => {

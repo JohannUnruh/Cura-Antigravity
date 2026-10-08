@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Client, PersonGroup } from "@/types";
 import { Button } from "../ui/Button";
 import { FormLabel } from "../ui/FormLabel";
+import { InfoTooltip } from "../ui/InfoTooltip";
 import { useSettings } from "@/contexts/SettingsContext";
 import { Calendar, Clock, Download } from "lucide-react";
 import { downloadICS } from "@/lib/utils/icsExport";
@@ -33,19 +34,34 @@ interface ClientFormProps {
     loading: boolean;
 }
 
+const MULTI_PERSON_GROUPS: PersonGroup[] = ['Ehepaar', 'Familie', 'Paar'];
+
 export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientFormProps) {
     const { settings } = useSettings();
-    const [formData, setFormData] = useState({
-        name: initialData?.name || "",
-        personGroup: initialData?.personGroup || "Erwachsene" as PersonGroup,
-        gender: initialData?.gender || "Männlich" as const,
-        isChurchMember: initialData?.isChurchMember ?? false,
-        authorId: initialData?.authorId || "",
+    const [formData, setFormData] = useState<{
+        name: string;
+        personGroup: PersonGroup;
+        // U-017: Bei Mehrpersonen-Akten bleibt das Geschlecht ungesetzt statt
+        // still auf „Männlich" zu fallen.
+        gender: 'Männlich' | 'Weiblich' | undefined;
+        isChurchMember: boolean;
+        authorId: string;
+    }>(() => {
+        const initialGroup = initialData?.personGroup || ("Erwachsene" as PersonGroup);
+        const isMultiPerson = MULTI_PERSON_GROUPS.includes(initialGroup);
+        return {
+            name: initialData?.name || "",
+            personGroup: initialGroup,
+            gender: isMultiPerson ? undefined : (initialData?.gender ?? "Männlich"),
+            isChurchMember: initialData?.isChurchMember ?? false,
+            authorId: initialData?.authorId || "",
+        };
     });
 
     // Calendar-Option State
     const [createCalendarEvent, setCreateCalendarEvent] = useState(false);
     const [saveToGoogleCalendar, setSaveToGoogleCalendar] = useState(true);
+    const [icsError, setIcsError] = useState<string | null>(null);
     const [calendarData, setCalendarData] = useState({
         date: new Date().toISOString().split('T')[0],
         endDate: "",
@@ -57,19 +73,21 @@ export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientF
     const handleIcsExport = () => {
         const [startHours, startMinutes] = calendarData.startTime.split(':').map(Number);
         const [endHours, endMinutes] = calendarData.endTime.split(':').map(Number);
-        
+
         const startDate = new Date(calendarData.date);
         startDate.setHours(startHours, startMinutes, 0, 0);
-        
-        const endDate = calendarData.endDate 
+
+        const endDate = calendarData.endDate
             ? new Date(calendarData.endDate)
             : new Date(calendarData.date);
         endDate.setHours(endHours, endMinutes, 0, 0);
-        
+
         if (endDate < startDate) {
-            alert("Enddatum/-zeit muss nach Startdatum/-zeit liegen!");
+            // U-008: Kein natives alert() — Inline-Fehler unter dem Enddatum-Feld
+            setIcsError("Enddatum/-zeit muss nach Startdatum/-zeit liegen!");
             return;
         }
+        setIcsError(null);
 
         downloadICS({
             title: `Erstgespräch: ${formData.name || 'Klient'}`,
@@ -93,34 +111,39 @@ export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientF
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-                <FormLabel htmlFor="clientName" required>Name / Haushaltsname</FormLabel>
+                <FormLabel htmlFor="clientName" required className="dark:text-slate-300">Name / Haushaltsname</FormLabel>
                 <input
                     type="text"
                     id="clientName"
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                    className="w-full px-4 py-2 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white"
                     placeholder="z.B. Familie Müller oder Max Mustermann"
                 />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <FormLabel htmlFor="personGroup" required>Personengruppe</FormLabel>
+                    <div className="flex items-center gap-1.5">
+                        <FormLabel htmlFor="personGroup" required className="dark:text-slate-300">Personengruppe</FormLabel>
+                        {/* T-7 (Usability-Bericht 08.10.2026) */}
+                        <InfoTooltip text="Beschreibt die Akte als Ganzes: ‚Ehepaar'/'Paar'/'Familie' = mehrere Personen in einer Akte, ‚Erwachsene'/'Senior'/'Teeny'/'Kind' = Einzelperson nach Alter." />
+                    </div>
                     <select
                         id="personGroup"
                         value={formData.personGroup}
                         onChange={(e) => {
                             const group = e.target.value as PersonGroup;
-                            const noGender = ['Ehepaar', 'Familie', 'Paar'].includes(group);
+                            const noGender = MULTI_PERSON_GROUPS.includes(group);
                             setFormData({
                                 ...formData,
                                 personGroup: group,
-                                gender: noGender ? 'Männlich' : formData.gender,
+                                // U-017: Kein stilles „Männlich" für Mehrpersonen-Akten
+                                gender: noGender ? undefined : (formData.gender ?? 'Männlich'),
                             });
                         }}
-                        className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                        className="w-full px-4 py-2 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white"
                     >
                         {(settings?.personGroups || PERSON_GROUPS).map((group) => (
                             <option key={group} value={group}>{group}</option>
@@ -128,18 +151,18 @@ export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientF
                     </select>
                 </div>
 
-                {!['Ehepaar', 'Familie', 'Paar'].includes(formData.personGroup) && (
+                {!MULTI_PERSON_GROUPS.includes(formData.personGroup) ? (
                     <div className="space-y-2">
-                        <FormLabel required>Geschlecht (Hauptperson)</FormLabel>
-                        <div className="flex gap-4 p-1 bg-gray-100 rounded-xl">
+                        <FormLabel required className="dark:text-slate-300">Geschlecht (Hauptperson)</FormLabel>
+                        <div className="flex gap-4 p-1 bg-gray-100 dark:bg-slate-800 rounded-xl">
                             {(['Männlich', 'Weiblich'] as const).map((g) => (
                                 <button
                                     key={g}
                                     type="button"
                                     onClick={() => setFormData({ ...formData, gender: g })}
                                     className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all ${formData.gender === g
-                                        ? "bg-white text-blue-600 shadow-sm"
-                                        : "text-gray-500 hover:text-gray-700"
+                                        ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
+                                        : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
                                         }`}
                                 >
                                     {g}
@@ -147,10 +170,17 @@ export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientF
                             ))}
                         </div>
                     </div>
+                ) : (
+                    <div className="space-y-2">
+                        <FormLabel className="dark:text-slate-300">Geschlecht</FormLabel>
+                        <p className="text-sm text-gray-500 dark:text-slate-400 py-1.5">
+                            Bei Sammelakten (Paar/Familie) wird kein Geschlecht erfasst.
+                        </p>
+                    </div>
                 )}
             </div>
 
-            <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
+            <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-500/30">
                 <input
                     type="checkbox"
                     id="isChurchMember"
@@ -218,10 +248,18 @@ export function ClientForm({ initialData, onSubmit, onCancel, loading }: ClientF
                                     type="date"
                                     id="calendarEndDate"
                                     value={calendarData.endDate}
-                                    onChange={(e) => setCalendarData({ ...calendarData, endDate: e.target.value })}
+                                    onChange={(e) => {
+                                        setCalendarData({ ...calendarData, endDate: e.target.value });
+                                        setIcsError(null);
+                                    }}
                                     min={calendarData.date}
                                     className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
                                 />
+                                {icsError && (
+                                    <p className="text-xs font-medium text-red-600 dark:text-red-400 mt-1" role="alert">
+                                        {icsError}
+                                    </p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <label htmlFor="calendarStartTime" className="text-xs font-medium text-gray-600 dark:text-slate-400 flex items-center gap-1">

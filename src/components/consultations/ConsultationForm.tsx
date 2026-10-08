@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { ConsultationType, LifeStage, SmartCheck, Consultation } from "@/types";
 import { Button } from "../ui/Button";
 import { FormLabel } from "../ui/FormLabel";
+import { InfoTooltip } from "../ui/InfoTooltip";
+import { cn } from "../ui/Card";
 import { VoiceInput } from "../ui/VoiceInput";
 import { PhotoUpload } from "../ui/PhotoUpload";
 
@@ -270,7 +272,11 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                     />
                 </div>
                 <div>
-                    <FormLabel htmlFor="timeOfDay" required className={labelCls}>Tagesabschnitt</FormLabel>
+                    <div className="flex items-center gap-1.5 mb-1">
+                        <FormLabel htmlFor="timeOfDay" required className={cn(labelCls, "mb-0")}>Tagesabschnitt</FormLabel>
+                        {/* T-2 (Usability-Bericht 08.10.2026) */}
+                        <InfoTooltip text="Gibt an, wann das Gespräch stattfand. Vormittags = ab 8 Uhr, Nachmittags = ab 15 Uhr, Abends = ab 18 Uhr. Wird für die Stundenauswertung und den Belegungsplan genutzt." />
+                    </div>
                     <select
                         id="timeOfDay"
                         title="Tagesabschnitt"
@@ -287,7 +293,11 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
 
                 {/* Dropdowns */}
                 <div>
-                    <FormLabel htmlFor="consultationType" required className={labelCls}>Gesprächsart</FormLabel>
+                    <div className="flex items-center gap-1.5 mb-1">
+                        <FormLabel htmlFor="consultationType" required className={cn(labelCls, "mb-0")}>Gesprächsart</FormLabel>
+                        {/* T-1 (Usability-Bericht 08.10.2026) */}
+                        <InfoTooltip text="Wähle die Art des Gesprächs. ‚Seelsorge Präsenz' = persönliches Gespräch, ‚Seelsorge telefonisch' = Telefonat. Stehcafé-Formate gehören zu den Kurzgesprächen, nicht hierher." />
+                    </div>
                     <select
                         id="consultationType"
                         required
@@ -303,7 +313,11 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
             {/* Durations */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-gray-100 dark:border-white/10 pt-4">
                 <div>
-                    <FormLabel htmlFor="unitsInHours" required className={labelCls}>Einheiten in Std.</FormLabel>
+                    <div className="flex items-center gap-1.5 mb-1">
+                        <FormLabel htmlFor="unitsInHours" required className={cn(labelCls, "mb-0")}>Einheiten in Std.</FormLabel>
+                        {/* T-8 (Usability-Bericht 08.10.2026) */}
+                        <InfoTooltip text="Einheiten = reine Gesprächszeit. Vorbereitung = Zeit für Vor- und Nachbereitung. Beides zählt in deine Zeiterfassung." />
+                    </div>
                     <input
                         type="text"
                         id="unitsInHours"
@@ -328,9 +342,19 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                                 : 'bg-gray-50 dark:bg-slate-800'
                         }`}
                     />
+                    {/* U-013: Erklärung für das gesperrte Feld */}
+                    {distributionType === 'custom' && trackHours && isMultiDay && !isEdit && (
+                        <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                            Wird aus der Tagesverteilung unten berechnet.
+                        </p>
+                    )}
                 </div>
                 <div>
-                    <FormLabel htmlFor="prepTimeInHours" required className={labelCls}>Vorbereitung in Std.</FormLabel>
+                    <div className="flex items-center gap-1.5 mb-1">
+                        <FormLabel htmlFor="prepTimeInHours" required className={cn(labelCls, "mb-0")}>Vorbereitung in Std.</FormLabel>
+                        {/* T-8 (Usability-Bericht 08.10.2026) */}
+                        <InfoTooltip text="Einheiten = reine Gesprächszeit. Vorbereitung = Zeit für Vor- und Nachbereitung. Beides zählt in deine Zeiterfassung." />
+                    </div>
                     <input
                         type="text"
                         id="prepTimeInHours"
@@ -457,7 +481,12 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                     <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <FormLabel htmlFor="lifeStage" required className={labelCls}>Lebensabschnitt (Problem Herkunft)</FormLabel>
+                                {/* U-003: Label-Klarheit — Klammer-Relikt entfernt */}
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <FormLabel htmlFor="lifeStage" required className={cn(labelCls, "mb-0")}>Lebensabschnitt der Klientin/des Klienten</FormLabel>
+                                    {/* T-3 (Usability-Bericht 08.10.2026) */}
+                                    <InfoTooltip text="In welcher Lebensphase liegt die Ursache des Problems, z. B. Kindheit, Teenager, Erwachsener? Gemeint ist der Zeitpunkt, aus dem das Thema stammt — nicht das heutige Alter." />
+                                </div>
                                 <select
                                     id="lifeStage"
                                     required
@@ -469,7 +498,12 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                                 </select>
                             </div>
                             <div>
-                                <FormLabel htmlFor="problemOrigin" required className={labelCls}>Problem-Herkunft</FormLabel>
+                                {/* U-003: „Problem-Herkunft" → „Problembereich" (eindeutige Abgrenzung zum Lebensabschnitt) */}
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <FormLabel htmlFor="problemOrigin" required className={cn(labelCls, "mb-0")}>Problembereich</FormLabel>
+                                    {/* T-4 (Usability-Bericht 08.10.2026) */}
+                                    <InfoTooltip text="Welchem Bereich ordnest du das Problem heute zu, z. B. Familie, Arbeit, Gesundheit? Zusammen mit dem Lebensabschnitt ergibt sich das Bild für die Statistik." />
+                                </div>
                                 <select
                                     id="problemOrigin"
                                     value={formData.problemOriginId}
@@ -480,7 +514,11 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                                 </select>
                             </div>
                             <div>
-                                <label htmlFor="goalType" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Zieltyp</label>
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <FormLabel htmlFor="goalType" className={cn(labelCls, "mb-0")}>Zieltyp</FormLabel>
+                                    {/* T-5 (Usability-Bericht 08.10.2026) */}
+                                    <InfoTooltip text="Was soll am Ende anders sein? ‚Entlastung' = Druck rausnehmen, ‚Verhaltensänderung' = neues Handeln einüben, ‚Erkenntnis' = Klarheit gewinnen, ‚Wiederherstellung' = Beziehung/Status heilen." />
+                                </div>
                                 <select
                                     id="goalType"
                                     value={formData.goalTypeId}
@@ -524,7 +562,11 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
 
                         {/* Multi-Select Sub-Problems */}
                         <div>
-                            <label className="block text-base font-semibold text-gray-900 dark:text-white mb-2">Folge-Probleme</label>
+                            <div className="flex items-center gap-1.5 mb-2">
+                                <FormLabel className={cn(labelCls, "mb-0")}>Folge-Probleme</FormLabel>
+                                {/* T-6 (Usability-Bericht 08.10.2026) */}
+                                <InfoTooltip text="Probleme, die sich aus dem Hauptthema entwickelt haben, z. B. Sucht oder Depression als Folge einer Ehekrise. Mehrfachauswahl möglich." />
+                            </div>
                             <div className="flex flex-wrap gap-2">
                                 {Array.from(new Set(settings?.subProblems || CONSTS.mockSubProblems)).map(problem => {
                                     const isSelected = formData.subProblemsIds?.includes(problem);

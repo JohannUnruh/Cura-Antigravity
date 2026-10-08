@@ -6,6 +6,7 @@ import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/aut
 import { auth } from "@/lib/firebase/config";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -14,6 +15,8 @@ export default function LoginPage() {
     const [successMessage, setSuccessMessage] = useState("");
     const [loading, setLoading] = useState(false);
     const [forgotMode, setForgotMode] = useState(false);
+    // U-020: Passwort-Sichtbar-Schalter — Tippfehler sind die häufigste Support-Ursache
+    const [showPassword, setShowPassword] = useState(false);
     const router = useRouter();
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -171,14 +174,25 @@ export default function LoginPage() {
                                             Passwort vergessen?
                                         </button>
                                     </div>
-                                    <input
-                                        id="password"
-                                        type="password"
-                                        required
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white/50 backdrop-blur-sm transition-all"
-                                    />
+                                    <div className="relative">
+                                        <input
+                                            id="password"
+                                            type={showPassword ? "text" : "password"}
+                                            required
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            className="w-full px-3 py-2 pr-11 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white/50 backdrop-blur-sm transition-all"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword((prev) => !prev)}
+                                            aria-label={showPassword ? "Passwort verbergen" : "Passwort anzeigen"}
+                                            title={showPassword ? "Passwort verbergen" : "Passwort anzeigen"}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 transition-colors"
+                                        >
+                                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {error && (

@@ -10,10 +10,14 @@ export const clientService = {
         const id = `client_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
         const docRef = doc(db, COLLECTION_NAME, id);
 
-        await setDoc(docRef, {
-            ...clientData,
-            createdAt: new Date()
-        });
+        // setDoc lehnt undefined-Felder ab — z. B. gender bei Mehrpersonen-Akten
+        // (U-017). Gleicher Filter wie in updateClient.
+        const cleanData = Object.entries({ ...clientData, createdAt: new Date() }).reduce((acc, [key, value]) => {
+            if (value !== undefined) acc[key] = value;
+            return acc;
+        }, {} as Record<string, unknown>);
+
+        await setDoc(docRef, cleanData);
 
         return id;
     },
