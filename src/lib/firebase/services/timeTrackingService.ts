@@ -118,6 +118,20 @@ export async function getRemainingHours(authorId: string, year: number, month: n
 }
 
 /**
+ * Entfernt Felder mit undefined-Werten, bevor Daten an Firestore übergeben
+ * werden. setDoc() lehnt undefined als Feldwert ab ("Unsupported field value:
+ * undefined"). Gleicher Filter wie in updatePoolEntry.
+ * P0-Fix 08.10.2026: Crash bei Zeiterfassung, weil endDate nur bei Urlaub
+ * gesetzt wird und sonst als undefined mitgespreadet wurde.
+ */
+export function stripUndefinedFields(data: object): Record<string, unknown> {
+    return Object.entries(data).reduce((acc, [key, value]) => {
+        if (value !== undefined) acc[key] = value;
+        return acc;
+    }, {} as Record<string, unknown>);
+}
+
+/**
  * Interne Helper-Funktion zum Erstellen eines TimeEntry
  */
 async function _createTimeEntry(entry: NewTimeEntry): Promise<TimeEntry> {
@@ -135,7 +149,9 @@ async function _createTimeEntry(entry: NewTimeEntry): Promise<TimeEntry> {
     }
 
     const docRef = doc(db, COLLECTION_NAME, id);
-    await setDoc(docRef, newDoc);
+    // Nur Firestore darf keine undefined-Werte sehen; das zurückgegebene
+    // JS-Objekt (newDoc) behält die optionalen Felder unverändert bei.
+    await setDoc(docRef, stripUndefinedFields(newDoc));
     return newDoc;
 }
 
