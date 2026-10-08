@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ConsultationType, LifeStage, SmartCheck, Consultation } from "@/types";
 import { Button } from "../ui/Button";
+import { FormLabel } from "../ui/FormLabel";
 import { VoiceInput } from "../ui/VoiceInput";
 import { PhotoUpload } from "../ui/PhotoUpload";
 
@@ -47,6 +48,8 @@ const CONSTS = {
     mockSubProblems: ['Sucht', 'Ehekrise', 'Glaubenskrise', 'Depression', 'Finanzen'],
     mockGoalTypes: ['Wiederherstellung', 'Erkenntnis', 'Verhaltensänderung', 'Entlastung']
 };
+
+const labelCls = "block text-base font-semibold text-gray-900 dark:text-white mb-1";
 
 export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, loading }: ConsultationFormProps) {
     const { settings } = useSettings();
@@ -227,7 +230,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Dates */}
                 <div>
-                    <label htmlFor="dateFrom" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Datum Von</label>
+                    <FormLabel htmlFor="dateFrom" required className={labelCls}>Datum Von</FormLabel>
                     <input
                         type="date"
                         id="dateFrom"
@@ -247,7 +250,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                     />
                 </div>
                 <div>
-                    <label htmlFor="dateTo" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Datum Bis</label>
+                    <FormLabel htmlFor="dateTo" required className={labelCls}>Datum Bis</FormLabel>
                     <input
                         type="date"
                         id="dateTo"
@@ -267,7 +270,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                     />
                 </div>
                 <div>
-                    <label htmlFor="timeOfDay" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Tagesabschnitt</label>
+                    <FormLabel htmlFor="timeOfDay" required className={labelCls}>Tagesabschnitt</FormLabel>
                     <select
                         id="timeOfDay"
                         title="Tagesabschnitt"
@@ -284,7 +287,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
 
                 {/* Dropdowns */}
                 <div>
-                    <label htmlFor="consultationType" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Gesprächsart</label>
+                    <FormLabel htmlFor="consultationType" required className={labelCls}>Gesprächsart</FormLabel>
                     <select
                         id="consultationType"
                         required
@@ -300,7 +303,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
             {/* Durations */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-gray-100 dark:border-white/10 pt-4">
                 <div>
-                    <label htmlFor="unitsInHours" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Einheiten in Std.</label>
+                    <FormLabel htmlFor="unitsInHours" required className={labelCls}>Einheiten in Std.</FormLabel>
                     <input
                         type="text"
                         id="unitsInHours"
@@ -327,7 +330,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                     />
                 </div>
                 <div>
-                    <label htmlFor="prepTimeInHours" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Vorbereitung in Std.</label>
+                    <FormLabel htmlFor="prepTimeInHours" required className={labelCls}>Vorbereitung in Std.</FormLabel>
                     <input
                         type="text"
                         id="prepTimeInHours"
@@ -454,7 +457,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                     <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label htmlFor="lifeStage" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Lebensabschnitt (Problem Herkunft)</label>
+                                <FormLabel htmlFor="lifeStage" required className={labelCls}>Lebensabschnitt (Problem Herkunft)</FormLabel>
                                 <select
                                     id="lifeStage"
                                     required
@@ -466,7 +469,7 @@ export function ConsultationForm({ clientId, initialData, onSubmit, onCancel, lo
                                 </select>
                             </div>
                             <div>
-                                <label htmlFor="problemOrigin" className="block text-base font-semibold text-gray-900 dark:text-white mb-1">Problem-Herkunft</label>
+                                <FormLabel htmlFor="problemOrigin" required className={labelCls}>Problem-Herkunft</FormLabel>
                                 <select
                                     id="problemOrigin"
                                     value={formData.problemOriginId}
