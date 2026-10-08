@@ -12,12 +12,12 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { ClientForm, type ClientFormSubmission } from "@/components/clients/ClientForm";
 import { CalendarEventModal } from "@/components/ui/CalendarEventModal";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
+import { useToast, ToastContainer } from "@/hooks/useToast";
 import {
     Search,
     UserPlus,
     Edit2,
-    Trash2,
-    ChevronRight,
     SearchX,
     Calendar,
     Archive,
@@ -36,8 +36,10 @@ export default function ClientsPage() {
     // Modal states
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<Client | null>(null);
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+
+    // U-002/U-019: Sichtbares Feedback für alle Schreibvorgänge
+    const { toast, showToast, dismissToast } = useToast();
 
     // Calendar Modal states
     const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
@@ -88,17 +90,23 @@ export default function ClientsPage() {
             });
             
             // Optional: Kalendereintrag erstellen
+            let calendarFailed = false;
             if (createCalendarEvent && calendarData) {
                 try {
                     const [startHours, startMinutes] = calendarData.startTime.split(':').map(Number);
                     const [endHours, endMinutes] = calendarData.endTime.split(':').map(Number);
-                    
+
                     const startDate = new Date(calendarData.date);
                     startDate.setHours(startHours, startMinutes);
-                    
-                    const endDate = new Date(calendarData.date);
+
+                    // U-005: „Enddatum (optional)" gilt jetzt auch für den
+                    // Kalendereintrag — mehr­tägige Erstgespräche landen nicht
+                    // mehr eintägig im Belegungsplan.
+                    const endDate = calendarData.endDate
+                        ? new Date(calendarData.endDate)
+                        : new Date(calendarData.date);
                     endDate.setHours(endHours, endMinutes);
-                    
+
                     await calendarService.createCalendarEvent({
                         title: `Erstgespräch: ${clientData.name}`,
                         description: `Erstgespräch mit neuem Klienten`,
@@ -108,14 +116,20 @@ export default function ClientsPage() {
                     });
                 } catch (calError) {
                     console.warn("Kalendereintrag fehlgeschlagen, aber Klient wurde angelegt:", calError);
-                    // Keine Unterbrechung - Klient wurde erfolgreich angelegt
+                    calendarFailed = true;
                 }
             }
-            
+
             setIsAddModalOpen(false);
             await fetchClients();
+            if (calendarFailed) {
+                showToast('warning', 'Klient gespeichert, aber der Kalendereintrag konnte nicht erstellt werden. Bitte prüfe den Belegungsplan.');
+            } else {
+                showToast('success', 'Klient gespeichert.');
+            }
         } catch (error) {
             console.error(error);
+            showToast('error', 'Speichern fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.');
         } finally {
             setIsSaving(false);
         }
@@ -128,37 +142,32 @@ export default function ClientsPage() {
             await clientService.updateClient(editingClient.id, data);
             setEditingClient(null);
             await fetchClients();
+            showToast('success', 'Klienten-Akte aktualisiert.');
         } catch (error) {
             console.error(error);
+            showToast('error', 'Speichern fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.');
         } finally {
             setIsSaving(false);
         }
     };
 
-    const handleDeleteClient = async () => {
-        if (!isDeleteModalOpen) return;
-        setIsSaving(true);
-        try {
-            await clientService.deleteClient(isDeleteModalOpen, user?.uid || "");
-            setIsDeleteModalOpen(null);
-            await fetchClients();
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setIsSaving(false);
-        }
-    };
+    // U-006: Hartes Löschen aus der Tabellen-Aktionsleiste entfernt — der
+    // sichere Weg ist „Archivieren". clientService.deleteClient bleibt für
+    // adminseitige Pflege (z. B. leere Test-Akten) verfügbar.
 
     const handleArchiveToggle = async (client: Client) => {
         try {
             if (client.archived) {
                 await clientService.restoreClient(client.id);
+                showToast('success', 'Akte wiederhergestellt.');
             } else {
                 await clientService.archiveClient(client.id);
+                showToast('success', 'Akte archiviert — sie ruht jetzt und bleibt über den Filter „Archiviert" auffindbar.');
             }
             await fetchClients();
         } catch (error) {
             console.error("Fehler beim Archivieren/Wiederherstellen:", error);
+            showToast('error', 'Archivieren fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.');
         }
     };
 
@@ -205,8 +214,10 @@ export default function ClientsPage() {
             
             setIsCalendarModalOpen(false);
             setCalendarClientName("");
+            showToast('success', 'Kalendereintrag erstellt.');
         } catch (error) {
             console.error("Fehler beim Erstellen des Kalendereintrags:", error);
+            showToast('error', 'Kalendereintrag konnte nicht erstellt werden. Bitte prüfe deine Internetverbindung und versuche es erneut.');
             throw error;
         } finally {
             setIsCalendarSaving(false);
@@ -247,19 +258,23 @@ export default function ClientsPage() {
                                     className="w-full pl-10 pr-4 py-2 bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium text-gray-900 dark:text-white"
                                 />
                             </div>
-                            <div className="flex rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden text-sm">
-                                {(['active', 'archived', 'all'] as const).map(f => (
-                                    <button
-                                        key={f}
-                                        onClick={() => setArchiveFilter(f)}
-                                        className={`px-3 py-1.5 transition-colors ${archiveFilter === f
-                                            ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold'
-                                            : 'text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-white/5'
-                                        }`}
-                                    >
-                                        {f === 'active' ? 'Aktiv' : f === 'archived' ? 'Archiviert' : 'Alle'}
-                                    </button>
-                                ))}
+                            <div className="flex items-center gap-2">
+                                <div className="flex rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden text-sm">
+                                    {(['active', 'archived', 'all'] as const).map(f => (
+                                        <button
+                                            key={f}
+                                            onClick={() => setArchiveFilter(f)}
+                                            className={`px-3 py-1.5 transition-colors ${archiveFilter === f
+                                                ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold'
+                                                : 'text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-white/5'
+                                            }`}
+                                        >
+                                            {f === 'active' ? 'Aktiv' : f === 'archived' ? 'Archiviert' : 'Alle'}
+                                        </button>
+                                    ))}
+                                </div>
+                                {/* T-12 (Usability-Bericht 08.10.2026) */}
+                                <InfoTooltip text="Archivieren = Akte ruht, bleibt auffindbar und zählbar unter ‚Archiviert'. Löschen = Akte und alle Gespräche sind endgültig weg." />
                             </div>
                         </div>
                     </CardContent>
@@ -344,37 +359,26 @@ export default function ClientsPage() {
                                                                         e.stopPropagation();
                                                                         setEditingClient(client);
                                                                     }}
-                                                                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-white rounded-lg transition-all"
+                                                                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-white dark:hover:bg-white/10 rounded-lg transition-all"
                                                                     title="Bearbeiten"
                                                                 >
                                                                     <Edit2 className="w-4 h-4" />
                                                                 </button>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setIsDeleteModalOpen(client.id);
-                                                                    }}
-                                                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-white rounded-lg transition-all"
-                                                                    title="Löschen"
-                                                                >
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                </button>
+                                                                {/* U-006: Hartes Löschen entfernt — nur noch Archivieren */}
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         setCalendarClientName(client.name);
                                                                         setIsCalendarModalOpen(true);
                                                                     }}
-                                                                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-white rounded-lg transition-all"
+                                                                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-white dark:hover:bg-white/10 rounded-lg transition-all"
                                                                     title="Kalendereintrag"
                                                                 >
                                                                     <Calendar className="w-4 h-4" />
                                                                 </button>
                                                             </>
                                                         )}
-                                                        <button className="p-2 text-gray-400 hover:text-gray-900 hover:bg-white rounded-lg transition-all">
-                                                            <ChevronRight className="w-4 h-4" />
-                                                        </button>
+                                                        {/* U-011: Toten ChevronRight-Button entfernt — der Zeilenklick öffnet die Akte */}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -431,24 +435,8 @@ export default function ClientsPage() {
                     />
                 </Modal>
 
-                {/* Delete Confirmation Modal */}
-                <Modal
-                    isOpen={!!isDeleteModalOpen}
-                    onClose={() => setIsDeleteModalOpen(null)}
-                    title="Klienten löschen"
-                >
-                    <div className="space-y-4">
-                        <p className="text-gray-600">
-                            Bist du sicher, dass du diesen Klienten löschen möchtest? Dies kann nicht rückgängig gemacht werden.
-                        </p>
-                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                            <Button type="button" variant="ghost" onClick={() => setIsDeleteModalOpen(null)} disabled={isSaving}>Abbrechen</Button>
-                            <Button type="button" variant="danger" disabled={isSaving} onClick={handleDeleteClient}>
-                                {isSaving ? "Wird gelöscht..." : "Löschen"}
-                            </Button>
-                        </div>
-                    </div>
-                </Modal>
+                {/* U-006: Lösch-Bestätigungsmodal entfernt — hartes Löschen ist
+                    aus der Klientenliste gestrichen, der sichere Weg ist „Archivieren". */}
 
                 {/* Calendar Event Modal */}
                 <CalendarEventModal
@@ -461,6 +449,9 @@ export default function ClientsPage() {
                     clientName={calendarClientName}
                     loading={isCalendarSaving}
                 />
+
+                {/* U-002/U-019: Toast-Feedback für alle Schreibvorgänge */}
+                <ToastContainer toast={toast} onDismiss={dismissToast} />
             </div>
         </ProtectedRoute>
     );

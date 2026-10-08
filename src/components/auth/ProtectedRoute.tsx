@@ -87,7 +87,7 @@ export function ProtectedRoute({ children, allowedRoles, requiredPermission }: P
                         </div>
                         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">Zugriff verweigert</h1>
                         <p className="text-gray-600 dark:text-slate-400 mb-6 text-sm">
-                            Sie haben keine Berechtigung, auf diesen Bereich zuzugreifen. Bitte wenden Sie sich an einen Administrator.
+                            Du hast keine Berechtigung, auf diesen Bereich zuzugreifen. Bitte wende dich an einen Administrator.
                         </p>
                         <button
                             onClick={() => router.replace("/")}

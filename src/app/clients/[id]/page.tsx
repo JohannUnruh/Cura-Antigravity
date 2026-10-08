@@ -17,6 +17,7 @@ import { Modal } from "@/components/ui/Modal";
 import { ConsultationForm } from "@/components/consultations/ConsultationForm";
 import { SkbConsultationForm } from "@/components/consultations/SkbConsultationForm";
 import { CalendarEventModal } from "@/components/ui/CalendarEventModal";
+import { useToast, ToastContainer } from "@/hooks/useToast";
 import { ArrowLeft, Clock, Calendar, HeartHandshake, Baby, MessagesSquare, Trash2, Pencil, FileText, CalendarPlus, Target, Star } from "lucide-react";
 
 
@@ -65,6 +66,9 @@ export default function ClientDetailPage() {
     const [isCalendarSaving, setIsCalendarSaving] = useState(false);
 
     const [isFavorite, setIsFavorite] = useState(false);
+
+    // U-002/U-019: Sichtbares Feedback für alle Schreibvorgänge
+    const { toast, showToast, dismissToast } = useToast();
 
     const loadClient = useCallback(async () => {
         if (!clientId) return;
@@ -146,17 +150,24 @@ export default function ClientDetailPage() {
                         customHours
                     );
                     
-                    // User über Overflow informieren
+                    // U-019: Overflow sichtbar melden statt nur console.log
                     if (result.hasOverflow) {
-                        console.log(`${result.poolEntries.length} Einträge wurden im Überstundenpool gespeichert`);
+                        showToast('warning', `Beratungsgespräch gespeichert. ${result.poolEntries.length} Stunden-Einträge liegen über dem Monatskontingent und wanderten in den Überstundenpool.`);
+                    } else {
+                        showToast('success', 'Beratungsgespräch gespeichert.');
                     }
+                } else {
+                    showToast('success', 'Beratungsgespräch gespeichert.');
                 }
+            } else {
+                showToast('success', 'Beratungsgespräch gespeichert (ohne Zeiterfassung).');
             }
 
             await loadHistory();
             setIsConsultationModalOpen(false);
         } catch (error) {
             console.error("Error saving consultation", error);
+            showToast('error', 'Speichern fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.');
         } finally {
             setIsSaving(false);
         }
@@ -173,8 +184,10 @@ export default function ClientDetailPage() {
             setIsConsultationModalOpen(false);
             setSelectedConsultation(null);
             setPrefilledConsultation(undefined);
+            showToast('success', 'Beratungsgespräch aktualisiert.');
         } catch (error) {
             console.error("Error updating consultation", error);
+            showToast('error', 'Speichern fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.');
         } finally {
             setIsSaving(false);
         }
@@ -192,6 +205,7 @@ export default function ClientDetailPage() {
             if (selectedSkb?.id) {
                 // Bearbeiten: Nur SKB aktualisieren, keine neuen Zeiteinträge
                 await consultationService.updateSkbConsultation(selectedSkb.id, data);
+                showToast('success', 'SKB-Beratung aktualisiert.');
             } else {
                 // Neu erstellen: SKB speichern + Zeiteinträge erstellen
                 const added = await consultationService.addSkbConsultation({
@@ -217,10 +231,14 @@ export default function ClientDetailPage() {
                         customHours
                     );
 
-                    // User über Overflow informieren
+                    // U-019: Overflow sichtbar melden statt nur console.log
                     if (result.hasOverflow) {
-                        console.log(`${result.poolEntries.length} Einträge wurden im Überstundenpool gespeichert`);
+                        showToast('warning', `SKB-Beratung gespeichert. ${result.poolEntries.length} Stunden-Einträge liegen über dem Monatskontingent und wanderten in den Überstundenpool.`);
+                    } else {
+                        showToast('success', 'SKB-Beratung gespeichert.');
                     }
+                } else {
+                    showToast('success', 'SKB-Beratung gespeichert.');
                 }
             }
 
@@ -230,6 +248,7 @@ export default function ClientDetailPage() {
             setPrefilledSkb(undefined);
         } catch (error) {
             console.error("Error saving SKB", error);
+            showToast('error', 'Speichern fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.');
         } finally {
             setIsSaving(false);
         }
@@ -243,8 +262,10 @@ export default function ClientDetailPage() {
             await loadHistory();
             setIsDeleteConsModalOpen(false);
             setSelectedConsultation(null);
+            showToast('success', 'Seelsorgegespräch gelöscht.');
         } catch (error) {
             console.error(error);
+            showToast('error', 'Löschen fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.');
         } finally {
             setIsSaving(false);
         }
@@ -258,8 +279,10 @@ export default function ClientDetailPage() {
             await loadHistory();
             setIsDeleteSkbModalOpen(false);
             setSelectedSkb(null);
+            showToast('success', 'SKB-Beratung gelöscht.');
         } catch (error) {
             console.error(error);
+            showToast('error', 'Löschen fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.');
         } finally {
             setIsSaving(false);
         }
@@ -307,8 +330,10 @@ export default function ClientDetailPage() {
             });
             
             setIsCalendarModalOpen(false);
+            showToast('success', 'Kalendereintrag erstellt.');
         } catch (error) {
             console.error("Fehler beim Erstellen des Kalendereintrags:", error);
+            showToast('error', 'Kalendereintrag konnte nicht erstellt werden. Bitte prüfe deine Internetverbindung und versuche es erneut.');
             throw error;
         } finally {
             setIsCalendarSaving(false);
@@ -440,7 +465,8 @@ export default function ClientDetailPage() {
                             </button>
                         </div>
                         <p className="text-sm text-gray-500 dark:text-slate-400 font-medium tracking-wide uppercase mt-1">
-                            {client.personGroup} • {client.gender} • {client.isChurchMember ? "Mitglied" : "Kein Mitglied"}
+                            {/* U-017: Bei Mehrpersonen-Akten gibt es kein Geschlecht — dann fehlt der Bestandteil */}
+                            {client.personGroup}{client.gender ? ` • ${client.gender}` : ""} • {client.isChurchMember ? "Mitglied" : "Kein Mitglied"}
                         </p>
                     </div>
                 </div>
@@ -796,6 +822,9 @@ export default function ClientDetailPage() {
                     clientName={client?.name}
                     loading={isCalendarSaving}
                 />
+
+                {/* U-002/U-019: Toast-Feedback für alle Schreibvorgänge */}
+                <ToastContainer toast={toast} onDismiss={dismissToast} />
             </div>
         </ProtectedRoute>
     );

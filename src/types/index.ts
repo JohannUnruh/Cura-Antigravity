@@ -132,7 +132,12 @@ export interface Client {
     authorId: string;
     name: string;
     personGroup: PersonGroup;
-    gender: 'Männlich' | 'Weiblich';
+    /**
+     * Geschlecht der Hauptperson. Bei Mehrpersonen-Akten (Ehepaar/Familie/Paar)
+     * bewusst nicht gesetzt (U-017, Usability-Bericht 08.10.2026) — früher wurde
+     * hier still „Männlich" eingetragen.
+     */
+    gender?: 'Männlich' | 'Weiblich';
     isChurchMember: boolean;
     archived?: boolean;
     archivedAt?: Date;

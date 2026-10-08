@@ -13,6 +13,8 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { FormLabel } from "@/components/ui/FormLabel";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
+import { useToast, ToastContainer } from "@/hooks/useToast";
 import { Coffee, Plus, Calendar, Clock, Trash2, Pencil, UserPlus, CheckCircle2 } from "lucide-react";
 
 const consultationTypes: ShortConsultationType[] = [
@@ -36,6 +38,9 @@ export default function ShortConsultationsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+
+    // U-002/U-019: Sichtbares Feedback für alle Schreibvorgänge
+    const { toast, showToast, dismissToast } = useToast();
 
     // Transfer "Kurzgespräch → Akte" (P2-④)
     const [transferItem, setTransferItem] = useState<ShortConsultation | null>(null);
@@ -124,8 +129,22 @@ export default function ShortConsultationsPage() {
             };
 
             if (selected) {
-                // Bearbeiten: Nur Kurzgespräch aktualisieren, keine neuen Zeiteinträge
+                // Bearbeiten: Kurzgespräch aktualisieren …
                 await shortConsultationService.updateConsultation(selected.id, payload);
+                // U-004a: … und den verknüpften Zeiteintrag (referenceId) synchron
+                // mitziehen, damit Stundenliste und Gespräch nicht auseinanderdriften.
+                try {
+                    await timeTrackingService.updateTimeEntriesByReferenceId(selected.id, user.uid, {
+                        date: payload.date,
+                        durationInHours: payload.durationInHours,
+                        timeOfDay: payload.timeOfDay,
+                        description: payload.type + (payload.notes ? ` - ${payload.notes}` : '')
+                    });
+                    showToast('success', 'Kurzgespräch aktualisiert — die Zeiterfassung wurde mitangepasst.');
+                } catch (syncError) {
+                    console.error("Error syncing linked time entry:", syncError);
+                    showToast('warning', 'Kurzgespräch gespeichert, aber die Zeiterfassung konnte nicht aktualisiert werden. Bitte prüfe den Eintrag dort.');
+                }
             } else {
                 // Neu erstellen: Kurzgespräch speichern + Zeiteintrag mit Kontingent-Prüfung
                 const newDoc = await shortConsultationService.addConsultation(payload);
@@ -145,15 +164,23 @@ export default function ShortConsultationsPage() {
                     referenceId: newDoc.id
                 }, year, month);
 
-                // User über Overflow informieren
-                if (result.status === 'split' || result.status === 'pool-only') {
-                    console.log(`${result.poolEntry?.durationInHours}h wurden im Überstundenpool gespeichert`);
+                // U-019: Erfolgs-/Overflow-Feedback statt stillem console.log
+                if (result.status === 'split') {
+                    showToast('warning', `Kurzgespräch gespeichert. Das Monatskontingent wurde überschritten — ${result.poolEntry?.durationInHours}h wanderten in den Überstundenpool.`);
+                } else if (result.status === 'pool-only') {
+                    showToast('info', `Kurzgespräch gespeichert. Das Monatskontingent ist ausgeschöpft — die gesamten ${result.poolEntry?.durationInHours}h liegen im Überstundenpool.`);
+                } else {
+                    showToast('success', 'Kurzgespräch gespeichert.');
                 }
             }
 
             await loadData();
             setIsModalOpen(false);
             setSelected(null);
+        } catch (error) {
+            // U-002: Fehler waren bisher unhandled rejections — jetzt sichtbar
+            console.error("Error saving short consultation:", error);
+            showToast('error', 'Speichern fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.');
         } finally {
             setIsSaving(false);
         }
@@ -169,8 +196,10 @@ export default function ShortConsultationsPage() {
             }
             setIsDeleteModalOpen(null);
             await loadData();
+            showToast('success', 'Kurzgespräch gelöscht — der zugehörige Zeiteintrag wurde mit entfernt.');
         } catch (error) {
             console.error("Error deleting short consultation:", error);
+            showToast('error', 'Löschen fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.');
         } finally {
             setIsSaving(false);
         }
@@ -246,6 +275,7 @@ export default function ShortConsultationsPage() {
             setTimeout(() => setTransferItem(null), 1500);
         } catch (error) {
             console.error("Error transferring short consultation:", error);
+            showToast('error', 'Überführen fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.');
         } finally {
             setIsSaving(false);
         }
@@ -347,15 +377,19 @@ export default function ShortConsultationsPage() {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <FormLabel htmlFor="date" required>Datum</FormLabel>
+                                <FormLabel htmlFor="date" required className="dark:text-slate-300">Datum</FormLabel>
                                 <input id="date" type="date" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20" />
+                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-orange-500/20" />
                             </div>
                             <div>
-                                <FormLabel htmlFor="timeOfDay">Tageszeit (in Zeiterfassung)</FormLabel>
+                                {/* T-2 (Usability-Bericht 08.10.2026) */}
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <FormLabel htmlFor="timeOfDay" className="mb-0 dark:text-slate-300">Tageszeit (in Zeiterfassung)</FormLabel>
+                                    <InfoTooltip text="Gibt an, wann das Gespräch stattfand. Vormittags = ab 8 Uhr, Nachmittags = ab 15 Uhr, Abends = ab 18 Uhr. Wird für die Stundenauswertung und den Belegungsplan genutzt." />
+                                </div>
                                 <select
                                     id="timeOfDay"
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20"
+                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-orange-500/20"
                                     value={form.timeOfDay}
                                     onChange={(e) => setForm({ ...form, timeOfDay: e.target.value as 'Vormittags' | 'Nachmittags' | 'Abends' | 'Ganztägig' })}
                                 >
@@ -369,10 +403,14 @@ export default function ShortConsultationsPage() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <FormLabel htmlFor="type" required>Gesprächsart</FormLabel>
+                                {/* T-1 (Usability-Bericht 08.10.2026) */}
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <FormLabel htmlFor="type" required className="mb-0 dark:text-slate-300">Gesprächsart</FormLabel>
+                                    <InfoTooltip text="Wähle die Art des Gesprächs. ‚Seelsorge Präsenz' = persönliches Gespräch, ‚Seelsorge telefonisch' = Telefonat. Stehcafé-Formate gehören zu den Kurzgesprächen, nicht hierher." />
+                                </div>
                                 <select
                                     id="type"
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20"
+                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-orange-500/20"
                                     value={form.type}
                                     onChange={(e) => setForm({ ...form, type: e.target.value as ShortConsultationType })}
                                 >
@@ -382,32 +420,34 @@ export default function ShortConsultationsPage() {
                                 </select>
                             </div>
                             <div>
-                                <FormLabel htmlFor="durationInHours" required>Dauer (in Stunden)</FormLabel>
+                                <FormLabel htmlFor="durationInHours" required className="dark:text-slate-300">Dauer (in Stunden)</FormLabel>
                                 <input id="durationInHours" type="number" step="0.25" min="0" required value={form.durationInHours}
+                                    // U-001: Scrollrad darf die Dauer nicht unbemerkt verstellen
+                                    onWheel={(e) => e.currentTarget.blur()}
                                     onChange={e => setForm({ ...form, durationInHours: parseFloat(e.target.value) || 0 })}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20" />
+                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-orange-500/20" />
                             </div>
                         </div>
 
                         <div>
-                            <FormLabel htmlFor="notes" required>Kurze Notiz</FormLabel>
+                            <FormLabel htmlFor="notes" required className="dark:text-slate-300">Kurze Notiz</FormLabel>
                             <textarea
                                 id="notes"
                                 required
                                 value={form.notes}
                                 onChange={e => setForm({ ...form, notes: e.target.value })}
-                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20"
+                                className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-orange-500/20"
                                 rows={3}
                                 placeholder="z.B. Im Anschluss an den Gottesdienst..."
                             />
                         </div>
 
-                        <div className="flex items-center gap-3 p-3 bg-blue-50 text-blue-800 rounded-lg border border-blue-100 text-sm">
-                            <Clock className="w-5 h-5 text-blue-500 shrink-0" />
+                        <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 rounded-lg border border-blue-100 dark:border-blue-500/30 text-sm">
+                            <Clock className="w-5 h-5 text-blue-500 dark:text-blue-400 shrink-0" />
                             <p>Dieses Gespräch wird automatisch auch in deine <strong>Zeiterfassung</strong> übertragen.</p>
                         </div>
 
-                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-white/10">
                             <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} disabled={isSaving}>Abbrechen</Button>
                             <Button type="submit" variant="primary" disabled={isSaving}>
                                 {isSaving ? "Wird gespeichert..." : "Erfassen"}
@@ -422,10 +462,10 @@ export default function ShortConsultationsPage() {
                     title="Gespräch löschen"
                 >
                     <div className="space-y-4">
-                        <p className="text-gray-600">
-                            Bist du sicher, dass du dieses Kurzgespräch löschen möchtest? Dies kann nicht rückgängig gemacht werden.
+                        <p className="text-gray-600 dark:text-slate-300">
+                            Bist du sicher, dass du dieses Kurzgespräch löschen möchtest? Der zugehörige Zeiteintrag wird mit gelöscht. Dies kann nicht rückgängig gemacht werden.
                         </p>
-                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-white/10">
                             <Button type="button" variant="ghost" onClick={() => setIsDeleteModalOpen(null)} disabled={isSaving}>Abbrechen</Button>
                             <Button type="button" variant="danger" disabled={isSaving} onClick={handleDelete}>
                                 {isSaving ? "Wird gelöscht..." : "Löschen"}
@@ -442,12 +482,12 @@ export default function ShortConsultationsPage() {
                     {transferItem && (transferSuccess ? (
                         <div className="flex flex-col items-center gap-3 py-8 text-center">
                             <CheckCircle2 className="w-12 h-12 text-emerald-500" />
-                            <p className="text-gray-700 font-medium">Als Beratung in die Akte übernommen.</p>
-                            <p className="text-gray-500 text-sm">Das Kurzgespräch bleibt erhalten.</p>
+                            <p className="text-gray-700 dark:text-slate-200 font-medium">Als Beratung in die Akte übernommen.</p>
+                            <p className="text-gray-500 dark:text-slate-400 text-sm">Das Kurzgespräch bleibt erhalten.</p>
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
+                            <div className="p-3 bg-gray-50 dark:bg-slate-800 rounded-lg text-sm text-gray-600 dark:text-slate-300">
                                 <span className="font-medium">{transferItem.type}</span>
                                 {" • "}
                                 {new Date(transferItem.date).toLocaleDateString("de-DE")}
@@ -460,8 +500,8 @@ export default function ShortConsultationsPage() {
                                     type="button"
                                     onClick={() => setTransferMode('new')}
                                     className={`p-3 rounded-lg border text-sm font-medium transition-all ${transferMode === 'new'
-                                        ? 'border-orange-500 bg-orange-50 text-orange-700'
-                                        : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                                        ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+                                        : 'border-gray-200 dark:border-white/10 text-gray-600 dark:text-slate-300 hover:border-gray-300 dark:hover:border-white/20'}`}
                                 >
                                     Neuen Klient anlegen
                                 </button>
@@ -469,8 +509,8 @@ export default function ShortConsultationsPage() {
                                     type="button"
                                     onClick={() => setTransferMode('existing')}
                                     className={`p-3 rounded-lg border text-sm font-medium transition-all ${transferMode === 'existing'
-                                        ? 'border-orange-500 bg-orange-50 text-orange-700'
-                                        : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                                        ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+                                        : 'border-gray-200 dark:border-white/10 text-gray-600 dark:text-slate-300 hover:border-gray-300 dark:hover:border-white/20'}`}
                                 >
                                     Bestehendem Klient zuordnen
                                 </button>
@@ -479,25 +519,29 @@ export default function ShortConsultationsPage() {
                             {transferMode === 'new' ? (
                                 <div className="space-y-4">
                                     <div>
-                                        <FormLabel htmlFor="transfer-client-name" required>Name</FormLabel>
+                                        <FormLabel htmlFor="transfer-client-name" required className="dark:text-slate-300">Name</FormLabel>
                                         <input
                                             id="transfer-client-name"
                                             type="text"
                                             required
                                             value={newClient.name}
                                             onChange={e => setNewClient({ ...newClient, name: e.target.value })}
-                                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20"
+                                            className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-orange-500/20"
                                             placeholder="Vor- und Nachname"
                                         />
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
-                                            <FormLabel htmlFor="transfer-person-group" required>Personengruppe</FormLabel>
+                                            {/* T-7 (Usability-Bericht 08.10.2026) */}
+                                            <div className="flex items-center gap-1.5 mb-1">
+                                                <FormLabel htmlFor="transfer-person-group" required className="mb-0 dark:text-slate-300">Personengruppe</FormLabel>
+                                                <InfoTooltip text="Beschreibt die Akte als Ganzes: ‚Ehepaar'/'Paar'/'Familie' = mehrere Personen in einer Akte, ‚Erwachsene'/'Senior'/'Teeny'/'Kind' = Einzelperson nach Alter." />
+                                            </div>
                                             <select
                                                 id="transfer-person-group"
                                                 value={newClient.personGroup}
                                                 onChange={e => setNewClient({ ...newClient, personGroup: e.target.value as PersonGroup })}
-                                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20"
+                                                className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-orange-500/20"
                                             >
                                                 {personGroups.map(group => (
                                                     <option key={group} value={group}>{group}</option>
@@ -505,12 +549,12 @@ export default function ShortConsultationsPage() {
                                             </select>
                                         </div>
                                         <div>
-                                            <FormLabel htmlFor="transfer-gender" required>Geschlecht</FormLabel>
+                                            <FormLabel htmlFor="transfer-gender" required className="dark:text-slate-300">Geschlecht</FormLabel>
                                             <select
                                                 id="transfer-gender"
                                                 value={newClient.gender}
                                                 onChange={e => setNewClient({ ...newClient, gender: e.target.value as 'Männlich' | 'Weiblich' })}
-                                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20"
+                                                className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-orange-500/20"
                                             >
                                                 <option value="Männlich">Männlich</option>
                                                 <option value="Weiblich">Weiblich</option>
@@ -524,7 +568,7 @@ export default function ShortConsultationsPage() {
                                         type="text"
                                         value={clientSearch}
                                         onChange={e => setClientSearch(e.target.value)}
-                                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20"
+                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-orange-500/20"
                                         placeholder="Klient suchen..."
                                         aria-label="Klient suchen"
                                     />
@@ -533,7 +577,7 @@ export default function ShortConsultationsPage() {
                                             <div className="w-6 h-6 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
                                         </div>
                                     ) : filteredClients.length === 0 ? (
-                                        <p className="text-sm text-gray-500 p-2">
+                                        <p className="text-sm text-gray-500 dark:text-slate-400 p-2">
                                             {clients.length === 0
                                                 ? "Noch keine Klienten angelegt. Wechsle zu „Neuen Klient anlegen“."
                                                 : "Keine Treffer für diese Suche."}
@@ -546,11 +590,11 @@ export default function ShortConsultationsPage() {
                                                     type="button"
                                                     onClick={() => setSelectedClientId(c.id)}
                                                     className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-all ${selectedClientId === c.id
-                                                        ? 'border-orange-500 bg-orange-50 text-orange-700 font-medium'
-                                                        : 'border-gray-200 text-gray-700 hover:border-gray-300'}`}
+                                                        ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 font-medium'
+                                                        : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-white/20'}`}
                                                 >
                                                     {c.name}
-                                                    <span className="ml-2 text-xs text-gray-400">{c.personGroup}</span>
+                                                    <span className="ml-2 text-xs text-gray-400 dark:text-slate-500">{c.personGroup}</span>
                                                 </button>
                                             ))}
                                         </div>
@@ -558,12 +602,12 @@ export default function ShortConsultationsPage() {
                                 </div>
                             )}
 
-                            <div className="flex items-center gap-3 p-3 bg-blue-50 text-blue-800 rounded-lg border border-blue-100 text-sm">
-                                <Clock className="w-5 h-5 text-blue-500 shrink-0" />
+                            <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 rounded-lg border border-blue-100 dark:border-blue-500/30 text-sm">
+                                <Clock className="w-5 h-5 text-blue-500 dark:text-blue-400 shrink-0" />
                                 <p>Das Kurzgespräch bleibt erhalten. Die Stunden werden <strong>nicht</strong> doppelt in der Zeiterfassung verbucht.</p>
                             </div>
 
-                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-white/10">
                                 <Button type="button" variant="ghost" onClick={() => setTransferItem(null)} disabled={isSaving}>Abbrechen</Button>
                                 <Button
                                     type="button"
@@ -577,6 +621,9 @@ export default function ShortConsultationsPage() {
                         </div>
                     ))}
                 </Modal>
+
+                {/* U-002/U-019: Toast-Feedback für alle Schreibvorgänge */}
+                <ToastContainer toast={toast} onDismiss={dismissToast} />
             </div>
         </ProtectedRoute>
     );

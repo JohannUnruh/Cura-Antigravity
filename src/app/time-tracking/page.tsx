@@ -12,7 +12,9 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { FormLabel } from "@/components/ui/FormLabel";
-import { Clock, Plus, Calendar, FileText, Briefcase, Car, Tent, Presentation, MessagesSquare, Pencil, Trash2, Download, Sun, AlertCircle, CheckCircle2, ArrowRight, Timer, XCircle } from "lucide-react";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
+import { useToast, ToastContainer } from "@/hooks/useToast";
+import { Clock, Plus, Calendar, FileText, Briefcase, Car, Tent, Presentation, MessagesSquare, Pencil, Trash2, Download, Sun, CheckCircle2, ArrowRight, Timer, XCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -70,8 +72,8 @@ export default function TimeTrackingPage() {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [entryToDelete, setEntryToDelete] = useState<TimeEntry | null>(null);
 
-    // Info Message State
-    const [infoMessage, setInfoMessage] = useState<{ type: 'success' | 'info' | 'warning', text: string } | null>(null);
+    // U-002: Toast-Primitiv — ausgelagert in den gemeinsamen useToast-Hook
+    const { toast, showToast, dismissToast } = useToast();
 
     // Overtime Pool Modal States
     const [isPoolModalOpen, setIsPoolModalOpen] = useState(false);
@@ -155,10 +157,10 @@ export default function TimeTrackingPage() {
         return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
     };
 
-    const showInfoMessage = (type: 'success' | 'info' | 'warning', text: string) => {
-        setInfoMessage({ type, text });
-        setTimeout(() => setInfoMessage(null), 5000);
-    };
+    // Behält die bestehenden Aufrufstellen; gerendert wird über <ToastContainer />.
+    const showInfoMessage = useCallback((type: 'success' | 'info' | 'warning', text: string) => {
+        showToast(type, text);
+    }, [showToast]);
 
     const loadData = useCallback(async () => {
         if (!user) return;
@@ -260,7 +262,7 @@ export default function TimeTrackingPage() {
             console.error("Error loading pool data:", error);
             showInfoMessage('warning', 'Fehler beim Laden des Überstundenpools.');
         }
-    }, [user]);
+    }, [user, showInfoMessage]);
 
     useEffect(() => { loadData(); }, [loadData]);
 
@@ -415,9 +417,11 @@ export default function TimeTrackingPage() {
             await loadPoolData();
             setIsEditPoolEntryModalOpen(false);
             setEntryToEditPool(null);
+            showInfoMessage('success', 'Pool-Eintrag aktualisiert.');
         } catch (error) {
             console.error("Error updating entry:", error);
-            alert("Fehler beim Aktualisieren.");
+            // U-008: alert() ersetzt durch Toast
+            showToast('error', 'Fehler beim Aktualisieren. Bitte versuche es erneut.');
         } finally {
             setIsPoolSaving(false);
         }
@@ -432,9 +436,11 @@ export default function TimeTrackingPage() {
             await loadPoolData();
             await loadData();
             setEntryToDeletePool(null);
+            showInfoMessage('success', 'Pool-Eintrag gelöscht.');
         } catch (error) {
             console.error("Error deleting entry:", error);
-            alert("Fehler beim Löschen.");
+            // U-008: alert() ersetzt durch Toast
+            showToast('error', 'Fehler beim Löschen. Bitte versuche es erneut.');
         } finally {
             setIsPoolSaving(false);
         }
@@ -472,6 +478,10 @@ export default function TimeTrackingPage() {
             await loadData();
             setIsDeleteModalOpen(false);
             setEntryToDelete(null);
+            showInfoMessage('success', 'Zeiteintrag gelöscht.');
+        } catch (error) {
+            console.error("Error deleting time entry:", error);
+            showToast('error', 'Fehler beim Löschen. Bitte versuche es erneut.');
         } finally {
             setIsSaving(false);
         }
@@ -499,8 +509,53 @@ export default function TimeTrackingPage() {
             };
 
             if (selected) {
-                // Bei Bearbeiten einfach update (keine Kontingent-Prüfung)
-                await timeTrackingService.updateTimeEntry(selected.id, payload);
+                // U-004b: Beim Bearbeiten dieselbe Kontingentprüfung wie beim
+                // Anlegen fahren — ein editierter Eintrag darf das Minijob-
+                // Monatskontingent nicht lautlos überschreiten.
+                const editDate = new Date(form.date);
+                const editYear = editDate.getFullYear();
+                const editMonth = editDate.getMonth();
+
+                if (isMinijobberUser) {
+                    const monthMax = await getMaxHoursForMonth();
+                    const usedInMonth = await getHoursByMonth(user?.uid || "", editYear, editMonth);
+
+                    // Alte Stunden desselben Eintrags herausrechnen, falls er
+                    // bereits (aktiv) im Zielmonat liegt
+                    const oldDate = new Date(selected.date);
+                    const oldWasActiveInMonth =
+                        oldDate.getFullYear() === editYear &&
+                        oldDate.getMonth() === editMonth &&
+                        (selected.status === undefined || selected.status === null || selected.status === 'active');
+                    const usedExcluding = usedInMonth - (oldWasActiveInMonth ? selected.durationInHours : 0);
+                    const available = Math.max(0, Math.round((monthMax - usedExcluding) * 100) / 100);
+                    const originalMonth = `${editYear}-${String(editMonth + 1).padStart(2, '0')}`;
+
+                    if (durationInHours <= available) {
+                        await timeTrackingService.updateTimeEntry(selected.id, payload);
+                        showInfoMessage('success', 'Zeiteintrag aktualisiert.');
+                    } else if (available > 0) {
+                        const overtimeHours = Math.round((durationInHours - available) * 100) / 100;
+                        await timeTrackingService.updateTimeEntry(selected.id, { ...payload, durationInHours: available });
+                        await timeTrackingService.addTimeEntry({
+                            ...payload,
+                            durationInHours: overtimeHours,
+                            status: 'overtime-pool',
+                            originalMonth
+                        });
+                        showInfoMessage('warning', `Durch diese Änderung liegt der Monat über dem Kontingent. ${available}h bleiben im Monat, ${overtimeHours}h wandern in den Überstundenpool.`);
+                    } else {
+                        await timeTrackingService.updateTimeEntry(selected.id, {
+                            ...payload,
+                            status: 'overtime-pool',
+                            originalMonth
+                        });
+                        showInfoMessage('info', `Monatskontingent ist ausgeschöpft. Der Eintrag (${durationInHours}h) wurde in den Überstundenpool verschoben.`);
+                    }
+                } else {
+                    await timeTrackingService.updateTimeEntry(selected.id, payload);
+                    showInfoMessage('success', 'Zeiteintrag aktualisiert.');
+                }
             } else {
                 // Bei neuem Eintrag: Kontingent-Prüfung mit addTimeEntryWithCheck
                 const date = new Date(form.date);
@@ -523,7 +578,7 @@ export default function TimeTrackingPage() {
             setIsModalOpen(false);
         } catch (error) {
             console.error("Error saving time entry:", error);
-            showInfoMessage('warning', 'Fehler beim Speichern. Bitte versuchen Sie es erneut.');
+            showInfoMessage('warning', 'Fehler beim Speichern. Bitte versuche es erneut.');
         } finally {
             setIsSaving(false);
         }
@@ -850,6 +905,8 @@ export default function TimeTrackingPage() {
                                 <div className="flex items-center gap-2 mb-2">
                                     <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                                     <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400">Überstundenpool</h3>
+                                    {/* T-10 (Usability-Bericht 08.10.2026) */}
+                                    <InfoTooltip text="Stunden über dem Monatskontingent landen automatisch hier und können später in einen freien Monat verschoben werden. Nichts geht verloren." />
                                 </div>
                                 <p className="text-3xl font-bold text-amber-600 dark:text-amber-400 mt-1">{formatHours(overtimePoolHours)} <span className="text-lg text-gray-500 dark:text-slate-500 font-normal">h</span></p>
                                 <Button
@@ -1083,25 +1140,29 @@ export default function TimeTrackingPage() {
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                             <div>
-                                                                <FormLabel htmlFor="timeEntryDate" required>Datum{form.type === "Urlaub" ? " (von)" : ""}</FormLabel>
+                                                                <FormLabel htmlFor="timeEntryDate" required className="dark:text-slate-300">Datum{form.type === "Urlaub" ? " (von)" : ""}</FormLabel>
                                                                 <input id="timeEntryDate" type="date" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
-                                                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20" />
+                                                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-rose-500/20" />
                                                             </div>
                                                             {form.type === "Urlaub" ? (
                                                             <div>
-                                                                <FormLabel htmlFor="timeEntryEndDate">bis Datum <span className="text-gray-400 font-normal">(optional)</span></FormLabel>
+                                                                <FormLabel htmlFor="timeEntryEndDate" className="dark:text-slate-300">bis Datum <span className="text-gray-400 dark:text-slate-500 font-normal">(optional)</span></FormLabel>
                                                                 <input id="timeEntryEndDate" type="date" value={form.endDate} min={form.date}
                                                                     onChange={e => setForm({ ...form, endDate: e.target.value })}
-                                                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20" />
+                                                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-rose-500/20" />
                                                                 {form.endDate && form.endDate >= form.date && (
-                                                                    <p className="text-xs text-gray-500 mt-1">{getWorkingDays(form.date, form.endDate)} Arbeitstage × {hoursPerVacationDay}h = {getWorkingDays(form.date, form.endDate) * hoursPerVacationDay}h</p>
+                                                                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">{getWorkingDays(form.date, form.endDate)} Arbeitstage × {hoursPerVacationDay}h = {getWorkingDays(form.date, form.endDate) * hoursPerVacationDay}h</p>
                                                                 )}
                                                             </div>
                                                             ) : (
                                                             <div>
-                                                                <FormLabel htmlFor="timeEntryTimeOfDay" required>Tageszeit</FormLabel>
+                                                                {/* T-2 (Usability-Bericht 08.10.2026) */}
+                                                                <div className="flex items-center gap-1.5 mb-1">
+                                                                    <FormLabel htmlFor="timeEntryTimeOfDay" required className="mb-0 dark:text-slate-300">Tageszeit</FormLabel>
+                                                                    <InfoTooltip text="Gibt an, wann das Gespräch stattfand. Vormittags = ab 8 Uhr, Nachmittags = ab 15 Uhr, Abends = ab 18 Uhr. Wird für die Stundenauswertung und den Belegungsplan genutzt." />
+                                                                </div>
                                                                 <select id="timeEntryTimeOfDay" required title="Tageszeit auswählen" value={form.timeOfDay} onChange={e => setForm({ ...form, timeOfDay: e.target.value as "Vormittags" | "Nachmittags" | "Abends" | "Ganztägig" })}
-                                                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20">
+                                                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-rose-500/20">
                                                                     <option value="Ganztägig">Ganztägig</option>
                                                                     <option value="Vormittags">Vormittags</option>
                                                                     <option value="Nachmittags">Nachmittags</option>
@@ -1110,14 +1171,21 @@ export default function TimeTrackingPage() {
                                                             </div>
                                                             )}
                                                             <div>
-                                                                <FormLabel htmlFor="timeEntryDuration" required>Dauer (Std.)</FormLabel>
+                                                                <FormLabel htmlFor="timeEntryDuration" required className="dark:text-slate-300">Dauer (Std.)</FormLabel>
                                                                 <input id="timeEntryDuration" type="number" step="0.25" min="0" required value={form.durationInHours}
+                                                                    // U-001: Scrollrad darf die Dauer nicht unbemerkt verstellen
+                                                                    onWheel={(e) => e.currentTarget.blur()}
                                                                     onChange={e => setForm({ ...form, durationInHours: parseFloat(e.target.value) })}
                                                                     disabled={form.type === "Urlaub"}
-                                                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 disabled:opacity-60 disabled:cursor-not-allowed" />
+                                                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-rose-500/20 disabled:opacity-60 disabled:cursor-not-allowed" />
+                                                                {form.type === "Urlaub" && (
+                                                                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                                                                        Wird aus den Arbeitstagen des Zeitraums berechnet.
+                                                                    </p>
+                                                                )}
                                                             </div>
                                                             <div>
-                                                                <FormLabel htmlFor="timeEntryType" required>Kategorie</FormLabel>
+                                                                <FormLabel htmlFor="timeEntryType" required className="dark:text-slate-300">Kategorie</FormLabel>
                                                                 <select id="timeEntryType" required value={form.type} onChange={e => {
                                                                     const val = e.target.value as TimeEntryType;
                                                                     setForm(prev => {
@@ -1127,7 +1195,7 @@ export default function TimeTrackingPage() {
                                                                         return { ...prev, type: val };
                                                                     });
                                                                 }}
-                                                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20">
+                                                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-rose-500/20">
                                                                     <option value="Büro">Büro / Administration</option>
                                                                     <option value="Beratung">Beratung</option>
                                                                     <option value="Vortrag">Vortrag</option>
@@ -1139,12 +1207,12 @@ export default function TimeTrackingPage() {
                                                             </div>
                                                         </div>
                                                         <div>
-                                                            <FormLabel htmlFor="timeEntryDescription" required>Beschreibung / Notiz</FormLabel>
+                                                            <FormLabel htmlFor="timeEntryDescription" required className="dark:text-slate-300">Beschreibung / Notiz</FormLabel>
                                                             <textarea id="timeEntryDescription" required value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
-                                                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 min-h-[100px]"
+                                                                className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-rose-500/20 min-h-[100px]"
                                                                 placeholder="Details zur erbrachten Leistung..." />
                                                         </div>
-                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-white/10">
                             <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} disabled={isSaving}>Abbrechen</Button>
                             <Button type="submit" variant="primary" disabled={isSaving}>
                                 {isSaving ? "Wird gespeichert..." : "Speichern"}
@@ -1155,10 +1223,10 @@ export default function TimeTrackingPage() {
 
                 <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Eintrag löschen">
                     <div className="space-y-4">
-                        <p className="text-gray-600">
+                        <p className="text-gray-600 dark:text-slate-300">
                             Möchtest du die erfasste Zeit <strong>{entryToDelete?.type} ({formatHours(entryToDelete?.durationInHours)}h)</strong> wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
                         </p>
-                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-white/10">
                             <Button type="button" variant="ghost" onClick={() => setIsDeleteModalOpen(false)} disabled={isSaving}>Abbrechen</Button>
                             <Button type="button" variant="danger" disabled={isSaving} onClick={confirmDelete}>
                                 {isSaving ? "Wird gelöscht..." : "Löschen"}
@@ -1167,29 +1235,8 @@ export default function TimeTrackingPage() {
                     </div>
                 </Modal>
 
-                {/* Info Message Toast */}
-                {infoMessage && (
-                    <div className="fixed bottom-6 right-6 z-[100] animate-in fade-in slide-in-from-bottom-4 duration-300">
-                        <div className={`px-6 py-4 rounded-xl shadow-2xl border flex items-start gap-3 max-w-md ${
-                            infoMessage.type === 'success' 
-                                ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200'
-                                : infoMessage.type === 'warning'
-                                ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200'
-                                : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200'
-                        }`}>
-                            {infoMessage.type === 'success' && <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />}
-                            {infoMessage.type === 'warning' && <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />}
-                            {infoMessage.type === 'info' && <Clock className="w-5 h-5 flex-shrink-0 mt-0.5" />}
-                            <p className="text-sm font-medium">{infoMessage.text}</p>
-                            <button 
-                                onClick={() => setInfoMessage(null)}
-                                className="ml-auto text-current opacity-60 hover:opacity-100 transition-opacity"
-                            >
-                                <XCircle className="w-4 h-4" />
-                            </button>
-                        </div>
-                    </div>
-                )}
+                {/* Info Message Toast (U-002: gemeinsames Toast-Primitiv) */}
+                <ToastContainer toast={toast} onDismiss={dismissToast} />
 
                 {/* Overtime Pool Modal */}
                 <Modal isOpen={isPoolModalOpen} onClose={() => setIsPoolModalOpen(false)} title="Überstundenpool verwalten">
@@ -1299,7 +1346,7 @@ export default function TimeTrackingPage() {
                 <Modal isOpen={isDistributeModalOpen} onClose={() => setIsDistributeModalOpen(false)} title="Überstunden verteilen">
                     <div className="space-y-4">
                         <p className="text-gray-600 dark:text-slate-300">
-                            Sie möchten <strong>{formatHours(poolEntries.filter(e => selectedPoolEntryIds.includes(e.id)).reduce((sum, e) => sum + e.durationInHours, 0))}h</strong> auf einen Zielmonat verteilen.
+                            Du möchtest <strong>{formatHours(poolEntries.filter(e => selectedPoolEntryIds.includes(e.id)).reduce((sum, e) => sum + e.durationInHours, 0))}h</strong> auf einen Zielmonat verteilen.
                         </p>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1445,7 +1492,7 @@ export default function TimeTrackingPage() {
                         {!canDistribute && (
                             <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-lg text-sm flex items-center gap-2">
                                 <XCircle className="w-4 h-4" />
-                                Der Zielmonat hat nicht genügend Kapazität. Bitte wählen Sie einen anderen Monat.
+                                Der Zielmonat hat nicht genügend Kapazität. Bitte wähle einen anderen Monat.
                             </div>
                         )}
 
@@ -1496,6 +1543,8 @@ export default function TimeTrackingPage() {
                                     step="0.25"
                                     min="0"
                                     required
+                                    // U-001: Scrollrad darf die Dauer nicht unbemerkt verstellen
+                                    onWheel={(e) => e.currentTarget.blur()}
                                     value={editPoolForm.durationInHours}
                                     onChange={(e) => setEditPoolForm({ ...editPoolForm, durationInHours: parseFloat(e.target.value) })}
                                     className="w-full px-3 py-2 bg-white dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-amber-500/20"
