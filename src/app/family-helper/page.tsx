@@ -14,6 +14,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { useToast, ToastContainer } from "@/hooks/useToast";
+import { formatEuro } from "@/lib/utils/format";
 import {
     Plus,
     Search,
@@ -61,6 +62,7 @@ export default function FamilyHelperDashboard() {
     const [members, setMembers] = useState<FamilyMemberInput[]>([]);
     const [hasFunding, setHasFunding] = useState(false);
     const [hoursGranted, setHoursGranted] = useState<string>("");
+    const [hourlyRate, setHourlyRate] = useState<string>("");
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
 
@@ -133,6 +135,7 @@ export default function FamilyHelperDashboard() {
         setMembers([]);
         setHasFunding(false);
         setHoursGranted("");
+        setHourlyRate("");
         setStartDate("");
         setEndDate("");
         setIsModalOpen(true);
@@ -199,6 +202,7 @@ export default function FamilyHelperDashboard() {
                                hoursGranted: Number(hoursGranted),
                                startDate,
                                endDate,
+                               hourlyRate: hourlyRate && Number(hourlyRate) > 0 ? Number(hourlyRate) : undefined,
                            }
                         : undefined,
                 createdAt: new Date(),
@@ -443,6 +447,10 @@ export default function FamilyHelperDashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filteredCases.map((c) => {
                             const percentage = c.targetHours > 0 ? Math.min(100, (c.actualHours / c.targetHours) * 100) : 0;
+                            const hourlyRate = c.fundingCommitment?.hourlyRate;
+                            const hasBudget = typeof hourlyRate === "number" && hourlyRate > 0;
+                            const totalBudget = hasBudget ? c.targetHours * hourlyRate : null;
+                            const spentBudget = hasBudget ? c.actualHours * hourlyRate : null;
                             const statusColors = {
                                 aktiv: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/50",
                                 inaktiv: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/50",
@@ -485,24 +493,55 @@ export default function FamilyHelperDashboard() {
                                             </div>
                                         </CardContent>
 
-                                        {/* Hours progress bar */}
+                                        {/* Hours / Budget progress bar */}
                                         <div className="px-6 pb-6 pt-3 border-t border-gray-100 dark:border-white/5 bg-gray-50/20 dark:bg-slate-900/20">
-                                            <div className="flex justify-between text-xs font-semibold mb-1.5 text-gray-500 dark:text-slate-400">
-                                                <span>Ist: {c.actualHours.toFixed(1)} Std.</span>
-                                                <span>Soll: {c.targetHours.toFixed(1)} Std.</span>
-                                            </div>
-                                            <div className="w-full bg-gray-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
-                                                <div 
-                                                    className={`h-full rounded-full transition-all duration-500 ${
-                                                        percentage >= 100 
-                                                            ? 'bg-emerald-500' 
-                                                            : percentage >= 80 
-                                                                ? 'bg-amber-500' 
-                                                                : 'bg-indigo-500'
-                                                    }`}
-                                                    style={{ width: `${percentage}%` }}
-                                                />
-                                            </div>
+                                            {hasBudget && totalBudget !== null && spentBudget !== null ? (
+                                                <>
+                                                    <div className="flex justify-between items-baseline text-xs font-semibold mb-1 text-gray-700 dark:text-slate-300">
+                                                        <span className="font-bold text-gray-900 dark:text-white">
+                                                            Ist: {formatEuro(spentBudget)}
+                                                        </span>
+                                                        <span className="text-gray-500 dark:text-slate-400">
+                                                            Budget: {formatEuro(totalBudget)}
+                                                        </span>
+                                                    </div>
+                                                    <div className="w-full bg-gray-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                                                        <div 
+                                                            className={`h-full rounded-full transition-all duration-500 ${
+                                                                percentage >= 100 
+                                                                    ? 'bg-emerald-500' 
+                                                                    : percentage >= 80 
+                                                                        ? 'bg-amber-500' 
+                                                                        : 'bg-indigo-500'
+                                                            }`}
+                                                            style={{ width: `${percentage}%` }}
+                                                        />
+                                                    </div>
+                                                    <div className="flex justify-between text-[11px] text-gray-400 dark:text-slate-500 mt-1.5 font-medium">
+                                                        <span>{c.actualHours.toFixed(1)} von {c.targetHours.toFixed(1)} Std.</span>
+                                                        <span>{formatEuro(hourlyRate)} / Std.</span>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className="flex justify-between text-xs font-semibold mb-1.5 text-gray-500 dark:text-slate-400">
+                                                        <span>Ist: {c.actualHours.toFixed(1)} Std.</span>
+                                                        <span>Soll: {c.targetHours.toFixed(1)} Std.</span>
+                                                    </div>
+                                                    <div className="w-full bg-gray-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                                                        <div 
+                                                            className={`h-full rounded-full transition-all duration-500 ${
+                                                                percentage >= 100 
+                                                                    ? 'bg-emerald-500' 
+                                                                    : percentage >= 80 
+                                                                        ? 'bg-amber-500' 
+                                                                        : 'bg-indigo-500'
+                                                            }`}
+                                                            style={{ width: `${percentage}%` }}
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     </Card>
                                 </Link>
@@ -691,55 +730,86 @@ export default function FamilyHelperDashboard() {
                                     className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
                                 />
                                 <label htmlFor="hasFunding" className="text-sm font-semibold text-gray-900 dark:text-white cursor-pointer select-none">
-                                    Bewilligung hinterlegen (Stundenbudget)
+                                    Bewilligung hinterlegen (Budget &amp; Stunden)
                                 </label>
                             </div>
 
                             {hasFunding && (
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-gray-50/30 dark:bg-slate-900/30 rounded-2xl border border-gray-200/50 dark:border-white/5">
-                                    <div>
-                                        {/* T-9 (Usability-Bericht 08.10.2026) */}
-                                        <div className="flex items-center gap-1.5 mb-1.5">
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">
-                                                Bewilligte Stunden
-                                            </label>
-                                            <InfoTooltip text="Stundenbudget aus der Bewilligung des Jugendamts. Ist-Stunden aus den Journalen laufen dagegen; der Balken zeigt den Verbrauch." />
+                                <div className="space-y-4 p-4 bg-gray-50/30 dark:bg-slate-900/30 rounded-2xl border border-gray-200/50 dark:border-white/5">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        <div>
+                                            {/* T-9 (Usability-Bericht 08.10.2026) */}
+                                            <div className="flex items-center gap-1.5 mb-1.5">
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">
+                                                    Bewilligte Std.
+                                                </label>
+                                                <InfoTooltip text="Stundenbudget aus der Bewilligung des Jugendamts. Ist-Stunden aus den Journalen laufen dagegen; der Balken zeigt den Verbrauch." />
+                                            </div>
+                                            <input
+                                                type="number"
+                                                value={hoursGranted}
+                                                onChange={(e) => setHoursGranted(e.target.value)}
+                                                min="0"
+                                                step="0.5"
+                                                placeholder="z. B. 50"
+                                                required={hasFunding}
+                                                // U-001: Scrollrad darf die Stunden nicht unbemerkt verstellen
+                                                onWheel={(e) => e.currentTarget.blur()}
+                                                className="w-full px-4 py-2 bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-gray-900 dark:text-white"
+                                            />
                                         </div>
-                                        <input
-                                            type="number"
-                                            value={hoursGranted}
-                                            onChange={(e) => setHoursGranted(e.target.value)}
-                                            min="0"
-                                            required={hasFunding}
-                                            // U-001: Scrollrad darf die Stunden nicht unbemerkt verstellen
-                                            onWheel={(e) => e.currentTarget.blur()}
-                                            className="w-full px-4 py-2 bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-gray-900 dark:text-white"
-                                        />
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-slate-300">
+                                                Stundensatz (€) <span className="text-xs text-gray-400 font-normal">(optional)</span>
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={hourlyRate}
+                                                onChange={(e) => setHourlyRate(e.target.value)}
+                                                min="0"
+                                                step="0.01"
+                                                placeholder="z. B. 100,00"
+                                                onWheel={(e) => e.currentTarget.blur()}
+                                                className="w-full px-4 py-2 bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-gray-900 dark:text-white"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-slate-300">
+                                                Startdatum
+                                            </label>
+                                            <input
+                                                type="date"
+                                                value={startDate}
+                                                onChange={(e) => setStartDate(e.target.value)}
+                                                required={hasFunding}
+                                                className="w-full px-4 py-2 bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-gray-900 dark:text-white"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-slate-300">
+                                                Enddatum
+                                            </label>
+                                            <input
+                                                type="date"
+                                                value={endDate}
+                                                onChange={(e) => setEndDate(e.target.value)}
+                                                required={hasFunding}
+                                                className="w-full px-4 py-2 bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-gray-900 dark:text-white"
+                                            />
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-slate-300">
-                                            Startdatum
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={startDate}
-                                            onChange={(e) => setStartDate(e.target.value)}
-                                            required={hasFunding}
-                                            className="w-full px-4 py-2 bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-gray-900 dark:text-white"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-slate-300">
-                                            Enddatum
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={endDate}
-                                            onChange={(e) => setEndDate(e.target.value)}
-                                            required={hasFunding}
-                                            className="w-full px-4 py-2 bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-gray-900 dark:text-white"
-                                        />
-                                    </div>
+
+                                    {/* Live-Budget-Vorschau */}
+                                    {Number(hoursGranted) > 0 && Number(hourlyRate) > 0 && (
+                                        <div className="p-3 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 rounded-xl flex items-center justify-between text-xs">
+                                            <span className="text-indigo-700 dark:text-indigo-300 font-medium">
+                                                💡 Errechnetes Gesamtbudget: {Number(hoursGranted)} Std. × {formatEuro(Number(hourlyRate))}
+                                            </span>
+                                            <span className="text-sm font-bold text-indigo-950 dark:text-white">
+                                                {formatEuro(Number(hoursGranted) * Number(hourlyRate))}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

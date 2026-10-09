@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { FormLabel } from "@/components/ui/FormLabel";
 import { exportDevelopmentReport, exportPerformanceRecord } from "@/lib/pdf/familyHelperPdfExport";
+import { formatEuro } from "@/lib/utils/format";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from "recharts";
@@ -409,16 +410,29 @@ export default function CaseDetailPage() {
         setToast("Leistungsnachweis heruntergeladen");
     };
 
-    // ── Journal Stats ──
+    // ── Journal & Budget Stats ──
     const totalActualHours = useMemo(() =>
         journalEntries.reduce((sum, e) => sum + (e.durationInHours || 0), 0), [journalEntries]);
     const budgetHours = familyCase?.fundingCommitment?.hoursGranted || 0;
+    const hourlyRate = familyCase?.fundingCommitment?.hourlyRate;
+    const hasHourlyRate = typeof hourlyRate === "number" && hourlyRate > 0;
+    const totalBudgetEur = hasHourlyRate ? Math.round(budgetHours * hourlyRate * 100) / 100 : null;
+    const spentBudgetEur = hasHourlyRate ? Math.round(totalActualHours * hourlyRate * 100) / 100 : null;
+    const remainingBudgetEur = (totalBudgetEur !== null && spentBudgetEur !== null) ? Math.max(0, totalBudgetEur - spentBudgetEur) : null;
     const remainingPercent = budgetHours > 0 ? Math.max(0, ((budgetHours - totalActualHours) / budgetHours) * 100) : 0;
 
     const chartData = useMemo(() => [
-        { name: "Soll", stunden: budgetHours, fill: "#6366f1" },
-        { name: "Ist", stunden: Math.round(totalActualHours * 10) / 10, fill: totalActualHours > budgetHours ? "#ef4444" : "#10b981" },
-    ], [budgetHours, totalActualHours]);
+        { 
+            name: "Soll", 
+            wert: hasHourlyRate && totalBudgetEur !== null ? totalBudgetEur : budgetHours, 
+            fill: "#6366f1" 
+        },
+        { 
+            name: "Ist", 
+            wert: hasHourlyRate && spentBudgetEur !== null ? spentBudgetEur : Math.round(totalActualHours * 10) / 10, 
+            fill: totalActualHours > budgetHours ? "#ef4444" : "#10b981" 
+        },
+    ], [budgetHours, totalActualHours, hasHourlyRate, totalBudgetEur, spentBudgetEur]);
 
     // ── Loading & Access Guards ──
     if (authLoading || loading) {
@@ -784,16 +798,36 @@ export default function CaseDetailPage() {
                         {budgetHours > 0 && (
                             <Card className="shadow-sm border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40">
                                 <CardContent className="p-6 pt-6">
-                                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Stundenübersicht</h2>
+                                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                                        {hasHourlyRate ? "Budget- & Stundenübersicht" : "Stundenübersicht"}
+                                    </h2>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
-                                            <p className="text-sm text-gray-500 dark:text-slate-400 mb-1">Verbrauch</p>
-                                            <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                                                {totalActualHours.toFixed(1)} <span className="text-base font-normal text-gray-400">von {budgetHours} Std.</span>
+                                            <p className="text-sm text-gray-500 dark:text-slate-400 mb-1">
+                                                {hasHourlyRate ? "Budget-Verbrauch" : "Verbrauch"}
                                             </p>
-                                            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-                                                {remainingPercent.toFixed(0)}% verbleibend
-                                            </p>
+                                            {hasHourlyRate && totalBudgetEur !== null && spentBudgetEur !== null && remainingBudgetEur !== null ? (
+                                                <>
+                                                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                                                        {formatEuro(spentBudgetEur)} <span className="text-base font-normal text-gray-400">von {formatEuro(totalBudgetEur)}</span>
+                                                    </p>
+                                                    <p className="text-sm text-gray-600 dark:text-slate-300 mt-1 font-medium">
+                                                        {formatEuro(remainingBudgetEur)} ({remainingPercent.toFixed(0)}%) verbleibend
+                                                    </p>
+                                                    <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
+                                                        {totalActualHours.toFixed(1)} von {budgetHours} FLS geleistet (à {formatEuro(hourlyRate)})
+                                                    </p>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                                                        {totalActualHours.toFixed(1)} <span className="text-base font-normal text-gray-400">von {budgetHours} Std.</span>
+                                                    </p>
+                                                    <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+                                                        {remainingPercent.toFixed(0)}% verbleibend
+                                                    </p>
+                                                </>
+                                            )}
                                             <div className="mt-3 h-3 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
                                                 <div className={`h-full rounded-full transition-all ${totalActualHours > budgetHours ? "bg-red-500" : "bg-indigo-500"}`} style={{ width: `${Math.min(100, (totalActualHours / budgetHours) * 100)}%` }} />
                                             </div>
@@ -804,8 +838,13 @@ export default function CaseDetailPage() {
                                                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                                                     <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                                                     <YAxis tick={{ fontSize: 12 }} />
-                                                    <Tooltip />
-                                                    <Bar dataKey="stunden" radius={[6, 6, 0, 0]}>
+                                                    <Tooltip
+                                                        formatter={(value: unknown) => [
+                                                            hasHourlyRate ? formatEuro(Number(value)) : `${value} Std.`,
+                                                            hasHourlyRate ? "Budget" : "Stunden"
+                                                        ]}
+                                                    />
+                                                    <Bar dataKey="wert" radius={[6, 6, 0, 0]}>
                                                         {chartData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                                                     </Bar>
                                                 </BarChart>

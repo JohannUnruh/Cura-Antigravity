@@ -30,6 +30,7 @@ async function main() {
         await import("./aiPrefill.test");
         await import("./timeEntryUndefined.test");
         await import("./spfh/familyCaseUndefined.test");
+        await import("./spfh/budgetCalculation.test");
 
 
         const { runAllSuites } = await import("./test-framework");
