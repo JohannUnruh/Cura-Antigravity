@@ -41,6 +41,19 @@ export function clearFamilyHelperMockDb() {
 }
 
 /**
+ * Entfernt Felder mit undefined-Werten, bevor Daten an Firestore übergeben
+ * werden. setDoc() lehnt undefined als Feldwert ab ("Unsupported field value: undefined").
+ * Fix 09.10.2026: Crash beim Anlegen einer SPFH-Familie ohne sofortigen Jugendamtauftrag
+ * oder Bewilligung (mandate/fundingCommitment = undefined).
+ */
+export function stripUndefinedFields(data: object): Record<string, unknown> {
+    return Object.entries(data).reduce((acc, [key, value]) => {
+        if (value !== undefined) acc[key] = value;
+        return acc;
+    }, {} as Record<string, unknown>);
+}
+
+/**
  * Extrahiert die fortlaufende Nummer aus einer SPFH-Fallnummer
  * (Format: SPFH-<4-stelliges Jahr>-<lfdNr>), z.B. "SPFH-2026-004" → 4.
  * Gibt null zurück, wenn das Format nicht passt (z.B. Freitext-Altnummern).
@@ -230,13 +243,15 @@ export const familyHelperService = {
             updatedAt: now
         };
 
+        const cleanCase = stripUndefinedFields(newCase) as unknown as FamilyCase;
+
         if (isMockMode) {
-            mockCases.set(id, newCase);
+            mockCases.set(id, cleanCase);
             return id;
         }
 
         const docRef = doc(db, "family_cases", id);
-        await setDoc(docRef, newCase);
+        await setDoc(docRef, cleanCase);
         return id;
     },
 
@@ -467,15 +482,17 @@ export const familyHelperService = {
             timeEntryId
         };
 
+        const cleanEntry = stripUndefinedFields(newEntry) as unknown as FamilyJournalEntry;
+
         if (isMockMode) {
             const entries = mockJournals.get(caseId) || [];
-            entries.push(newEntry);
+            entries.push(cleanEntry);
             mockJournals.set(caseId, entries);
             return entryId;
         }
 
         const docRef = doc(db, "family_cases", caseId, "journal", entryId);
-        await setDoc(docRef, newEntry);
+        await setDoc(docRef, cleanEntry);
         return entryId;
     },
 
@@ -645,15 +662,17 @@ export const familyHelperService = {
             date: parseDate(assessment.date)
         };
 
+        const cleanAssessment = stripUndefinedFields(newAssessment) as unknown as HazardAssessment8a;
+
         if (isMockMode) {
             const list = mockAssessments.get(caseId) || [];
-            list.push(newAssessment);
+            list.push(cleanAssessment);
             mockAssessments.set(caseId, list);
             return id;
         }
 
         const docRef = doc(db, "family_cases", caseId, "hazard_assessments", id);
-        await setDoc(docRef, newAssessment);
+        await setDoc(docRef, cleanAssessment);
         return id;
     },
 

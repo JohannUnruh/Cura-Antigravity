@@ -22,7 +22,7 @@ const navGroups: NavGroup[] = [
         ],
     },
     {
-        title: "Menschen",
+        title: "Klienten & Familien",
         items: [
             { name: "Klienten", href: "/clients", icon: Users },
             { name: "Familienhilfe", href: "/family-helper", icon: HeartHandshake },
@@ -30,7 +30,7 @@ const navGroups: NavGroup[] = [
         ],
     },
     {
-        title: "Gespräche & Dienste",
+        title: "Beratung & Angebote",
         items: [
             { name: "Beratungen", href: "/consultations", icon: MessagesSquare },
             { name: "Kurzgespräche", href: "/short-consultations", icon: Coffee },

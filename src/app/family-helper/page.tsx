@@ -210,10 +210,13 @@ export default function FamilyHelperDashboard() {
             await loadData();
             // U-019: Erfolgsfeedback mit vergebener Fallnummer
             showToast('success', `Fall angelegt — Fallnummer ${assignedCaseNumber}.`);
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Error creating new SPFH case:", error);
-            // U-008: alert() ersetzt durch Toast mit Handlungsweg
-            showToast('error', "Speichern fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.");
+            const err = error as { message?: string };
+            const errorMsg = err?.message
+                ? `Fehler beim Speichern: ${err.message}`
+                : "Speichern fehlgeschlagen. Bitte prüfe deine Eingaben und versuche es erneut.";
+            showToast('error', errorMsg);
         } finally {
             setIsSaving(false);
         }
@@ -597,12 +600,12 @@ export default function FamilyHelperDashboard() {
                         {/* Jugendamt-Auftrag / Hilfebedarf */}
                         <div>
                             <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-slate-300">
-                                Jugendamt-Auftrag / Hilfebedarf
+                                Jugendamt-Auftrag / Hilfebedarf <span className="text-xs text-gray-400 dark:text-slate-500 font-normal">(optional)</span>
                             </label>
                             <textarea
                                 value={mandate}
                                 onChange={(e) => setMandate(e.target.value)}
-                                placeholder="Beschreibung des offiziellen Auftrags durch das Jugendamt..."
+                                placeholder="Beschreibung des offiziellen Auftrags durch das Jugendamt... (Optional – kann auch später in den Stammdaten nachgetragen werden)"
                                 rows={3}
                                 className="w-full px-4 py-3 bg-gray-50/50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-gray-900 dark:text-white text-sm resize-y"
                             />

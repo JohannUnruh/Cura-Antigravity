@@ -29,6 +29,7 @@ async function main() {
         await import("./aiAnalysis.test");
         await import("./aiPrefill.test");
         await import("./timeEntryUndefined.test");
+        await import("./spfh/familyCaseUndefined.test");
 
 
         const { runAllSuites } = await import("./test-framework");
