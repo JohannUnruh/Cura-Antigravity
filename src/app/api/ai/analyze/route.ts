@@ -26,7 +26,7 @@ async function getGeminiApiKey(): Promise<string | null> {
 }
 
 async function callGemini(apiKey: string, prompt: string): Promise<string> {
-    const models = ["gemini-3.6-flash", "gemini-2.5-flash"];
+    const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-2.5-flash"];
     let lastError: Error | null = null;
 
     for (const model of models) {
@@ -39,7 +39,6 @@ async function callGemini(apiKey: string, prompt: string): Promise<string> {
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: {
                         responseMimeType: "application/json",
-                        temperature: 0.2,
                     },
                 }),
             });
@@ -47,27 +46,34 @@ async function callGemini(apiKey: string, prompt: string): Promise<string> {
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
                 const errMsg = errData.error?.message || `HTTP ${res.status}`;
-                if (res.status === 404) {
-                    console.warn(`Model ${model} returned 404, attempting fallback:`, errMsg);
-                    lastError = new Error(errMsg);
-                    continue;
+
+                // Bei ungültigem API-Key direkt abbrechen
+                if (res.status === 401) {
+                    throw new Error(`Gemini API Authentication error: ${errMsg}`);
                 }
-                throw new Error(`Gemini API error (${model}): ${errMsg}`);
+
+                // Bei 404 (Not Found), 410 (Gone), 400 (Bad/Deprecated Model) oder Server-Fehler: nächstes Modell versuchen
+                console.warn(`Gemini Model ${model} returned ${res.status}: ${errMsg}. Attempting fallback...`);
+                lastError = new Error(`Gemini API error (${model}): ${errMsg}`);
+                continue;
             }
 
             const data = await res.json();
             const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
             if (!text) {
-                throw new Error("Empty response from Gemini API");
+                console.warn(`Gemini Model ${model} returned empty response. Attempting fallback...`);
+                lastError = new Error(`Empty response from Gemini API (${model})`);
+                continue;
             }
             return text;
         } catch (err: unknown) {
             const error = err instanceof Error ? err : new Error(String(err));
-            lastError = error;
-            if (error.message.includes("404")) {
-                continue;
+            if (error.message.includes("Authentication error")) {
+                throw error;
             }
-            throw error;
+            console.warn(`Gemini Model ${model} call failed:`, error.message);
+            lastError = error;
+            continue;
         }
     }
 
