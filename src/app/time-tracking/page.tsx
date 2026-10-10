@@ -18,6 +18,7 @@ import { Clock, Plus, Calendar, FileText, Briefcase, Car, Tent, Presentation, Me
 import { useRouter, useSearchParams } from "next/navigation";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { fitLogoBox, readPngSize } from "@/lib/contracts/headerLayout";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 const sanitizeDescription = (desc?: string, referenceId?: string) => {
@@ -668,9 +669,10 @@ export default function TimeTrackingPage() {
                     reader.readAsDataURL(blob);
                 });
             };
-            const logoBase64 = await getBase64Image("/icon.png");
-            // logo at (14, 12), size 16x16
-            doc.addImage(logoBase64, 'PNG', 14, 12, 16, 16);
+            const logoBase64 = await getBase64Image("/logo.png");
+            const px = readPngSize(logoBase64);
+            const box = fitLogoBox(px?.width, px?.height, 16, 16);
+            doc.addImage(logoBase64, 'PNG', 14, 12, box.width, box.height);
             doc.setFontSize(18);
             doc.text(`Zeiterfassung - ${monthName}`, 34, 24);
         } catch (error) {
